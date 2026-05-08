@@ -14,8 +14,8 @@ const inter = Inter({
 });
 
 export const metadata = {
-  title: "Book Haven — Curated Literary Experiences",
-  description: "Discover your next great read. Modern bookstore for fiction, business, and timeless classics.",
+  title: "Book Haven — Kenya's Favourite Bookstore",
+  description: "Buy books online in Kenya. Free delivery on orders over KSh 3,000. Fiction, business, self-help, and more.",
 };
 
 export default function RootLayout({ children }) {
