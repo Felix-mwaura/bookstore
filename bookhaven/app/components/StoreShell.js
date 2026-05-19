@@ -1,9 +1,8 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { useStore } from "./StoreContext";
 import { BookCover } from "./BookCard";
 import WishlistDrawer from "./WishlistDrawer";
 
@@ -26,14 +25,32 @@ const CartIcon = () => (
   </svg>
 );
 
-const UserIcon = () => (
-  <svg className="w-6 h-6 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-  </svg>
-);
+function AccountLink() {
+  const [user, setUser] = useState(null);
+  useEffect(() => {
+    try {
+      const u = localStorage.getItem("bh_user");
+      if (u) setUser(JSON.parse(u));
+    } catch {}
+  }, []);
+  if (user) return (
+    <Link href="/account"
+      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
+      <div className="w-6 h-6 rounded-full bg-[#991B1B] flex items-center justify-center text-white text-[10px] font-bold">
+        {user.name?.charAt(0).toUpperCase()}
+      </div>
+      {user.name}
+    </Link>
+  );
+  return (
+    <Link href="/login"
+      className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
+      Sign In
+    </Link>
+  );
+}
 
-export const categoryIcons = {
-  All: "🏠", "Self-Help": "🌱", Finance: "💰", Productivity: "⚡",
+export const categoryIcons = {  All: "🏠", "Self-Help": "🌱", Finance: "💰", Productivity: "⚡",
   Psychology: "🧠", History: "🏛️", Philosophy: "💭", Fiction: "✨", Biography: "👤",
 };
 
@@ -153,6 +170,7 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
                 </Link>
               ))}
               <Link href="/#about" className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">About</Link>
+              <AccountLink />
             </nav>
 
             {/* Search — Desktop */}
@@ -174,12 +192,6 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
 
             {/* Actions */}
             <div className="flex items-center gap-1 sm:gap-2">
-              {/* Login link */}
-              <Link href="/login" className="hidden sm:flex flex-col items-center p-2 hover:bg-stone-50 rounded-lg transition group">
-                <UserIcon />
-                <span className="text-xs font-medium text-stone-600 mt-0.5 group-hover:text-[#991B1B] transition">Sign In</span>
-              </Link>
-
               <button onClick={onWishlistClick} className="hidden sm:flex flex-col items-center p-2 hover:bg-stone-50 rounded-lg transition relative">
                 <HeartIcon filled={wishlistCount > 0} />
                 {wishlistCount > 0 && (
@@ -231,9 +243,6 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
                   {categoryIcons[cat]} {cat}
                 </Link>
               ))}
-              <Link href="/login" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2.5 bg-stone-50 rounded-xl text-sm font-medium text-stone-700 hover:bg-stone-100 transition">
-                👤 Sign In
-              </Link>
             </div>
           </div>
         )}
@@ -299,7 +308,69 @@ export function StoreFooter() {
   );
 }
 
-// ── StoreShell — wraps pages with header + drawers ──
+// ── useStore hook — shared cart + wishlist state ────────
+export function useStore() {
+  const [cart, setCart] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [selectedBook, setSelectedBook] = useState(null);
+
+  useEffect(() => {
+    try {
+      const c = localStorage.getItem("bh_cart");
+      const w = localStorage.getItem("bh_wishlist");
+      if (c) setCart(JSON.parse(c));
+      if (w) setWishlist(JSON.parse(w));
+    } catch {}
+  }, []);
+
+  useEffect(() => { localStorage.setItem("bh_cart", JSON.stringify(cart)); }, [cart]);
+  useEffect(() => { localStorage.setItem("bh_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === "Escape") setSelectedBook(null); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
+  const addToCart = (book) => {
+    setCart((prev) => {
+      const exists = prev.find((i) => i.id === book.id);
+      if (exists) return prev.map((i) => i.id === book.id ? { ...i, quantity: i.quantity + 1 } : i);
+      return [...prev, { ...book, quantity: 1 }];
+    });
+    showToast(`"${book.title}" added to basket`);
+  };
+
+  const removeFromCart = (id) => setCart((prev) => prev.filter((i) => i.id !== id));
+  const updateQty = (id, delta) => setCart((prev) => prev.map((i) => i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i));
+
+  const toggleWishlist = (book) => {
+    setWishlist((prev) => {
+      const exists = prev.some((b) => b.id === book.id);
+      showToast(exists ? "Removed from wishlist" : "Added to wishlist ♡");
+      return exists ? prev.filter((b) => b.id !== book.id) : [...prev, book];
+    });
+  };
+
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
+
+  return {
+    cart, wishlist, isCartOpen, isWishlistOpen, toast, selectedBook,
+    setIsCartOpen, setIsWishlistOpen, setSelectedBook,
+    addToCart, removeFromCart, updateQty, toggleWishlist, cartTotal, cartCount,
+  };
+}
+
+// ── StoreShell — wraps any page with header + drawers ──
 export default function StoreShell({ children }) {
   const store = useStore();
 
@@ -312,13 +383,14 @@ export default function StoreShell({ children }) {
         onWishlistClick={() => store.setIsWishlistOpen(true)}
       />
 
+      {/* Pass store down via a context-like pattern using cloneElement */}
       {typeof children === "function" ? children(store) : children}
 
       <WishlistDrawer
         wishlist={store.wishlist}
         isOpen={store.isWishlistOpen}
         onClose={() => store.setIsWishlistOpen(false)}
-        onRemove={(id) => store.toggleWishlist(store.wishlist.find(b => b.id === id))}
+        onRemove={(id) => { store.setWishlist?.((p) => p.filter((b) => b.id !== id)); }}
         onAddToCart={(book) => { store.addToCart(book); store.setIsWishlistOpen(false); }}
         onViewDetail={store.setSelectedBook}
       />
