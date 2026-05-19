@@ -7,8 +7,9 @@ import books from "../books";
 import { BookCover } from "../components/BookCard";
 import BookDetailPage from "../components/BookCard";
 import FilterPanel from "../components/FilterPanel";
-import { useStore, StoreHeader, StoreFooter, categoryIcons, categories } from "../components/StoreShell";
-import WishlistDrawer from "../components/WishlistDrawer";
+import { useStore } from "../components/StoreContext";
+import { categoryIcons, categories } from "../components/StoreShell";
+import AppShell from "../components/AppShell";
 
 // ── BookCard ────────────────────────────────────────────
 function BookCard({ book, isWishlisted, onToggleWishlist, onAddToCart, onViewDetail }) {
@@ -104,14 +105,7 @@ function BooksInner() {
   }, [searchQuery, selectedCategory, sortBy, filters]);
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5]">
-      <StoreHeader
-        cartCount={store.cartCount}
-        wishlistCount={store.wishlist.length}
-        onCartClick={() => store.setIsCartOpen(true)}
-        onWishlistClick={() => store.setIsWishlistOpen(true)}
-      />
-
+    <AppShell>
       {/* Category sub-nav */}
       <nav className="bg-white border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-6">
@@ -211,27 +205,11 @@ function BooksInner() {
         </div>
       </div>
 
-      <StoreFooter />
-
-      {/* Drawers + modals */}
-      <WishlistDrawer wishlist={store.wishlist} isOpen={store.isWishlistOpen}
-        onClose={() => store.setIsWishlistOpen(false)}
-        onRemove={(id) => store.toggleWishlist(store.wishlist.find(b => b.id === id))}
-        onAddToCart={(book) => { store.addToCart(book); store.setIsWishlistOpen(false); }}
-        onViewDetail={store.setSelectedBook} />
-
       <BookDetailPage book={store.selectedBook}
         isWishlisted={store.selectedBook ? store.wishlist.some((b) => b.id === store.selectedBook.id) : false}
         onToggleWishlist={store.toggleWishlist} onAddToCart={store.addToCart}
         onClose={() => store.setSelectedBook(null)} />
-
-      {store.toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1C1917] text-white px-6 py-3 rounded-lg shadow-2xl animate-slide-up flex items-center gap-3 whitespace-nowrap">
-          <span className="text-green-400">✓</span>
-          <span className="text-sm font-medium">{store.toast}</span>
-        </div>
-      )}
-    </div>
+    </AppShell>
   );
 }
 
