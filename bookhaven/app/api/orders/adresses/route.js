@@ -1,0 +1,51 @@
+import { createClient } from "@supabase/supabase-js";
+import { NextResponse } from "next/server";
+
+const supabase = createClient(
+  "https://luniopceavtkljywukyi.supabase.co",
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bmlvcGNlYXZ0a2xqeXd1a3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzk1NTUsImV4cCI6MjA5NDc1NTU1NX0.zmZcxS2uxyon8Est9l3feYLuYy02hgcIpCNKAqKWtCE"
+);
+
+async function getUser(request) {
+  const token = request.headers.get("authorization")?.replace("Bearer ", "");
+  if (!token) return null;
+  const { data: { user } } = await supabase.auth.getUser(token);
+  return user;
+}
+
+export async function GET(request) {
+  const user = await getUser(request);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { data, error } = await supabase.from("addresses").select("*").eq("user_id", user.id).order("is_default", { ascending: false });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ addresses: data });
+}
+
+export async function POST(request) {
+  const user = await getUser(request);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { label, name, address, city, phone, isDefault } = await request.json();
+  if (isDefault) await supabase.from("addresses").update({ is_default: false }).eq("user_id", user.id);
+  const { data, error } = await supabase.from("addresses").insert({ user_id: user.id, label, name, address, city, phone, is_default: isDefault || false }).select().single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ address: data });
+}
+
+export async function PATCH(request) {
+  const user = await getUser(request);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id, isDefault, ...rest } = await request.json();
+  if (isDefault) await supabase.from("addresses").update({ is_default: false }).eq("user_id", user.id);
+  const { data, error } = await supabase.from("addresses").update({ is_default: isDefault, ...rest }).eq("id", id).eq("user_id", user.id).select().single();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ address: data });
+}
+
+export async function DELETE(request) {
+  const user = await getUser(request);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { id } = await request.json();
+  const { error } = await supabase.from("addresses").delete().eq("id", id).eq("user_id", user.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ success: true });
+}

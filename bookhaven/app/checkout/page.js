@@ -1,13 +1,10 @@
 "use client";
 
-"use client";
-
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { BookCover } from "../components/BookCard";
-import { useStore } from "../components/StoreContext";
-import AppShell from "../components/AppShell";
+import { supabase } from "../lib/supabase";
+
 function generateOrderId() {
   return "BH-" + Math.random().toString(36).substring(2, 7).toUpperCase();
 }
@@ -463,51 +460,57 @@ export default function CheckoutPage() {
   const updateDetail = (key, val) => setDetails((p) => ({ ...p, [key]: val }));
   const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
-  const handlePaymentSuccess = (method) => {
+  const handlePaymentSuccess = async (method) => {
     setPaymentMethod(method);
+    // Save order to Supabase if user is logged in
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ items: cart, total, deliveryDetails: details, paymentMethod: method }),
+        });
+      }
+    } catch (e) { console.error("Order save failed", e); }
     localStorage.removeItem("bh_cart");
     setStep(3);
   };
 
-    if (cart.length === 0 && step < 3) return (
-    <AppShell showFooter={false}>
-      <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-6 gap-6">
-        <div className="text-7xl">📚</div>
-        <h2 className="text-2xl font-bold text-[#1C1917]">Your basket is empty</h2>
-        <p className="text-stone-500">Add some books before checking out.</p>
-        <Link href="/books" className="bg-[#1C1917] hover:bg-[#991B1B] text-white px-8 py-3 rounded-xl font-bold transition">Browse Books</Link>
-      </div>
-    </AppShell>
+  if (cart.length === 0 && step < 3) return (
+    <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-6 gap-6">
+      <div className="text-7xl">📚</div>
+      <h2 className="text-2xl font-bold text-[#1C1917]">Your basket is empty</h2>
+      <p className="text-stone-500">Add some books before checking out.</p>
+      <Link href="/books" className="bg-[#1C1917] hover:bg-[#991B1B] text-white px-8 py-3 rounded-xl font-bold transition">Browse Books</Link>
+    </div>
   );
 
   return (
-    <AppShell showFooter={false}>
-      <div className="min-h-screen bg-[#FAF8F5]">
-        {/* Custom checkout header */}
-        <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-2 group">
-              <span className="text-2xl">📚</span>
-              <div><p className="text-lg font-black text-[#1C1917] leading-none group-hover:text-[#991B1B] transition">Book Haven</p><p className="text-[10px] uppercase tracking-widest text-stone-400 font-semibold">Kenya</p></div>
-            </Link>
-            <div className="flex items-center gap-2 text-xs text-stone-500">
-              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-              Secure Checkout
-            </div>
+    <div className="min-h-screen bg-[#FAF8F5]">
+      <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2 group">
+            <span className="text-2xl">📚</span>
+            <div><p className="text-lg font-black text-[#1C1917] leading-none group-hover:text-[#991B1B] transition">Book Haven</p><p className="text-[10px] uppercase tracking-widest text-stone-400 font-semibold">Kenya</p></div>
+          </Link>
+          <div className="flex items-center gap-2 text-xs text-stone-500">
+            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
+            Secure Checkout
           </div>
-        </header>
-        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-          <StepBar step={step} />
-          <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
-            <div className="bg-white rounded-2xl border border-stone-200 p-6 sm:p-8">
-              {step === 1 && <StepDetails data={details} onChange={updateDetail} onNext={() => setStep(2)} />}
-              {step === 2 && <StepPayment details={details} total={total} orderId={orderId} onSuccess={handlePaymentSuccess} onBack={() => setStep(1)} />}
-              {step === 3 && <StepConfirmation orderId={orderId} details={details} method={paymentMethod} cart={cart} total={total} />}
-            </div>
-            {step < 3 && <OrderSummary cart={cart} total={total} />}
+        </div>
+      </header>
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+        <StepBar step={step} />
+        <div className="grid lg:grid-cols-[1fr_360px] gap-8 items-start">
+          <div className="bg-white rounded-2xl border border-stone-200 p-6 sm:p-8">
+            {step === 1 && <StepDetails data={details} onChange={updateDetail} onNext={() => setStep(2)} />}
+            {step === 2 && <StepPayment details={details} total={total} orderId={orderId} onSuccess={handlePaymentSuccess} onBack={() => setStep(1)} />}
+            {step === 3 && <StepConfirmation orderId={orderId} details={details} method={paymentMethod} cart={cart} total={total} />}
           </div>
-        </main>
-      </div>
-    </AppShell>
+          {step < 3 && <OrderSummary cart={cart} total={total} />}
+        </div>
+      </main>
+    </div>
   );
 }
