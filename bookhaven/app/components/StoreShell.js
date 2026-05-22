@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookCover } from "./BookCard";
@@ -27,28 +27,231 @@ const CartIcon = () => (
 
 function AccountLink() {
   const [user, setUser] = useState(null);
+  const [open, setOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const ref = useRef(null);
+  const router = useRouter();
+
+  // Read from both Supabase session and localStorage fallback
   useEffect(() => {
-    try {
-      const u = localStorage.getItem("bh_user");
-      if (u) setUser(JSON.parse(u));
-    } catch {}
+    const loadUser = async () => {
+      try {
+        // Try Supabase first
+        const { createClient } = await import("@supabase/supabase-js");
+        const sb = createClient(
+          "https://luniopceavtkljywukyi.supabase.co",
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bmlvcGNlYXZ0a2xqeXd1a3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzk1NTUsImV4cCI6MjA5NDc1NTU1NX0.zmZcxS2uxyon8Est9l3feYLuYy02hgcIpCNKAqKWtCE"
+        );
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.user) {
+          const meta = session.user.user_metadata || {};
+          const name = `${meta.first_name || ""}`.trim() || session.user.email?.split("@")[0] || "Reader";
+          setUser({ name, email: session.user.email, initial: name.charAt(0).toUpperCase() });
+          return;
+        }
+      } catch {}
+      // Fallback to localStorage
+      try {
+        const u = localStorage.getItem("bh_user");
+        if (u) {
+          const parsed = JSON.parse(u);
+          setUser({ name: parsed.name || "Reader", email: parsed.email, initial: (parsed.name || "R").charAt(0).toUpperCase() });
+        }
+      } catch {}
+    };
+    loadUser();
   }, []);
-  if (user) return (
-    <Link href="/account"
-      className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
-      <div className="w-6 h-6 rounded-full bg-[#991B1B] flex items-center justify-center text-white text-[10px] font-bold">
-        {user.name?.charAt(0).toUpperCase()}
-      </div>
-      {user.name}
-    </Link>
+
+  // Close on outside click
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const handleLogout = async () => {
+    setLoggingOut(true);
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const sb = createClient(
+        "https://luniopceavtkljywukyi.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bmlvcGNlYXZ0a2xqeXd1a3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzk1NTUsImV4cCI6MjA5NDc1NTU1NX0.zmZcxS2uxyon8Est9l3feYLuYy02hgcIpCNKAqKWtCE"
+      );
+      await sb.auth.signOut();
+    } catch {}
+    localStorage.removeItem("bh_user");
+    localStorage.removeItem("bh_cart");
+    localStorage.removeItem("bh_wishlist");
+    setUser(null);
+    setOpen(false);
+    setLoggingOut(false);
+    router.push("/");
+  };
+
+  // ── NOT LOGGED IN ──
+  if (!user) return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        Account
+        <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-stone-100 z-[60] overflow-hidden animate-slide-up">
+          {/* Header */}
+          <div className="bg-[#1C1917] px-5 py-4">
+            <p className="text-white font-bold text-sm">Hello, Guest</p>
+            <p className="text-stone-400 text-xs mt-0.5">Sign in for the best experience</p>
+          </div>
+          {/* Auth buttons */}
+          <div className="p-3 grid grid-cols-2 gap-2 border-b border-stone-100">
+            <Link href="/login" onClick={() => setOpen(false)}
+              className="bg-[#991B1B] hover:bg-[#7F1D1D] text-white text-center py-2.5 rounded-xl text-sm font-bold transition active:scale-95">
+              Sign In
+            </Link>
+            <Link href="/login?tab=register" onClick={() => setOpen(false)}
+              className="border-2 border-stone-200 hover:border-[#991B1B] text-stone-700 hover:text-[#991B1B] text-center py-2.5 rounded-xl text-sm font-bold transition">
+              Register
+            </Link>
+          </div>
+          {/* Quick links */}
+          <div className="py-2">
+            {[
+              { icon: "📦", label: "Track Orders", href: "/login" },
+              { icon: "♡", label: "My Wishlist", href: "/login" },
+              { icon: "📍", label: "Saved Addresses", href: "/login" },
+              { icon: "❓", label: "Help & Support", href: "/#contact" },
+            ].map(({ icon, label, href }) => (
+              <Link key={label} href={href} onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 hover:text-[#1C1917] transition">
+                <span className="text-base w-5 text-center">{icon}</span>
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
+
+  // ── LOGGED IN ──
   return (
-    <Link href="/login"
-      className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
-      Sign In
-    </Link>
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition hover:bg-stone-50 ${open ? "bg-stone-50" : ""}`}
+      >
+        {/* Avatar */}
+        <div className="w-8 h-8 rounded-full bg-[#991B1B] flex items-center justify-center text-white font-black text-sm shadow-sm flex-shrink-0">
+          {user.initial}
+        </div>
+        <div className="text-left hidden xl:block">
+          <p className="text-[10px] text-stone-400 leading-none">Hello,</p>
+          <p className="text-sm font-bold text-[#1C1917] leading-tight truncate max-w-[80px]">{user.name}</p>
+        </div>
+        <svg className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-stone-100 z-[60] overflow-hidden"
+          style={{ animation: "dropdownIn 0.18s cubic-bezier(0.16,1,0.3,1) forwards" }}>
+
+          {/* User header */}
+          <div className="bg-gradient-to-br from-[#1C1917] to-[#2d1f15] px-5 py-4 flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-[#991B1B] flex items-center justify-center text-white font-black text-xl shadow-md flex-shrink-0">
+              {user.initial}
+            </div>
+            <div className="min-w-0">
+              <p className="text-white font-bold truncate">{user.name}</p>
+              <p className="text-stone-400 text-xs truncate mt-0.5">{user.email}</p>
+            </div>
+          </div>
+
+          {/* My Account section */}
+          <div className="px-3 pt-3 pb-1">
+            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-1">My Account</p>
+            {[
+              { icon: "👤", label: "My Profile", sub: "Edit personal info", href: "/account?tab=settings" },
+              { icon: "📦", label: "My Orders", sub: "Track & manage orders", href: "/account?tab=orders" },
+              { icon: "♡", label: "My Wishlist", sub: "Saved books", href: "/account?tab=wishlist" },
+              { icon: "📍", label: "My Addresses", sub: "Delivery addresses", href: "/account?tab=addresses" },
+            ].map(({ icon, label, sub, href }) => (
+              <Link key={label} href={href} onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-stone-50 transition group">
+                <div className="w-8 h-8 rounded-lg bg-stone-100 group-hover:bg-[#991B1B]/10 flex items-center justify-center text-base transition flex-shrink-0">
+                  {icon}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#991B1B] transition">{label}</p>
+                  <p className="text-xs text-stone-400">{sub}</p>
+                </div>
+                <svg className="w-4 h-4 text-stone-300 group-hover:text-[#991B1B] ml-auto transition flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            ))}
+          </div>
+
+          <div className="mx-3 border-t border-stone-100 my-1" />
+
+          {/* Help section */}
+          <div className="px-3 pb-1">
+            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-1">Support</p>
+            {[
+              { icon: "❓", label: "Help Centre", href: "/#contact" },
+              { icon: "🔄", label: "Returns & Refunds", href: "/#contact" },
+            ].map(({ icon, label, href }) => (
+              <Link key={label} href={href} onClick={() => setOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-stone-50 transition text-sm text-stone-600 hover:text-[#1C1917]">
+                <span className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center text-base flex-shrink-0">{icon}</span>
+                {label}
+              </Link>
+            ))}
+          </div>
+
+          <div className="mx-3 border-t border-stone-100 my-1" />
+
+          {/* Sign out + Delete */}
+          <div className="px-3 pb-3 space-y-1">
+            <button onClick={handleLogout} disabled={loggingOut}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-stone-50 transition group text-left">
+              <div className="w-8 h-8 rounded-lg bg-stone-100 group-hover:bg-stone-200 flex items-center justify-center flex-shrink-0 transition">
+                <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-stone-600 group-hover:text-[#1C1917] transition">
+                {loggingOut ? "Signing out…" : "Sign Out"}
+              </span>
+            </button>
+
+            <button
+              onClick={() => { if (confirm("Are you sure you want to delete your account? This cannot be undone.")) { handleLogout(); } }}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 transition group text-left">
+              <div className="w-8 h-8 rounded-lg bg-stone-100 group-hover:bg-red-100 flex items-center justify-center flex-shrink-0 transition">
+                <svg className="w-4 h-4 text-stone-400 group-hover:text-red-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </div>
+              <span className="text-sm font-semibold text-stone-400 group-hover:text-red-600 transition">Delete Account</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
+
 
 export const categoryIcons = {  All: "🏠", "Self-Help": "🌱", Finance: "💰", Productivity: "⚡",
   Psychology: "🧠", History: "🏛️", Philosophy: "💭", Fiction: "✨", Biography: "👤",
@@ -136,33 +339,50 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
   const handleSearch = (e) => {
     if (e.key === "Enter" && query.trim()) {
       router.push(`/books?q=${encodeURIComponent(query.trim())}`);
+      setMobileSearchOpen(false);
+    }
+  };
+
+  const handleSearchSubmit = () => {
+    if (query.trim()) {
+      router.push(`/books?q=${encodeURIComponent(query.trim())}`);
+      setMobileSearchOpen(false);
     }
   };
 
   return (
     <>
-      <div className="bg-[#1C1917] text-white text-center py-2.5 text-sm font-medium">
-        Free delivery within Nairobi on orders over KSh 3,000 · Nationwide shipping available
+      {/* Announcement bar */}
+      <div className="bg-[#1C1917] text-white text-center py-2 text-xs sm:text-sm font-medium px-4">
+        Free delivery in Nairobi on orders over KSh 3,000 · Nationwide shipping available
       </div>
+
       <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-20 gap-4">
+          <div className="flex items-center justify-between h-16 sm:h-20 gap-3">
+
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0 group">
-              <span className="text-3xl">📚</span>
-              <div>
-                <p className="text-2xl font-black tracking-tight text-[#1C1917] leading-none group-hover:text-[#991B1B] transition">Book Haven</p>
-                <p className="text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">Kenya</p>
+              <span className="text-2xl sm:text-3xl">📚</span>
+              <div className="hidden xs:block">
+                <p className="text-lg sm:text-2xl font-black tracking-tight text-[#1C1917] leading-none group-hover:text-[#991B1B] transition">Book Haven</p>
+                <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">Kenya</p>
               </div>
             </Link>
 
-            {/* Nav links — desktop */}
-            <nav className="hidden lg:flex items-center gap-1">
-              <Link href="/books" className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">All Books</Link>
+            {/* Desktop nav */}
+            <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1">
+              <Link href="/" className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
+                🏠 Home
+              </Link>
+              <Link href="/books" className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
+                All Books
+              </Link>
               {["Self-Help", "Finance", "Fiction", "Biography"].map((cat) => (
                 <Link key={cat} href={`/category/${cat.toLowerCase().replace(/\s+/g, "-")}`}
                   className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
@@ -170,46 +390,66 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
                 </Link>
               ))}
               <Link href="/#about" className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">About</Link>
-              <AccountLink />
             </nav>
 
-            {/* Search — Desktop */}
-            <div className="hidden md:flex flex-1 max-w-sm mx-4">
+            {/* Desktop search */}
+            <div className="hidden md:flex flex-1 max-w-xs xl:max-w-sm">
               <div className="relative w-full">
-                <input
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={handleSearch}
-                  placeholder="Search books... (Enter)"
-                  className="w-full bg-stone-50 border border-stone-300 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:border-[#991B1B] focus:ring-1 focus:ring-[#991B1B] transition"
-                />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400">
-                  <SearchIcon />
-                </div>
+                <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={handleSearch}
+                  placeholder="Search books..."
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-10 pr-10 py-2.5 text-sm outline-none focus:border-[#991B1B] focus:ring-1 focus:ring-[#991B1B]/20 transition" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"><SearchIcon /></div>
+                {query && (
+                  <button onClick={handleSearchSubmit} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-[#991B1B] transition">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-1 sm:gap-2">
-              <button onClick={onWishlistClick} className="hidden sm:flex flex-col items-center p-2 hover:bg-stone-50 rounded-lg transition relative">
-                <HeartIcon filled={wishlistCount > 0} />
-                {wishlistCount > 0 && (
-                  <span className="absolute top-1 right-1 bg-[#991B1B] text-white text-[10px] font-bold h-4 w-4 rounded-full flex items-center justify-center">{wishlistCount}</span>
-                )}
-                <span className="text-xs font-medium text-stone-600 mt-0.5">Wishlist</span>
+            {/* Right actions */}
+            <div className="flex items-center gap-1">
+              {/* Mobile search toggle */}
+              <button onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
+                className="md:hidden p-2 hover:bg-stone-50 rounded-lg transition text-stone-600">
+                <SearchIcon />
               </button>
-              <button onClick={onCartClick} className="flex flex-col items-center p-2 hover:bg-stone-50 rounded-lg transition relative">
+
+              {/* Wishlist — hidden on small mobile */}
+              <button onClick={onWishlistClick}
+                className="hidden sm:flex flex-col items-center p-2 hover:bg-stone-50 rounded-lg transition relative">
+                <div className="relative">
+                  <HeartIcon filled={wishlistCount > 0} />
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1.5 bg-[#991B1B] text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center">{wishlistCount}</span>
+                  )}
+                </div>
+                <span className="text-[10px] font-medium text-stone-500 mt-0.5 hidden sm:block">Wishlist</span>
+              </button>
+
+              {/* Cart */}
+              <button onClick={onCartClick}
+                className="flex flex-col items-center p-2 hover:bg-stone-50 rounded-lg transition relative">
                 <div className="relative">
                   <CartIcon />
                   {cartCount > 0 && (
-                    <span className="absolute -top-2 -right-2 bg-[#991B1B] text-white text-[10px] font-bold h-5 w-5 rounded-full flex items-center justify-center border-2 border-white">{cartCount}</span>
+                    <span className="absolute -top-1.5 -right-1.5 bg-[#991B1B] text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-white">{cartCount}</span>
                   )}
                 </div>
-                <span className="text-xs font-medium text-stone-600 mt-0.5">Cart</span>
+                <span className="text-[10px] font-medium text-stone-500 mt-0.5 hidden sm:block">Cart</span>
               </button>
-              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="lg:hidden p-2 hover:bg-stone-50 rounded-lg">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+
+              {/* Account — desktop only, mobile handled in menu */}
+              <div className="hidden lg:block">
+                <AccountLink />
+              </div>
+
+              {/* Hamburger — mobile/tablet */}
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden p-2 hover:bg-stone-50 rounded-lg transition">
+                <svg className="w-6 h-6 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {mobileMenuOpen
                     ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
@@ -218,31 +458,77 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
             </div>
           </div>
 
-          {/* Mobile search */}
-          <div className="md:hidden pb-4">
-            <div className="relative w-full">
-              <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={handleSearch}
-                placeholder="Search books... (Enter to search)"
-                className="w-full bg-stone-50 border border-stone-300 rounded-lg pl-10 pr-4 py-2.5 text-sm outline-none focus:border-[#991B1B]" />
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"><SearchIcon /></div>
+          {/* Mobile search bar — slides down */}
+          {mobileSearchOpen && (
+            <div className="md:hidden pb-3 animate-fade-in">
+              <div className="relative w-full">
+                <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={handleSearch}
+                  autoFocus placeholder="Search books, authors..."
+                  className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-10 pr-10 py-3 text-sm outline-none focus:border-[#991B1B] focus:ring-1 focus:ring-[#991B1B]/20 transition" />
+                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"><SearchIcon /></div>
+                <button onClick={handleSearchSubmit} className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#991B1B] text-white rounded-lg p-1 transition hover:bg-[#7F1D1D]">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
-        {/* Mobile nav menu */}
+        {/* Mobile full-screen menu */}
         {mobileMenuOpen && (
-          <div className="lg:hidden bg-white border-t border-stone-100 px-4 pb-4 animate-fade-in">
-            <div className="grid grid-cols-2 gap-2 pt-3">
-              <Link href="/books" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 px-3 py-2.5 bg-stone-50 rounded-xl text-sm font-medium text-stone-700 hover:bg-stone-100 transition">
-                🏠 All Books
-              </Link>
-              {categories.filter(c => c !== "All").map((cat) => (
-                <Link key={cat} href={`/category/${cat.toLowerCase().replace(/\s+/g, "-")}`}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2.5 bg-stone-50 rounded-xl text-sm font-medium text-stone-700 hover:bg-stone-100 transition">
-                  {categoryIcons[cat]} {cat}
+          <div className="lg:hidden bg-white border-t border-stone-100 animate-fade-in max-h-[80vh] overflow-y-auto">
+            <div className="px-4 py-4 space-y-1">
+
+              {/* Main nav links */}
+              <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-2">Browse</p>
+              {[
+                { href: "/", label: "Home", icon: "🏠" },
+                { href: "/books", label: "All Books", icon: "📚" },
+              ].map(({ href, label, icon }) => (
+                <Link key={label} href={href} onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3 py-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-sm font-semibold text-stone-700 transition">
+                  <span className="text-base">{icon}</span> {label}
                 </Link>
               ))}
+
+              {/* Categories grid */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                {categories.filter(c => c !== "All").map((cat) => (
+                  <Link key={cat} href={`/category/${cat.toLowerCase().replace(/\s+/g, "-")}`}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-2.5 bg-stone-50 hover:bg-stone-100 rounded-xl text-sm font-medium text-stone-700 transition">
+                    <span>{categoryIcons[cat]}</span> {cat}
+                  </Link>
+                ))}
+              </div>
+
+              <div className="border-t border-stone-100 pt-3 mt-2">
+                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-2">Account</p>
+                {/* Account link in mobile */}
+                <div className="px-1">
+                  <AccountLink />
+                </div>
+              </div>
+
+              {/* Wishlist in mobile menu */}
+              <button onClick={() => { onWishlistClick(); setMobileMenuOpen(false); }}
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-sm font-semibold text-stone-700 transition">
+                <span className="text-base">♡</span>
+                Wishlist
+                {wishlistCount > 0 && <span className="ml-auto bg-[#991B1B] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{wishlistCount}</span>}
+              </button>
+
+              <Link href="/#about" onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-sm font-semibold text-stone-700 transition">
+                <span className="text-base">ℹ️</span> About Us
+              </Link>
+
+              <Link href="/#contact" onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-sm font-semibold text-stone-700 transition">
+                <span className="text-base">📞</span> Contact
+              </Link>
             </div>
           </div>
         )}

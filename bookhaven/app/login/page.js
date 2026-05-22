@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, signUp, useAuth, getUserName } from "../lib/auth";
 
 function Field({ label, name, type = "text", placeholder, value, onChange, error }) {
@@ -167,8 +167,9 @@ function RegisterForm({ onSuccess, onError }) {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, loading: authLoading } = useAuth();
-  const [tab, setTab] = useState("login");
+  const [tab, setTab] = useState(searchParams.get("tab") === "register" ? "register" : "login");
   const [success, setSuccess] = useState(null);
   const [authError, setAuthError] = useState("");
   const celebrationRef = useRef(null);
