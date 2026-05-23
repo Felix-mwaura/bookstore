@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BookCover } from "../components/BookCard";
 import { StoreHeader, StoreFooter, CartDrawer, useStore } from "../components/StoreShell";
 import WishlistDrawer from "../components/WishlistDrawer";
@@ -326,9 +326,10 @@ const TABS = [
 
 export default function AccountPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const store = useStore();
   const { user, session, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState("orders");
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "orders");
 
   useEffect(() => { if (!loading && !user) router.push("/login"); }, [user, loading]);
 
@@ -364,13 +365,15 @@ export default function AccountPage() {
               <p className="text-stone-500 text-sm">{user.email}</p>
             </div>
           </div>
-          <div className="flex gap-1 mt-6 border-b border-stone-200">
+          <div className="flex gap-0 sm:gap-1 mt-6 border-b border-stone-200 overflow-x-auto">
             {TABS.map(tab=>(
               <button key={tab.id} onClick={()=>setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${activeTab===tab.id?"border-[#991B1B] text-[#991B1B]":"border-transparent text-stone-500 hover:text-[#1C1917]"}`}>
-                <span>{tab.icon}</span> {tab.label}
+                className={`flex items-center gap-1.5 px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap flex-shrink-0 ${activeTab===tab.id?"border-[#991B1B] text-[#991B1B]":"border-transparent text-stone-500 hover:text-[#1C1917]"}`}>
+                <span>{tab.icon}</span>
+                <span className="hidden xs:inline">{tab.label}</span>
+                <span className="xs:hidden">{tab.label.split(" ")[0]}</span>
                 {tab.id==="wishlist"&&store.wishlist.length>0&&(
-                  <span className="bg-[#991B1B] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{store.wishlist.length}</span>
+                  <span className="bg-[#991B1B] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{store.wishlist.length}</span>
                 )}
               </button>
             ))}

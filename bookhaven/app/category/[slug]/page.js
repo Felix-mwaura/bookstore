@@ -8,9 +8,8 @@ import books from "../../books";
 import { BookCover } from "../../components/BookCard";
 import BookDetailPage from "../../components/BookCard";
 import FilterPanel from "../../components/FilterPanel";
-import { useStore } from "../../components/StoreContext";
-import { categoryIcons, categories } from "../../components/StoreShell";
-import AppShell from "../../components/AppShell";
+import { useStore, StoreHeader, StoreFooter, categoryIcons, categories, CartDrawer } from "../../components/StoreShell";
+import WishlistDrawer from "../../components/WishlistDrawer";
 
 // slug → display name
 function slugToCategory(slug) {
@@ -130,7 +129,14 @@ export default function CategoryPage({ params }) {
   const allCategoryBooks = books.filter((b) => b.category === category);
 
   return (
-    <AppShell>
+    <div className="min-h-screen bg-[#FAF8F5]">
+      <StoreHeader
+        cartCount={store.cartCount}
+        wishlistCount={store.wishlist.length}
+        onCartClick={() => store.setIsCartOpen(true)}
+        onWishlistClick={() => store.setIsWishlistOpen(true)}
+      />
+
       {/* Category hero banner */}
       <section className="relative overflow-hidden py-16"
         style={{ backgroundColor: colors.bg }}>
@@ -150,17 +156,17 @@ export default function CategoryPage({ params }) {
             <span style={{ color: colors.accent }}>{category}</span>
           </nav>
 
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 md:gap-8">
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-5xl">{categoryIcons[category]}</span>
+              <div className="flex items-center gap-3 mb-3 sm:mb-4">
+                <span className="text-4xl sm:text-5xl">{categoryIcons[category]}</span>
                 <span className="text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full"
                   style={{ backgroundColor: `${colors.accent}20`, color: colors.accent }}>
                   {allCategoryBooks.length} books
                 </span>
               </div>
-              <h1 className="text-4xl lg:text-5xl font-black text-white leading-tight">{category}</h1>
-              <p className="mt-3 text-base max-w-xl leading-relaxed" style={{ color: `${colors.accent}cc` }}>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white leading-tight">{category}</h1>
+              <p className="mt-2 sm:mt-3 text-sm sm:text-base max-w-xl leading-relaxed" style={{ color: `${colors.accent}cc` }}>
                 {categoryDescriptions[category]}
               </p>
             </div>
@@ -182,7 +188,7 @@ export default function CategoryPage({ params }) {
           </div>
 
           {/* Other categories */}
-          <div className="flex flex-wrap gap-2 mt-8">
+          <div className="flex flex-wrap gap-2 mt-6 sm:mt-8">
             <Link href="/books"
               className="px-3 py-1.5 rounded-full text-xs font-semibold transition border"
               style={{ borderColor: `${colors.accent}40`, color: `${colors.accent}99` }}>
@@ -253,10 +259,34 @@ export default function CategoryPage({ params }) {
         </div>
       </div>
 
+      <StoreFooter />
+
+      <WishlistDrawer wishlist={store.wishlist} isOpen={store.isWishlistOpen}
+        onClose={() => store.setIsWishlistOpen(false)}
+        onRemove={(id) => store.toggleWishlist(store.wishlist.find(b => b.id === id))}
+        onAddToCart={(book) => { store.addToCart(book); store.setIsWishlistOpen(false); }}
+        onViewDetail={store.setSelectedBook} />
+
+      <CartDrawer
+        cart={store.cart}
+        isOpen={store.isCartOpen}
+        onClose={() => store.setIsCartOpen(false)}
+        onUpdateQty={store.updateQty}
+        onRemove={store.removeFromCart}
+        total={store.cartTotal}
+      />
+
       <BookDetailPage book={store.selectedBook}
         isWishlisted={store.selectedBook ? store.wishlist.some((b) => b.id === store.selectedBook.id) : false}
         onToggleWishlist={store.toggleWishlist} onAddToCart={store.addToCart}
         onClose={() => store.setSelectedBook(null)} />
-    </AppShell>
+
+      {store.toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1C1917] text-white px-6 py-3 rounded-lg shadow-2xl animate-slide-up flex items-center gap-3 whitespace-nowrap">
+          <span className="text-green-400">✓</span>
+          <span className="text-sm font-medium">{store.toast}</span>
+        </div>
+      )}
+    </div>
   );
 }

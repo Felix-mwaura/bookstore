@@ -7,9 +7,8 @@ import books from "../books";
 import { BookCover } from "../components/BookCard";
 import BookDetailPage from "../components/BookCard";
 import FilterPanel from "../components/FilterPanel";
-import { useStore } from "../components/StoreContext";
-import { categoryIcons, categories } from "../components/StoreShell";
-import AppShell from "../components/AppShell";
+import { useStore, StoreHeader, StoreFooter, categoryIcons, categories, CartDrawer } from "../components/StoreShell";
+import WishlistDrawer from "../components/WishlistDrawer";
 
 // ── BookCard ────────────────────────────────────────────
 function BookCard({ book, isWishlisted, onToggleWishlist, onAddToCart, onViewDetail }) {
@@ -105,7 +104,14 @@ function BooksInner() {
   }, [searchQuery, selectedCategory, sortBy, filters]);
 
   return (
-    <AppShell>
+    <div className="min-h-screen bg-[#FAF8F5]">
+      <StoreHeader
+        cartCount={store.cartCount}
+        wishlistCount={store.wishlist.length}
+        onCartClick={() => store.setIsCartOpen(true)}
+        onWishlistClick={() => store.setIsWishlistOpen(true)}
+      />
+
       {/* Category sub-nav */}
       <nav className="bg-white border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-6">
@@ -122,16 +128,16 @@ function BooksInner() {
 
       {/* Page header */}
       <div className="bg-white border-b border-stone-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-5 sm:py-8">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <nav className="text-xs text-stone-400 mb-2">
+              <nav className="text-xs text-stone-400 mb-1.5">
                 <Link href="/" className="hover:text-[#991B1B]">Home</Link>
                 <span className="mx-2">›</span>
                 <span className="text-stone-600 font-medium">All Books</span>
               </nav>
-              <h1 className="text-3xl font-bold text-[#1C1917]">All Books</h1>
-              <p className="text-stone-500 text-sm mt-1">{books.length} titles in our catalogue</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[#1C1917]">All Books</h1>
+              <p className="text-stone-500 text-sm mt-0.5">{books.length} titles in our catalogue</p>
             </div>
             {/* Search on this page */}
             <div className="relative w-full sm:w-80">
@@ -205,11 +211,36 @@ function BooksInner() {
         </div>
       </div>
 
+      <StoreFooter />
+
+      {/* Drawers + modals */}
+      <WishlistDrawer wishlist={store.wishlist} isOpen={store.isWishlistOpen}
+        onClose={() => store.setIsWishlistOpen(false)}
+        onRemove={(id) => store.toggleWishlist(store.wishlist.find(b => b.id === id))}
+        onAddToCart={(book) => { store.addToCart(book); store.setIsWishlistOpen(false); }}
+        onViewDetail={store.setSelectedBook} />
+
+      <CartDrawer
+        cart={store.cart}
+        isOpen={store.isCartOpen}
+        onClose={() => store.setIsCartOpen(false)}
+        onUpdateQty={store.updateQty}
+        onRemove={store.removeFromCart}
+        total={store.cartTotal}
+      />
+
       <BookDetailPage book={store.selectedBook}
         isWishlisted={store.selectedBook ? store.wishlist.some((b) => b.id === store.selectedBook.id) : false}
         onToggleWishlist={store.toggleWishlist} onAddToCart={store.addToCart}
         onClose={() => store.setSelectedBook(null)} />
-    </AppShell>
+
+      {store.toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1C1917] text-white px-6 py-3 rounded-lg shadow-2xl animate-slide-up flex items-center gap-3 whitespace-nowrap">
+          <span className="text-green-400">✓</span>
+          <span className="text-sm font-medium">{store.toast}</span>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -540,11 +540,11 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
 // ── Shared Footer ───────────────────────────────────────
 export function StoreFooter() {
   return (
-    <footer className="bg-white border-t border-stone-200 pt-16 pb-8">
+    <footer className="bg-white border-t border-stone-200 pt-10 sm:pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-12">
-          <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-8 sm:mb-12">
+          <div className="col-span-2 sm:col-span-2 md:col-span-1">
+            <div className="flex items-center gap-2 mb-3">
               <span className="text-2xl">📚</span>
               <span className="text-xl font-black text-[#1C1917]">Book Haven</span>
             </div>
