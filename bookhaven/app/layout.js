@@ -1,6 +1,5 @@
 import "./globals.css";
 import { Playfair_Display, Inter } from "next/font/google";
-import { StoreProvider } from "./components/StoreContext";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -21,11 +20,9 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className="scroll-smooth">
+    <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth">
       <body className={`${playfair.variable} ${inter.variable}`}>
-        <StoreProvider>
-          {children}
-        </StoreProvider>
+        {children}
       </body>
     </html>
   );

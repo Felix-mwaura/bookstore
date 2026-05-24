@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BookCover } from "./BookCard";
 import WishlistDrawer from "./WishlistDrawer";
+import { supabase } from "../lib/supabase";
 
 // ── Icons ──────────────────────────────────────────────
 const SearchIcon = () => (
@@ -25,6 +26,7 @@ const CartIcon = () => (
   </svg>
 );
 
+// ── Account dropdown ────────────────────────────────────
 function AccountLink() {
   const [user, setUser] = useState(null);
   const [open, setOpen] = useState(false);
@@ -32,17 +34,10 @@ function AccountLink() {
   const ref = useRef(null);
   const router = useRouter();
 
-  // Read from both Supabase session and localStorage fallback
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // Try Supabase first
-        const { createClient } = await import("@supabase/supabase-js");
-        const sb = createClient(
-          "https://luniopceavtkljywukyi.supabase.co",
-          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bmlvcGNlYXZ0a2xqeXd1a3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzk1NTUsImV4cCI6MjA5NDc1NTU1NX0.zmZcxS2uxyon8Est9l3feYLuYy02hgcIpCNKAqKWtCE"
-        );
-        const { data: { session } } = await sb.auth.getSession();
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user) {
           const meta = session.user.user_metadata || {};
           const name = `${meta.first_name || ""}`.trim() || session.user.email?.split("@")[0] || "Reader";
@@ -50,7 +45,6 @@ function AccountLink() {
           return;
         }
       } catch {}
-      // Fallback to localStorage
       try {
         const u = localStorage.getItem("bh_user");
         if (u) {
@@ -60,9 +54,20 @@ function AccountLink() {
       } catch {}
     };
     loadUser();
+
+    // Listen for auth state changes so dropdown updates on login/logout
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const meta = session.user.user_metadata || {};
+        const name = `${meta.first_name || ""}`.trim() || session.user.email?.split("@")[0] || "Reader";
+        setUser({ name, email: session.user.email, initial: name.charAt(0).toUpperCase() });
+      } else {
+        setUser(null);
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener("mousedown", handler);
@@ -71,14 +76,7 @@ function AccountLink() {
 
   const handleLogout = async () => {
     setLoggingOut(true);
-    try {
-      const { createClient } = await import("@supabase/supabase-js");
-      const sb = createClient(
-        "https://luniopceavtkljywukyi.supabase.co",
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bmlvcGNlYXZ0a2xqeXd1a3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzk1NTUsImV4cCI6MjA5NDc1NTU1NX0.zmZcxS2uxyon8Est9l3feYLuYy02hgcIpCNKAqKWtCE"
-      );
-      await sb.auth.signOut();
-    } catch {}
+    await supabase.auth.signOut();
     localStorage.removeItem("bh_user");
     localStorage.removeItem("bh_cart");
     localStorage.removeItem("bh_wishlist");
@@ -88,13 +86,11 @@ function AccountLink() {
     router.push("/");
   };
 
-  // ── NOT LOGGED IN ──
+  // ── Guest ──
   if (!user) return (
     <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition"
-      >
+      <button onClick={() => setOpen(!open)}
+        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         </svg>
@@ -103,15 +99,13 @@ function AccountLink() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-stone-100 z-[60] overflow-hidden animate-slide-up">
-          {/* Header */}
+        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-stone-100 z-[60] overflow-hidden"
+          style={{ animation: "dropdownIn 0.18s cubic-bezier(0.16,1,0.3,1) forwards" }}>
           <div className="bg-[#1C1917] px-5 py-4">
             <p className="text-white font-bold text-sm">Hello, Guest</p>
             <p className="text-stone-400 text-xs mt-0.5">Sign in for the best experience</p>
           </div>
-          {/* Auth buttons */}
           <div className="p-3 grid grid-cols-2 gap-2 border-b border-stone-100">
             <Link href="/login" onClick={() => setOpen(false)}
               className="bg-[#991B1B] hover:bg-[#7F1D1D] text-white text-center py-2.5 rounded-xl text-sm font-bold transition active:scale-95">
@@ -122,7 +116,6 @@ function AccountLink() {
               Register
             </Link>
           </div>
-          {/* Quick links */}
           <div className="py-2">
             {[
               { icon: "📦", label: "Track Orders", href: "/login" },
@@ -142,14 +135,11 @@ function AccountLink() {
     </div>
   );
 
-  // ── LOGGED IN ──
+  // ── Logged in ──
   return (
     <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition hover:bg-stone-50 ${open ? "bg-stone-50" : ""}`}
-      >
-        {/* Avatar */}
+      <button onClick={() => setOpen(!open)}
+        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition hover:bg-stone-50 ${open ? "bg-stone-50" : ""}`}>
         <div className="w-8 h-8 rounded-full bg-[#991B1B] flex items-center justify-center text-white font-black text-sm shadow-sm flex-shrink-0">
           {user.initial}
         </div>
@@ -166,7 +156,6 @@ function AccountLink() {
         <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-stone-100 z-[60] overflow-hidden"
           style={{ animation: "dropdownIn 0.18s cubic-bezier(0.16,1,0.3,1) forwards" }}>
 
-          {/* User header */}
           <div className="bg-gradient-to-br from-[#1C1917] to-[#2d1f15] px-5 py-4 flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-[#991B1B] flex items-center justify-center text-white font-black text-xl shadow-md flex-shrink-0">
               {user.initial}
@@ -177,7 +166,6 @@ function AccountLink() {
             </div>
           </div>
 
-          {/* My Account section */}
           <div className="px-3 pt-3 pb-1">
             <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-1">My Account</p>
             {[
@@ -188,9 +176,7 @@ function AccountLink() {
             ].map(({ icon, label, sub, href }) => (
               <Link key={label} href={href} onClick={() => setOpen(false)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-stone-50 transition group">
-                <div className="w-8 h-8 rounded-lg bg-stone-100 group-hover:bg-[#991B1B]/10 flex items-center justify-center text-base transition flex-shrink-0">
-                  {icon}
-                </div>
+                <div className="w-8 h-8 rounded-lg bg-stone-100 group-hover:bg-[#991B1B]/10 flex items-center justify-center text-base transition flex-shrink-0">{icon}</div>
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#991B1B] transition">{label}</p>
                   <p className="text-xs text-stone-400">{sub}</p>
@@ -204,7 +190,6 @@ function AccountLink() {
 
           <div className="mx-3 border-t border-stone-100 my-1" />
 
-          {/* Help section */}
           <div className="px-3 pb-1">
             <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-1">Support</p>
             {[
@@ -221,7 +206,6 @@ function AccountLink() {
 
           <div className="mx-3 border-t border-stone-100 my-1" />
 
-          {/* Sign out + Delete */}
           <div className="px-3 pb-3 space-y-1">
             <button onClick={handleLogout} disabled={loggingOut}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-stone-50 transition group text-left">
@@ -234,9 +218,8 @@ function AccountLink() {
                 {loggingOut ? "Signing out…" : "Sign Out"}
               </span>
             </button>
-
             <button
-              onClick={() => { if (confirm("Are you sure you want to delete your account? This cannot be undone.")) { handleLogout(); } }}
+              onClick={() => { if (confirm("Delete your account? This cannot be undone.")) { handleLogout(); } }}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 transition group text-left">
               <div className="w-8 h-8 rounded-lg bg-stone-100 group-hover:bg-red-100 flex items-center justify-center flex-shrink-0 transition">
                 <svg className="w-4 h-4 text-stone-400 group-hover:text-red-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -252,8 +235,8 @@ function AccountLink() {
   );
 }
 
-
-export const categoryIcons = {  All: "🏠", "Self-Help": "🌱", Finance: "💰", Productivity: "⚡",
+export const categoryIcons = {
+  All: "🏠", "Self-Help": "🌱", Finance: "💰", Productivity: "⚡",
   Psychology: "🧠", History: "🏛️", Philosophy: "💭", Fiction: "✨", Biography: "👤",
 };
 
@@ -266,10 +249,10 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
     <div className="fixed inset-0 z-50">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl animate-slide-in-right flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b border-stone-200">
+        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-stone-200">
           <div>
-            <h2 className="text-2xl font-bold text-[#1C1917]">Your Basket</h2>
-            <p className="text-sm text-stone-500 mt-1">{cart.reduce((a, b) => a + b.quantity, 0)} items</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-[#1C1917]">Your Basket</h2>
+            <p className="text-sm text-stone-500 mt-0.5">{cart.reduce((a, b) => a + b.quantity, 0)} items</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-full transition">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -277,7 +260,7 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
             </svg>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {cart.length === 0 ? (
             <div className="text-center py-16">
               <div className="text-6xl mb-4">📖</div>
@@ -285,21 +268,21 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
               <button onClick={onClose} className="mt-4 text-[#991B1B] font-semibold hover:underline">Continue Shopping</button>
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {cart.map((item) => (
-                <div key={item.id} className="flex gap-4">
-                  <div className="w-20 flex-shrink-0 rounded-r-md overflow-hidden" style={{ aspectRatio: "2/3", boxShadow: "-1px 0 3px rgba(0,0,0,0.1), 3px 6px 16px rgba(0,0,0,0.12)" }}>
+                <div key={item.id} className="flex gap-3 sm:gap-4">
+                  <div className="w-16 sm:w-20 flex-shrink-0 rounded-r-md overflow-hidden" style={{ aspectRatio: "2/3", boxShadow: "-1px 0 3px rgba(0,0,0,0.1), 3px 6px 16px rgba(0,0,0,0.12)" }}>
                     <BookCover book={item} className="w-full h-full" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-[#1C1917] text-sm line-clamp-2">{item.title}</h4>
                     <p className="text-xs text-stone-500 mt-0.5">{item.author}</p>
                     <p className="text-sm font-bold text-[#991B1B] mt-1">KSh {(item.price * item.quantity).toLocaleString()}</p>
-                    <div className="flex items-center gap-3 mt-3">
+                    <div className="flex items-center gap-3 mt-2.5">
                       <div className="flex items-center border border-stone-300 rounded-lg">
-                        <button onClick={() => onUpdateQty(item.id, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-100 font-bold">−</button>
+                        <button onClick={() => onUpdateQty(item.id, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-100 font-bold text-sm">−</button>
                         <span className="w-8 text-center text-sm font-semibold">{item.quantity}</span>
-                        <button onClick={() => onUpdateQty(item.id, 1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-100 font-bold">+</button>
+                        <button onClick={() => onUpdateQty(item.id, 1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-100 font-bold text-sm">+</button>
                       </div>
                       <button onClick={() => onRemove(item.id)} className="text-xs text-stone-400 hover:text-red-600 underline">Remove</button>
                     </div>
@@ -310,20 +293,21 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
           )}
         </div>
         {cart.length > 0 && (
-          <div className="border-t border-stone-200 p-6 bg-stone-50">
+          <div className="border-t border-stone-200 p-4 sm:p-6 bg-stone-50">
             <div className="flex justify-between text-sm mb-2">
               <span className="text-stone-600">Subtotal</span>
               <span className="font-semibold">KSh {total.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between text-sm mb-4">
+            <div className="flex justify-between text-sm mb-3">
               <span className="text-stone-600">Delivery</span>
               <span className="font-semibold text-green-700">Calculated at checkout</span>
             </div>
-            <div className="flex justify-between text-lg font-bold border-t border-stone-200 pt-3 mb-5">
+            <div className="flex justify-between text-base sm:text-lg font-bold border-t border-stone-200 pt-3 mb-4">
               <span>Total</span>
               <span>KSh {total.toLocaleString()}</span>
             </div>
-            <Link href="/checkout" onClick={onClose} className="block w-full bg-[#1C1917] hover:bg-[#991B1B] text-white py-4 rounded-xl font-bold text-center transition-all duration-200">
+            <Link href="/checkout" onClick={onClose}
+              className="block w-full bg-[#1C1917] hover:bg-[#991B1B] text-white py-3.5 rounded-xl font-bold text-center transition-all duration-200 text-sm sm:text-base">
               Proceed to Checkout →
             </Link>
             <p className="text-center text-xs text-stone-400 mt-3">M-Pesa & Card accepted · Secure checkout</p>
@@ -357,7 +341,6 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
 
   return (
     <>
-      {/* Announcement bar */}
       <div className="bg-[#1C1917] text-white text-center py-2 text-xs sm:text-sm font-medium px-4">
         Free delivery in Nairobi on orders over KSh 3,000 · Nationwide shipping available
       </div>
@@ -366,23 +349,17 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex items-center justify-between h-16 sm:h-20 gap-3">
 
-            {/* Logo */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0 group">
               <span className="text-2xl sm:text-3xl">📚</span>
-              <div className="hidden xs:block">
+              <div>
                 <p className="text-lg sm:text-2xl font-black tracking-tight text-[#1C1917] leading-none group-hover:text-[#991B1B] transition">Book Haven</p>
                 <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">Kenya</p>
               </div>
             </Link>
 
-            {/* Desktop nav */}
             <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1">
-              <Link href="/" className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
-                🏠 Home
-              </Link>
-              <Link href="/books" className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
-                All Books
-              </Link>
+              <Link href="/" className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">🏠 Home</Link>
+              <Link href="/books" className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">All Books</Link>
               {["Self-Help", "Finance", "Fiction", "Biography"].map((cat) => (
                 <Link key={cat} href={`/category/${cat.toLowerCase().replace(/\s+/g, "-")}`}
                   className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
@@ -392,7 +369,6 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
               <Link href="/#about" className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">About</Link>
             </nav>
 
-            {/* Desktop search */}
             <div className="hidden md:flex flex-1 max-w-xs xl:max-w-sm">
               <div className="relative w-full">
                 <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={handleSearch}
@@ -409,15 +385,12 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
               </div>
             </div>
 
-            {/* Right actions */}
             <div className="flex items-center gap-1">
-              {/* Mobile search toggle */}
               <button onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
                 className="md:hidden p-2 hover:bg-stone-50 rounded-lg transition text-stone-600">
                 <SearchIcon />
               </button>
 
-              {/* Wishlist — hidden on small mobile */}
               <button onClick={onWishlistClick}
                 className="hidden sm:flex flex-col items-center p-2 hover:bg-stone-50 rounded-lg transition relative">
                 <div className="relative">
@@ -429,7 +402,6 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
                 <span className="text-[10px] font-medium text-stone-500 mt-0.5 hidden sm:block">Wishlist</span>
               </button>
 
-              {/* Cart */}
               <button onClick={onCartClick}
                 className="flex flex-col items-center p-2 hover:bg-stone-50 rounded-lg transition relative">
                 <div className="relative">
@@ -441,12 +413,10 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
                 <span className="text-[10px] font-medium text-stone-500 mt-0.5 hidden sm:block">Cart</span>
               </button>
 
-              {/* Account — desktop only, mobile handled in menu */}
               <div className="hidden lg:block">
                 <AccountLink />
               </div>
 
-              {/* Hamburger — mobile/tablet */}
               <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 className="lg:hidden p-2 hover:bg-stone-50 rounded-lg transition">
                 <svg className="w-6 h-6 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -458,7 +428,6 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
             </div>
           </div>
 
-          {/* Mobile search bar — slides down */}
           {mobileSearchOpen && (
             <div className="md:hidden pb-3 animate-fade-in">
               <div className="relative w-full">
@@ -476,12 +445,9 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
           )}
         </div>
 
-        {/* Mobile full-screen menu */}
         {mobileMenuOpen && (
           <div className="lg:hidden bg-white border-t border-stone-100 animate-fade-in max-h-[80vh] overflow-y-auto">
             <div className="px-4 py-4 space-y-1">
-
-              {/* Main nav links */}
               <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-2">Browse</p>
               {[
                 { href: "/", label: "Home", icon: "🏠" },
@@ -493,7 +459,6 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
                 </Link>
               ))}
 
-              {/* Categories grid */}
               <div className="grid grid-cols-2 gap-2 pt-1">
                 {categories.filter(c => c !== "All").map((cat) => (
                   <Link key={cat} href={`/category/${cat.toLowerCase().replace(/\s+/g, "-")}`}
@@ -506,13 +471,11 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
 
               <div className="border-t border-stone-100 pt-3 mt-2">
                 <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-2">Account</p>
-                {/* Account link in mobile */}
                 <div className="px-1">
                   <AccountLink />
                 </div>
               </div>
 
-              {/* Wishlist in mobile menu */}
               <button onClick={() => { onWishlistClick(); setMobileMenuOpen(false); }}
                 className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-sm font-semibold text-stone-700 transition">
                 <span className="text-base">♡</span>
@@ -542,8 +505,8 @@ export function StoreFooter() {
   return (
     <footer className="bg-white border-t border-stone-200 pt-10 sm:pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-8 sm:mb-12">
-          <div className="col-span-2 sm:col-span-2 md:col-span-1">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-8 sm:mb-12">
+          <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-3">
               <span className="text-2xl">📚</span>
               <span className="text-xl font-black text-[#1C1917]">Book Haven</span>
@@ -556,24 +519,24 @@ export function StoreFooter() {
             </div>
           </div>
           <div>
-            <h4 className="font-bold text-[#1C1917] mb-4">Shop</h4>
-            <ul className="space-y-3 text-sm text-stone-500">
+            <h4 className="font-bold text-[#1C1917] mb-3 sm:mb-4">Shop</h4>
+            <ul className="space-y-2 sm:space-y-3 text-sm text-stone-500">
               {[["All Books", "/books"], ["Self-Help", "/category/self-help"], ["Finance", "/category/finance"], ["Fiction", "/category/fiction"], ["Biography", "/category/biography"]].map(([l, href]) => (
                 <li key={l}><Link href={href} className="hover:text-[#991B1B] transition">{l}</Link></li>
               ))}
             </ul>
           </div>
           <div>
-            <h4 className="font-bold text-[#1C1917] mb-4">Help</h4>
-            <ul className="space-y-3 text-sm text-stone-500">
+            <h4 className="font-bold text-[#1C1917] mb-3 sm:mb-4">Help</h4>
+            <ul className="space-y-2 sm:space-y-3 text-sm text-stone-500">
               {["Delivery Info", "Returns Policy", "Order Tracking", "FAQs", "Contact Us"].map((l) => (
                 <li key={l} className="hover:text-[#991B1B] cursor-pointer transition">{l}</li>
               ))}
             </ul>
           </div>
           <div>
-            <h4 className="font-bold text-[#1C1917] mb-4">Contact</h4>
-            <ul className="space-y-3 text-sm text-stone-500">
+            <h4 className="font-bold text-[#1C1917] mb-3 sm:mb-4">Contact</h4>
+            <ul className="space-y-2 sm:space-y-3 text-sm text-stone-500">
               <li>hello@bookhaven.co.ke</li>
               <li>+254 712 345 678</li>
               <li>The Junction Mall, Nairobi</li>
@@ -581,7 +544,7 @@ export function StoreFooter() {
             </ul>
           </div>
         </div>
-        <div className="border-t border-stone-200 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="border-t border-stone-200 pt-6 sm:pt-8 flex flex-col md:flex-row justify-between items-center gap-3 sm:gap-4">
           <p className="text-xs text-stone-400">© 2026 Book Haven Kenya. All rights reserved.</p>
           <div className="flex gap-4 text-xs text-stone-400">
             {["Privacy Policy", "Terms of Service", "Cookie Settings"].map((l) => (
@@ -594,7 +557,7 @@ export function StoreFooter() {
   );
 }
 
-// ── useStore hook — shared cart + wishlist state ────────
+// ── useStore hook ───────────────────────────────────────
 export function useStore() {
   const [cart, setCart] = useState([]);
   const [wishlist, setWishlist] = useState([]);
@@ -656,10 +619,9 @@ export function useStore() {
   };
 }
 
-// ── StoreShell — wraps any page with header + drawers ──
+// ── StoreShell default export ───────────────────────────
 export default function StoreShell({ children }) {
   const store = useStore();
-
   return (
     <>
       <StoreHeader
@@ -668,19 +630,15 @@ export default function StoreShell({ children }) {
         onCartClick={() => store.setIsCartOpen(true)}
         onWishlistClick={() => store.setIsWishlistOpen(true)}
       />
-
-      {/* Pass store down via a context-like pattern using cloneElement */}
       {typeof children === "function" ? children(store) : children}
-
       <WishlistDrawer
         wishlist={store.wishlist}
         isOpen={store.isWishlistOpen}
         onClose={() => store.setIsWishlistOpen(false)}
-        onRemove={(id) => { store.setWishlist?.((p) => p.filter((b) => b.id !== id)); }}
+        onRemove={(id) => { store.toggleWishlist(store.wishlist.find((b) => b.id === id)); }}
         onAddToCart={(book) => { store.addToCart(book); store.setIsWishlistOpen(false); }}
         onViewDetail={store.setSelectedBook}
       />
-
       <CartDrawer
         cart={store.cart}
         isOpen={store.isCartOpen}
@@ -689,11 +647,10 @@ export default function StoreShell({ children }) {
         onRemove={store.removeFromCart}
         total={store.cartTotal}
       />
-
       {store.toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1C1917] text-white px-6 py-3 rounded-lg shadow-2xl animate-slide-up flex items-center gap-3 whitespace-nowrap">
-          <span className="text-green-400 text-lg">✓</span>
-          <span className="text-sm font-medium">{store.toast}</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1C1917] text-white px-5 py-3 rounded-lg shadow-2xl animate-slide-up flex items-center gap-3 whitespace-nowrap max-w-[90vw]">
+          <span className="text-green-400">✓</span>
+          <span className="text-sm font-medium truncate">{store.toast}</span>
         </div>
       )}
     </>
