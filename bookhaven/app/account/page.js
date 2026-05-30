@@ -334,7 +334,6 @@ const TABS = [
 export default function AccountPage() {
   const store = useStore();
   const { user, session, loading } = useAuth();
-  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "orders");
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => { const t = setTimeout(() => setMounted(true), 0); return () => clearTimeout(t); }, []);
