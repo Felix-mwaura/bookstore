@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
-import { books as localBooks } from "../books";
-// ── Auth guard — admin only ───────────────────────────────
+import localBooks from "../books";// ── Auth guard — admin only ───────────────────────────────
 async function checkAdmin() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return false;
