@@ -2,6 +2,7 @@
 
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { BookCover } from "../components/BookCard";
 import { StoreHeader, StoreFooter, CartDrawer, useStore } from "../components/StoreShell";
 import WishlistDrawer from "../components/WishlistDrawer";
@@ -9,8 +10,6 @@ import BookDetailPage from "../components/BookCard";
 import { useAuth, signOut, getUserName } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import books from "../books";
-
-export const dynamic = 'force-dynamic';
 
 // ── Status Badge ──────────────────────────────────────────
 function StatusBadge({ status }) {
@@ -244,18 +243,6 @@ function WishlistTab({ wishlist, onRemove, onAddToCart, onViewDetail }) {
   );
 }
 
-// ── Toggle Component ──────────────────────────────────────
-function Toggle({ label, sub, id, notifications, setNotifications }) {
-  return (
-    <div className="flex items-center justify-between py-4 border-b border-stone-100 last:border-0">
-      <div><p className="font-semibold text-[#1C1917] text-sm">{label}</p>{sub&&<p className="text-xs text-stone-400 mt-0.5">{sub}</p>}</div>
-      <div onClick={()=>setNotifications(p=>({...p,[id]:!p[id]}))} className={`w-11 h-6 rounded-full transition-all duration-300 relative cursor-pointer ${notifications[id]?"bg-[#1C1917]":"bg-stone-200"}`}>
-        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${notifications[id]?"left-5":"left-0.5"}`} />
-      </div>
-    </div>
-  );
-}
-
 // ── Settings Tab ──────────────────────────────────────────
 function SettingsTab({ user, onLogout }) {
   const meta = user?.user_metadata || {};
@@ -268,8 +255,15 @@ function SettingsTab({ user, onLogout }) {
     setSaved(true);
     setTimeout(()=>setSaved(false), 2500);
   };
-  
-  
+
+  const Toggle = ({ label, sub, id }) => (
+    <div className="flex items-center justify-between py-4 border-b border-stone-100 last:border-0">
+      <div><p className="font-semibold text-[#1C1917] text-sm">{label}</p>{sub&&<p className="text-xs text-stone-400 mt-0.5">{sub}</p>}</div>
+      <div onClick={()=>setNotifications(p=>({...p,[id]:!p[id]}))} className={`w-11 h-6 rounded-full transition-all duration-300 relative cursor-pointer ${notifications[id]?"bg-[#1C1917]":"bg-stone-200"}`}>
+        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${notifications[id]?"left-5":"left-0.5"}`} />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-8">
@@ -330,14 +324,14 @@ const TABS = [
   { id:"settings", label:"Settings", icon:"⚙️" },
 ];
 
-
-export default function AccountPage() {
+function AccountInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const store = useStore();
   const { user, session, loading } = useAuth();
-  const [mounted, setMounted] = useState(false);
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "orders");
 
-  useEffect(() => { const t = setTimeout(() => setMounted(true), 0); return () => clearTimeout(t); }, []);
-  useEffect(() => { if (!loading && !user) router.push("/login"); }, [user, loading, router]);
+  useEffect(() => { if (!loading && !user) router.push("/login"); }, [user, loading]);
 
   const handleLogout = async () => {
     await signOut();
@@ -346,7 +340,7 @@ export default function AccountPage() {
     router.push("/");
   };
 
-  if (!mounted || loading || !user) return (
+  if (loading || !user) return (
     <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-stone-200 border-t-[#991B1B] rounded-full animate-spin" />
     </div>
@@ -400,5 +394,18 @@ export default function AccountPage() {
       <BookDetailPage book={store.selectedBook} isWishlisted={store.selectedBook?store.wishlist.some(b=>b.id===store.selectedBook.id):false} onToggleWishlist={store.toggleWishlist} onAddToCart={store.addToCart} onClose={()=>store.setSelectedBook(null)} />
       {store.toast&&<div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1C1917] text-white px-6 py-3 rounded-lg shadow-2xl animate-slide-up flex items-center gap-3 whitespace-nowrap"><span className="text-green-400">✓</span><span className="text-sm font-medium">{store.toast}</span></div>}
     </div>
+  );
+}
+
+// Suspense wrapper required by Next.js for useSearchParams
+export default function AccountPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+        <div className="w-10 h-10 border-4 border-stone-200 border-t-[#991B1B] rounded-full animate-spin" />
+      </div>
+    }>
+      <AccountInner />
+    </Suspense>
   );
 }

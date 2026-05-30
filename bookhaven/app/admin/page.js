@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
-import books from   "../books";
+import books as localBooks from "../books";
+
+// ── Auth guard — admin only ───────────────────────────────
 async function checkAdmin() {
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) return false;
@@ -163,17 +165,6 @@ function OverviewTab({ orders, users }) {
 }
 
 // ── Books Tab ─────────────────────────────────────────────
-function InputField({ label, name, type = "text", placeholder, half, form, setForm }) {
-  return (
-    <div className={half ? "" : "sm:col-span-2"}>
-      <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">{label}</label>
-      <input type={type} value={form[name]} placeholder={placeholder}
-        onChange={e => setForm(p => ({ ...p, [name]: e.target.value }))}
-        className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] focus:ring-1 focus:ring-[#991B1B]/20 transition" />
-    </div>
-  );
-}
-
 function BooksTab() {
   const [bookList, setBookList] = useState(localBooks);
   const [search, setSearch] = useState("");
@@ -210,6 +201,15 @@ function BooksTab() {
   const confirmDelete = (id) => setDeleteId(id);
   const deleteBook = () => { setBookList(prev => prev.filter(b => b.id !== deleteId)); setDeleteId(null); };
 
+  const InputField = ({ label, name, type = "text", placeholder, half }) => (
+    <div className={half ? "" : "sm:col-span-2"}>
+      <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">{label}</label>
+      <input type={type} value={form[name]} placeholder={placeholder}
+        onChange={e => setForm(p => ({ ...p, [name]: e.target.value }))}
+        className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] focus:ring-1 focus:ring-[#991B1B]/20 transition" />
+    </div>
+  );
+
   return (
     <div>
       {/* Delete confirm modal */}
@@ -242,10 +242,10 @@ function BooksTab() {
         <div className="bg-stone-50 border border-stone-200 rounded-2xl p-5 mb-6">
           <h3 className="font-bold text-[#1C1917] mb-4">{editBook ? "Edit Book" : "Add New Book"}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <InputField label="Title" name="title" placeholder="Book title" form={form} setForm={setForm} />
-            <InputField label="Author" name="author" placeholder="Author name" half form={form} setForm={setForm} />
-            <InputField label="Price (KSh)" name="price" type="number" placeholder="1299" half form={form} setForm={setForm} />
-            <InputField label="Original Price (KSh)" name="originalPrice" type="number" placeholder="Leave blank if no discount" half form={form} setForm={setForm} />
+            <InputField label="Title" name="title" placeholder="Book title" />
+            <InputField label="Author" name="author" placeholder="Author name" half />
+            <InputField label="Price (KSh)" name="price" type="number" placeholder="1299" half />
+            <InputField label="Original Price (KSh)" name="originalPrice" type="number" placeholder="Leave blank if no discount" half />
             <div>
               <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Category</label>
               <select value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}
@@ -572,7 +572,7 @@ const TABS = [
   { id: "users", label: "Users", icon: "👥" },
 ];
 
-export default function AdminPage() {
+function AdminInner() {
   const router = useRouter();
   const [authorized, setAuthorized] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -702,5 +702,17 @@ export default function AdminPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function AdminPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-stone-200 border-t-[#991B1B] rounded-full animate-spin" />
+      </div>
+    }>
+      <AdminInner />
+    </Suspense>
   );
 }

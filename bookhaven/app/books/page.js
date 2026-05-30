@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useMemo, useEffect, Suspense } from "react";import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import books from "../books";
 import { BookCover } from "../components/BookCard";
