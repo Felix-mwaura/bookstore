@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { BookCover } from "../components/BookCard";
 import { StoreHeader, StoreFooter, CartDrawer, useStore } from "../components/StoreShell";
 import WishlistDrawer from "../components/WishlistDrawer";
@@ -331,27 +330,9 @@ const TABS = [
   { id:"settings", label:"Settings", icon:"⚙️" },
 ];
 
-function AccountInner() {
-  const searchParams = useSearchParams();
-
-  return (
-    <div>
-      {/* existing page content */}
-    </div>
-  );
-}
-
-export default function AccountPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <AccountInner />
-    </Suspense>
-  );
-}
 
 export default function AccountPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const store = useStore();
   const { user, session, loading } = useAuth();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "orders");
