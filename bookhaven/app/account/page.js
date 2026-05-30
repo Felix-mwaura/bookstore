@@ -332,7 +332,6 @@ const TABS = [
 
 
 export default function AccountPage() {
-  const router = useRouter();
   const store = useStore();
   const { user, session, loading } = useAuth();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "orders");
