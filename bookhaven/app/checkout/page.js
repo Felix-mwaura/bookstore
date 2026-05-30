@@ -147,81 +147,168 @@ function StepDetails({ data, onChange, onNext }) {
 }
 
 function MpesaFlow({ phone, total, orderId, onSuccess }) {
-  const [stage, setStage] = useState("idle");
+  const [stage, setStage] = useState("idle"); // idle | sending | waiting | polling | success | failed | cancelled
   const [mpesaPhone, setMpesaPhone] = useState(phone || "");
-  const [pin, setPin] = useState(["", "", "", ""]);
+  const [phoneError, setPhoneError] = useState("");
   const [countdown, setCountdown] = useState(60);
-  const [smsVisible, setSmsVisible] = useState(false);
+  const [checkoutRequestId, setCheckoutRequestId] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
   const timerRef = useRef(null);
+  const pollRef = useRef(null);
 
+  // Countdown timer while waiting for user to enter PIN on phone
   useEffect(() => {
-    if (stage !== "prompt") return;
+    if (stage !== "waiting") return;
     setCountdown(60);
     timerRef.current = setInterval(() => {
-      setCountdown((c) => { if (c <= 1) { clearInterval(timerRef.current); setStage("timeout"); return 0; } return c - 1; });
+      setCountdown((c) => {
+        if (c <= 1) {
+          clearInterval(timerRef.current);
+          // After countdown, poll once more to check if they paid
+          checkPaymentStatus();
+          return 0;
+        }
+        return c - 1;
+      });
     }, 1000);
     return () => clearInterval(timerRef.current);
   }, [stage]);
 
-  const sendSTK = () => { if (formatPhone(mpesaPhone).length < 12) return; setStage("sending"); setTimeout(() => setStage("prompt"), 2200); };
+  // Poll payment status every 5 seconds while waiting
+  useEffect(() => {
+    if (stage !== "waiting" || !checkoutRequestId) return;
+    pollRef.current = setInterval(() => checkPaymentStatus(), 5000);
+    return () => clearInterval(pollRef.current);
+  }, [stage, checkoutRequestId]);
 
-  const handlePinInput = (i, val) => {
-    if (!/^\d?$/.test(val)) return;
-    const next = [...pin]; next[i] = val; setPin(next);
-    if (val && i < 3) document.getElementById(`pin-${i + 1}`)?.focus();
-    if (i === 3 && val && next.every((d) => d)) setTimeout(() => confirmPin(next), 300);
+  const checkPaymentStatus = async () => {
+    if (!checkoutRequestId) return;
+    try {
+      const res = await fetch("/api/mpesa/query", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkoutRequestId }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        clearInterval(timerRef.current);
+        clearInterval(pollRef.current);
+        setStage("success");
+        setTimeout(() => onSuccess("mpesa"), 1500);
+      } else if (data.cancelled) {
+        clearInterval(timerRef.current);
+        clearInterval(pollRef.current);
+        setStage("cancelled");
+      }
+      // If neither, keep polling — user might still be entering PIN
+    } catch {}
   };
 
-  const handlePinKeyDown = (i, e) => { if (e.key === "Backspace" && !pin[i] && i > 0) document.getElementById(`pin-${i - 1}`)?.focus(); };
+  const sendSTK = async () => {
+    setPhoneError("");
+    const formatted = formatPhone(mpesaPhone);
+    if (formatted.length < 12) { setPhoneError("Please enter a valid Safaricom number (07XX or 01XX)"); return; }
 
-  const confirmPin = (currentPin = pin) => {
-    if (currentPin.join("").length < 4) return;
+    setStage("sending");
+    setErrorMsg("");
+
+    try {
+      const res = await fetch("/api/mpesa/stk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: mpesaPhone, amount: total, orderId }),
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setCheckoutRequestId(data.checkoutRequestId);
+        setStage("waiting");
+      } else {
+        setErrorMsg(data.error || "Failed to send M-Pesa request. Please try again.");
+        setStage("idle");
+      }
+    } catch (err) {
+      setErrorMsg("Network error. Please check your connection and try again.");
+      setStage("idle");
+    }
+  };
+
+  const reset = () => {
     clearInterval(timerRef.current);
-    setStage("verifying");
-    setTimeout(() => { setSmsVisible(true); setTimeout(() => onSuccess("mpesa"), 1500); }, 2500);
+    clearInterval(pollRef.current);
+    setStage("idle");
+    setCheckoutRequestId(null);
+    setErrorMsg("");
   };
 
-  const reset = () => { setStage("idle"); setPin(["", "", "", ""]); };
-
+  // ── IDLE ──
   if (stage === "idle") return (
     <div className="space-y-5">
       <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex gap-4">
-        <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md"><span className="text-white font-black text-lg">M</span></div>
-        <div><p className="font-bold text-green-800">M-Pesa STK Push</p><p className="text-sm text-green-700 mt-0.5">We send a prompt to your Safaricom number. Enter your PIN to approve.</p></div>
+        <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
+          <span className="text-white font-black text-lg">M</span>
+        </div>
+        <div>
+          <p className="font-bold text-green-800">Real M-Pesa STK Push</p>
+          <p className="text-sm text-green-700 mt-0.5">A payment prompt will be sent directly to your Safaricom number. Enter your M-Pesa PIN on your phone to complete.</p>
+        </div>
       </div>
+
+      {errorMsg && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+          ⚠️ {errorMsg}
+        </div>
+      )}
+
       <div>
         <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">Safaricom Number</label>
-        <input type="tel" value={mpesaPhone} onChange={(e) => setMpesaPhone(e.target.value)} placeholder="0712 345 678"
-          className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-200 transition" />
+        <input type="tel" value={mpesaPhone} onChange={(e) => { setMpesaPhone(e.target.value); setPhoneError(""); }}
+          placeholder="0712 345 678"
+          className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-green-200 transition ${phoneError ? "border-red-400 bg-red-50/50" : "border-stone-200 focus:border-green-500"}`} />
+        {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
+        <p className="text-xs text-stone-400 mt-1.5">Safaricom lines only (07XX / 01XX)</p>
       </div>
+
       <div className="bg-stone-50 rounded-xl p-4 flex justify-between items-center">
         <span className="text-stone-500 text-sm">Amount to pay</span>
         <span className="text-2xl font-black text-[#1C1917]">KSh {total.toLocaleString()}</span>
       </div>
-      <button onClick={sendSTK} disabled={formatPhone(mpesaPhone).length < 12}
-        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-stone-200 disabled:text-stone-400 text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95">
+
+      <button onClick={sendSTK}
+        className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95 flex items-center justify-center gap-2">
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+        </svg>
         Send M-Pesa Request
       </button>
     </div>
   );
 
+  // ── SENDING ──
   if (stage === "sending") return (
-    <div className="text-center py-14 space-y-5">
-      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto animate-pulse"><span className="text-green-600 font-black text-3xl">M</span></div>
-      <p className="font-bold text-[#1C1917] text-lg">Sending prompt to {mpesaPhone}…</p>
-      <p className="text-stone-500 text-sm">Please wait</p>
+    <div className="text-center py-12 space-y-4">
+      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto animate-pulse">
+        <span className="text-green-600 font-black text-3xl">M</span>
+      </div>
+      <p className="font-bold text-[#1C1917] text-lg">Connecting to Safaricom…</p>
+      <p className="text-stone-500 text-sm">Sending payment request to {mpesaPhone}</p>
       <div className="flex justify-center gap-1.5 pt-2">
-        {[0, 1, 2].map((i) => <div key={i} className="w-2.5 h-2.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+        {[0,1,2].map(i => <div key={i} className="w-2.5 h-2.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
       </div>
     </div>
   );
 
-  if (stage === "prompt") return (
-    <div className="space-y-6">
+  // ── WAITING (STK sent, user needs to enter PIN on phone) ──
+  if (stage === "waiting") return (
+    <div className="space-y-5">
+      {/* Simulated phone screen */}
       <div className="bg-green-600 rounded-2xl p-6 text-white text-center shadow-xl">
-        <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3"><span className="font-black text-2xl">M</span></div>
+        <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
+          <span className="font-black text-2xl">M</span>
+        </div>
         <p className="font-black text-lg tracking-wide">M-PESA</p>
-        <p className="text-green-200 text-sm mt-1">Payment Request</p>
+        <p className="text-green-200 text-sm mt-1">Payment Request Sent ✓</p>
         <div className="bg-white/10 rounded-xl p-4 mt-4 space-y-1">
           <p className="text-green-100 text-xs">Pay To</p>
           <p className="font-black text-base">BOOK HAVEN KENYA</p>
@@ -230,58 +317,70 @@ function MpesaFlow({ phone, total, orderId, onSuccess }) {
           <p className="text-green-300 text-xs mt-2">Ref: {orderId}</p>
         </div>
       </div>
-      <div>
-        <p className="text-center text-sm font-semibold text-stone-600 mb-4">Enter your M-Pesa PIN</p>
-        <div className="flex justify-center gap-3">
-          {pin.map((d, i) => (
-            <input key={i} id={`pin-${i}`} type="password" inputMode="numeric" maxLength={1} value={d}
-              onChange={(e) => handlePinInput(i, e.target.value)} onKeyDown={(e) => handlePinKeyDown(i, e)}
-              className="w-14 h-14 text-center text-2xl font-black border-2 rounded-xl outline-none transition focus:border-green-500 focus:ring-2 focus:ring-green-200 bg-stone-50" />
-          ))}
-        </div>
+
+      {/* Instructions */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
+        <p className="font-bold text-amber-800 text-sm">📱 Check your phone!</p>
+        <ul className="text-xs text-amber-700 space-y-1">
+          <li>1. An M-Pesa prompt has been sent to <strong>{mpesaPhone}</strong></li>
+          <li>2. Enter your M-Pesa PIN on your phone</li>
+          <li>3. This page will update automatically once paid</li>
+        </ul>
       </div>
-      <div className="text-center">
+
+      {/* Countdown + polling indicator */}
+      <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 text-sm">
           <div className={`w-2 h-2 rounded-full animate-pulse ${countdown > 15 ? "bg-green-500" : "bg-red-500"}`} />
-          <span className="text-stone-500">Request expires in </span>
+          <span className="text-stone-500">Waiting for payment · </span>
           <span className={`font-bold tabular-nums ${countdown <= 15 ? "text-red-500" : "text-stone-700"}`}>{countdown}s</span>
         </div>
-        <div className="w-full bg-stone-100 rounded-full h-1.5 mt-2">
-          <div className="h-1.5 rounded-full transition-all duration-1000" style={{ width: `${(countdown / 60) * 100}%`, backgroundColor: countdown > 15 ? "#16a34a" : "#ef4444" }} />
+        <div className="w-full bg-stone-100 rounded-full h-1.5">
+          <div className="h-1.5 rounded-full transition-all duration-1000"
+            style={{ width: `${(countdown / 60) * 100}%`, backgroundColor: countdown > 15 ? "#16a34a" : "#ef4444" }} />
         </div>
+        <p className="text-xs text-stone-400">Checking payment status automatically…</p>
       </div>
-      <button onClick={() => confirmPin()} disabled={pin.join("").length < 4}
-        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-stone-200 disabled:text-stone-400 text-white py-4 rounded-xl font-bold transition-all active:scale-95">
-        Confirm Payment
-      </button>
-      <button onClick={reset} className="w-full text-sm text-stone-400 hover:text-stone-600 py-1 transition">← Use a different number</button>
+
+      <div className="flex gap-3">
+        <button onClick={checkPaymentStatus}
+          className="flex-1 border border-green-200 text-green-700 hover:bg-green-50 py-3 rounded-xl font-semibold text-sm transition">
+          ↻ Check Now
+        </button>
+        <button onClick={reset}
+          className="flex-1 border border-stone-200 text-stone-500 hover:bg-stone-50 py-3 rounded-xl font-semibold text-sm transition">
+          ← Change Number
+        </button>
+      </div>
     </div>
   );
 
-  if (stage === "verifying") return (
-    <div className="text-center py-14 space-y-5">
-      <div className="w-16 h-16 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mx-auto" />
-      <p className="font-bold text-[#1C1917] text-lg">Verifying payment…</p>
-      <p className="text-stone-500 text-sm">Confirming with Safaricom servers</p>
-      {smsVisible && (
-        <div className="bg-stone-100 border border-stone-200 rounded-2xl p-4 max-w-xs mx-auto text-left animate-slide-up">
-          <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-1">📱 SMS from M-Pesa</p>
-          <p className="text-xs text-stone-700 leading-relaxed">
-            <strong>KSh {total.toLocaleString()}.00</strong> sent to Book Haven Kenya on {new Date().toLocaleDateString("en-KE")}. Transaction ID: <strong>RH{Math.random().toString().slice(2,12).toUpperCase()}</strong>. New M-PESA balance is KSh ---
-          </p>
-        </div>
-      )}
+  // ── SUCCESS ──
+  if (stage === "success") return (
+    <div className="text-center py-8 space-y-4">
+      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+        </svg>
+      </div>
+      <p className="font-bold text-[#1C1917] text-lg">Payment Confirmed! 🎉</p>
+      <p className="text-stone-500 text-sm">Your M-Pesa payment was successful</p>
     </div>
   );
 
-  if (stage === "timeout") return (
-    <div className="text-center py-10 space-y-4">
+  // ── CANCELLED ──
+  if (stage === "cancelled") return (
+    <div className="text-center py-8 space-y-4">
       <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-        <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
       </div>
-      <p className="font-bold text-[#1C1917]">Request Timed Out</p>
-      <p className="text-stone-500 text-sm">You didn't enter your PIN in time.</p>
-      <button onClick={reset} className="bg-[#1C1917] hover:bg-[#991B1B] text-white px-6 py-3 rounded-xl font-bold transition">Try Again</button>
+      <p className="font-bold text-[#1C1917]">Payment Cancelled</p>
+      <p className="text-stone-500 text-sm">You cancelled the M-Pesa request or it timed out.</p>
+      <button onClick={reset} className="bg-[#1C1917] hover:bg-[#991B1B] text-white px-6 py-3 rounded-xl font-bold text-sm transition-all active:scale-95">
+        Try Again
+      </button>
     </div>
   );
 }
