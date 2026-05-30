@@ -11,6 +11,8 @@ import { useAuth, signOut, getUserName } from "../lib/auth";
 import { supabase } from "../lib/supabase";
 import books from "../books";
 
+export const dynamic = 'force-dynamic';
+
 // ── Status Badge ──────────────────────────────────────────
 function StatusBadge({ status }) {
   const styles = { Delivered:"bg-green-50 text-green-700 border-green-200", Processing:"bg-amber-50 text-amber-700 border-amber-200", Shipped:"bg-blue-50 text-blue-700 border-blue-200", Cancelled:"bg-red-50 text-red-700 border-red-200" };
@@ -263,7 +265,9 @@ function SettingsTab({ user, onLogout }) {
         <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${notifications[id]?"left-5":"left-0.5"}`} />
       </div>
     </div>
-  );
+  )
+  
+  
 
   return (
     <div className="space-y-8">
@@ -330,8 +334,10 @@ export default function AccountPage() {
   const store = useStore();
   const { user, session, loading } = useAuth();
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "orders");
+  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { if (!loading && !user) router.push("/login"); }, [user, loading]);
+  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { if (!loading && !user) router.push("/login"); }, [user, loading, router]);
 
   const handleLogout = async () => {
     await signOut();
@@ -340,7 +346,7 @@ export default function AccountPage() {
     router.push("/");
   };
 
-  if (loading || !user) return (
+  if (!mounted || loading || !user) return (
     <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
       <div className="w-10 h-10 border-4 border-stone-200 border-t-[#991B1B] rounded-full animate-spin" />
     </div>
