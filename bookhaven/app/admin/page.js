@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
-import books as localBooks from "../books";
+import localBooks from "../books";
 
 // ── Auth guard — admin only ───────────────────────────────
 async function checkAdmin() {
