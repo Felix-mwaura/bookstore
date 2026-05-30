@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { BookCover } from "../components/BookCard";
@@ -245,6 +245,18 @@ function WishlistTab({ wishlist, onRemove, onAddToCart, onViewDetail }) {
   );
 }
 
+// ── Toggle Component ──────────────────────────────────────
+function Toggle({ label, sub, id, notifications, setNotifications }) {
+  return (
+    <div className="flex items-center justify-between py-4 border-b border-stone-100 last:border-0">
+      <div><p className="font-semibold text-[#1C1917] text-sm">{label}</p>{sub&&<p className="text-xs text-stone-400 mt-0.5">{sub}</p>}</div>
+      <div onClick={()=>setNotifications(p=>({...p,[id]:!p[id]}))} className={`w-11 h-6 rounded-full transition-all duration-300 relative cursor-pointer ${notifications[id]?"bg-[#1C1917]":"bg-stone-200"}`}>
+        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${notifications[id]?"left-5":"left-0.5"}`} />
+      </div>
+    </div>
+  );
+}
+
 // ── Settings Tab ──────────────────────────────────────────
 function SettingsTab({ user, onLogout }) {
   const meta = user?.user_metadata || {};
@@ -257,15 +269,6 @@ function SettingsTab({ user, onLogout }) {
     setSaved(true);
     setTimeout(()=>setSaved(false), 2500);
   };
-
-  const Toggle = ({ label, sub, id }) => (
-    <div className="flex items-center justify-between py-4 border-b border-stone-100 last:border-0">
-      <div><p className="font-semibold text-[#1C1917] text-sm">{label}</p>{sub&&<p className="text-xs text-stone-400 mt-0.5">{sub}</p>}</div>
-      <div onClick={()=>setNotifications(p=>({...p,[id]:!p[id]}))} className={`w-11 h-6 rounded-full transition-all duration-300 relative cursor-pointer ${notifications[id]?"bg-[#1C1917]":"bg-stone-200"}`}>
-        <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-300 ${notifications[id]?"left-5":"left-0.5"}`} />
-      </div>
-    </div>
-  )
   
   
 
@@ -328,6 +331,24 @@ const TABS = [
   { id:"settings", label:"Settings", icon:"⚙️" },
 ];
 
+function AccountInner() {
+  const searchParams = useSearchParams();
+
+  return (
+    <div>
+      {/* existing page content */}
+    </div>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AccountInner />
+    </Suspense>
+  );
+}
+
 export default function AccountPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -336,7 +357,7 @@ export default function AccountPage() {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") || "orders");
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { const t = setTimeout(() => setMounted(true), 0); return () => clearTimeout(t); }, []);
   useEffect(() => { if (!loading && !user) router.push("/login"); }, [user, loading, router]);
 
   const handleLogout = async () => {
