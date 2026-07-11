@@ -45,11 +45,11 @@ export async function POST(request) {
     const roundedAmount = Math.ceil(Number(amount));
 
     // Get OAuth token
-    const key = process.env.MPESA_CONSUMER_KEY || "6PBvvGvPG8U0fY0GK2WbGGl30eIXLnojCWTi4JlCuR3jFQuI"
-    const secret = process.env.MPESA_CONSUMER_SECRET ||"xnxkHNLbh4h70g3w4OSamuLgLHVHagPtuli0GSzY5AXze8IYSNkmDBA71xbe1ZXQ";
-    const shortcode = process.env.MPESA_SHORTCODE || "174379";
-    const passkey = process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
-    const callbackUrl = process.env.MPESA_CALLBACK_URL || "https://https://bookstore-ah5d7am2y-felix-mwaura-s-projects.vercel.app/api/mpesa/callback";
+    const key = process.env.MPESA_CONSUMER_KEY 
+    const secret = process.env.MPESA_CONSUMER_SECRET ;
+    const shortcode = process.env.MPESA_SHORTCODE ;
+    const passkey = process.env.MPESA_PASSKEY ;
+    const callbackUrl = process.env.MPESA_CALLBACK_URL ;
 
     const auth = Buffer.from(`${key}:${secret}`).toString("base64");
     const tokenRes = await fetch(

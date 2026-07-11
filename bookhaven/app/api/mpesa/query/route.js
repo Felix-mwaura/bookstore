@@ -12,8 +12,8 @@ export async function POST(request) {
 
     const key = process.env.MPESA_CONSUMER_KEY;
     const secret = process.env.MPESA_CONSUMER_SECRET;
-    const shortcode = process.env.MPESA_SHORTCODE || "174379";
-    const passkey = process.env.MPESA_PASSKEY || "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919";
+    const shortcode = process.env.MPESA_SHORTCODE ;
+    const passkey = process.env.MPESA_PASSKEY ;
 
     // Get token
     const auth = Buffer.from(`${key}:${secret}`).toString("base64");
