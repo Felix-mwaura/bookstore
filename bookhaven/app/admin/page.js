@@ -1,86 +1,93 @@
-import { createServerClient } from '@supabase/ssr';
-import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import AdminClient from './admin-client';
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { createServerClient } from "@supabase/ssr";
+import AdminClient from "./admin-client";
 
+// ── Server-side admin check using service role ────────────
 export default async function AdminPage() {
   const cookieStore = await cookies();
 
-  // 1. Check session server-side
+  // Regular client to check session
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
       cookies: {
-        getAll: () => cookieStore.getAll(),
-        setAll: () => {},
+        getAll() { return cookieStore.getAll(); },
+        setAll(cookiesToSet) {
+          try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch {}
+        },
       },
     }
   );
 
+  // Get session
   const { data: { session } } = await supabase.auth.getSession();
-  if (!session) {
-    redirect('/login?tab=login');
-  }
+  if (!session) redirect("/login");
 
-  // 2. Verify admin role
+  // Check if user is admin
   const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', session.user.id)
+    .from("profiles")
+    .select("role")
+    .eq("id", session.user.id)
     .single();
 
-  if (profile?.role !== 'admin') {
-    redirect('/account');
-  }
+  if (!profile || profile.role !== "admin") redirect("/");
 
-  // 3. Fetch ALL auth users with SERVICE ROLE (server-only)
-  const supabaseAdmin = createClient(
+  // ── Use service role to fetch ALL data ──────────────────
+  const adminSupabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { autoRefreshToken: false, persistSession: false } }
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll(); },
+        setAll(cookiesToSet) {
+          try { cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options)); } catch {}
+        },
+      },
+      auth: { autoRefreshToken: false, persistSession: false },
+    }
   );
 
-  const { data: authData } = await supabaseAdmin.auth.admin.listUsers();
-  const authUsers = authData?.users || [];
+  // Fetch ALL orders (bypasses RLS with service role)
+  const { data: orders } = await adminSupabase
+    .from("orders")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  // 4. Fetch profiles
-  const { data: profilesData } = await supabase.from('profiles').select('*');
-  const profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
+  // Fetch ALL profiles
+  const { data: profiles } = await adminSupabase
+    .from("profiles")
+    .select("*")
+    .order("created_at", { ascending: false });
 
-  // 5. Merge auth users + profiles
-  const allUsers = authUsers.map(u => {
-    const prof = profilesMap.get(u.id) || {};
+  // Fetch ALL users from auth.users using admin API
+  const { data: { users: authUsers } } = await adminSupabase.auth.admin.listUsers();
+
+  // Merge profiles with auth user data (email, name, phone)
+  const users = (profiles || []).map(profile => {
+    const authUser = authUsers?.find(u => u.id === profile.id);
+    const meta = authUser?.user_metadata || {};
     return {
-      id: u.id,
-      email: u.email,
-      first_name: u.user_metadata?.first_name || prof.first_name || '',
-      last_name: u.user_metadata?.last_name || prof.last_name || '',
-      phone: u.phone || u.user_metadata?.phone || '',
-      role: prof.role || 'customer',
-      created_at: u.created_at,
-      last_sign_in_at: u.last_sign_in_at,
+      ...profile,
+      email: authUser?.email || "",
+      first_name: meta.first_name || "",
+      last_name: meta.last_name || "",
+      phone: meta.phone || "",
     };
   });
 
-  // 6. Fetch orders
-  const { data: orders } = await supabase
-    .from('orders')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  // 7. Fetch books count
-  const { count: booksCount } = await supabase
-    .from('books')
-    .select('*', { count: 'exact', head: true });
+  // Books count
+  const { count: booksCount } = await adminSupabase
+    .from("books")
+    .select("*", { count: "exact", head: true });
 
   return (
     <AdminClient
       initialOrders={orders || []}
-      initialUsers={allUsers}
+      initialUsers={users || []}
       initialBooksCount={booksCount || 0}
-      sessionUser={session.user}
+      sessionUser={{ id: session.user.id, email: session.user.email }}
     />
   );
 }
