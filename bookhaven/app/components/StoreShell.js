@@ -122,8 +122,7 @@ function AccountLink() {
               { icon: "♡", label: "My Wishlist", href: "/login" },
               { icon: "📍", label: "Saved Addresses", href: "/login" },
               { icon: "❓", label: "Help & Support", href: "/#contact" },
-            ].map(({ icon, label, href }) => (
-              <Link key={label} href={href} onClick={() => setOpen(false)}
+            ].map(({ icon, label, href }) => (              <Link key={label} href={href} onClick={() => setOpen(false)}
                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 hover:text-[#1C1917] transition">
                 <span className="text-base w-5 text-center">{icon}</span>
                 {label}
@@ -169,10 +168,10 @@ function AccountLink() {
           <div className="px-3 pt-3 pb-1">
             <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-1">My Account</p>
             {[
-              { icon: "👤", label: "My Profile", sub: "Edit personal info", href: "/account?tab=settings" },
-              { icon: "📦", label: "My Orders", sub: "Track & manage orders", href: "/account?tab=orders" },
-              { icon: "♡", label: "My Wishlist", sub: "Saved books", href: "/account?tab=wishlist" },
-              { icon: "📍", label: "My Addresses", sub: "Delivery addresses", href: "/account?tab=addresses" },
+              { icon: "👤", label: "My Profile", sub: "Edit personal info", href: "/account" },
+              { icon: "📦", label: "My Orders", sub: "Track & manage orders", href: "/account" },
+              { icon: "♡", label: "My Wishlist", sub: "Saved books", href: "/account" },
+              { icon: "📍", label: "My Addresses", sub: "Delivery addresses", href: "/account" },
             ].map(({ icon, label, sub, href }) => (
               <Link key={label} href={href} onClick={() => setOpen(false)}
                 className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-stone-50 transition group">

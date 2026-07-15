@@ -730,6 +730,8 @@ const TABS = [
   { id:"users", label:"Users", icon:"👥" },
 ];
 
+const ADMIN_EMAIL = "mwaurafelix754@gmail.com";
+
 // ── Main Admin Client ─────────────────────────────────────
 export default function AdminClient({ initialOrders, initialUsers, initialBooksCount, sessionUser }) {
   const router = useRouter();
@@ -737,6 +739,29 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   const [orders, setOrders] = useState(initialOrders);
   const [users] = useState(initialUsers);
   const [booksCount] = useState(initialBooksCount);
+  const [verified, setVerified] = useState(false);
+
+  // Client-side double-check — redirect if not the admin email
+  useEffect(() => {
+    const verify = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session || session.user.email !== ADMIN_EMAIL) {
+        router.replace("/");
+        return;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", session.user.id)
+        .single();
+      if (profile?.role !== "admin") {
+        router.replace("/");
+        return;
+      }
+      setVerified(true);
+    };
+    verify();
+  }, [router]);
 
   const handleUpdateStatus = useCallback((orderId, newStatus) => {
     setOrders(prev=>prev.map(o=>o.id===orderId?{...o,status:newStatus}:o));
@@ -746,6 +771,16 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
     await supabase.auth.signOut();
     router.push("/");
   };
+
+  // Show spinner while verifying
+  if (!verified) return (
+    <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <div className="w-12 h-12 border-4 border-stone-200 border-t-[#991B1B] rounded-full animate-spin mx-auto" />
+        <p className="text-stone-500 text-sm">Verifying access…</p>
+      </div>
+    </div>
+  );
 
   const processingCount = orders.filter(o=>o.status==="Processing").length;
 
