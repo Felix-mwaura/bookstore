@@ -2,18 +2,21 @@ import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
 const supabase = createClient(
-  "https://luniopceavtkljywukyi.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bmlvcGNlYXZ0a2xqeXd1a3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzk1NTUsImV4cCI6MjA5NDc1NTU1NX0.zmZcxS2uxyon8Est9l3feYLuYy02hgcIpCNKAqKWtCE"
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://luniopceavtkljywukyi.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bmlvcGNlYXZ0a2xqeXd1a3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzk1NTUsImV4cCI6MjA5NDc1NTU1NX0.zmZcxS2uxyon8Est9l3feYLuYy02hgcIpCNKAqKWtCE"
 );
 
-// GET /api/orders — fetch user's orders
-export async function GET(request) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+async function getUser(request) {
+  const token = request.headers.get("authorization")?.replace("Bearer ", "");
+  if (!token) return null;
+  const { data: { user } } = await supabase.auth.getUser(token);
+  return user;
+}
 
-  const token = authHeader.replace("Bearer ", "");
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// GET /api/orders — fetch logged-in user's orders
+export async function GET(request) {
+  const user = await getUser(request);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { data, error } = await supabase
     .from("orders")
@@ -22,20 +25,20 @@ export async function GET(request) {
     .order("created_at", { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ orders: data });
+  return NextResponse.json({ orders: data || [] });
 }
 
-// POST /api/orders — save a new order
+// POST /api/orders — save a new order after checkout
 export async function POST(request) {
-  const authHeader = request.headers.get("authorization");
-  if (!authHeader) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const token = authHeader.replace("Bearer ", "");
-  const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-  if (authError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const user = await getUser(request);
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { items, total, deliveryDetails, paymentMethod } = body;
+  const { items, total, deliveryDetails, paymentMethod, checkoutRequestId } = body;
+
+  if (!items || !total || !deliveryDetails || !paymentMethod) {
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  }
 
   const { data, error } = await supabase
     .from("orders")
@@ -45,6 +48,7 @@ export async function POST(request) {
       total,
       delivery_details: deliveryDetails,
       payment_method: paymentMethod,
+      checkout_request_id: checkoutRequestId || null,
       status: "Processing",
     })
     .select()

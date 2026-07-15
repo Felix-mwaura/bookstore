@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";import { useSearchParams } from "next/navigation";
+import { useState, useMemo, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import books from "../books";
+import { supabase } from "../lib/supabase";
 import { BookCover } from "../components/BookCard";
 import BookDetailPage from "../components/BookCard";
 import FilterPanel from "../components/FilterPanel";
@@ -20,7 +21,7 @@ function BookCard({ book, isWishlisted, onToggleWishlist, onAddToCart, onViewDet
         </div>
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           {book.badge && <span className="px-2.5 py-1 bg-[#991B1B] text-white text-[10px] font-bold uppercase tracking-wider rounded-md shadow-sm">{book.badge}</span>}
-          {book.originalPrice && <span className="px-2.5 py-1 bg-green-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-md shadow-sm">Save {Math.round((1 - book.price / book.originalPrice) * 100)}%</span>}
+          {book.original_price && <span className="px-2.5 py-1 bg-green-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-md shadow-sm">Save {Math.round((1 - book.price / book.original_price) * 100)}%</span>}
         </div>
         <button onClick={(e) => { e.stopPropagation(); onToggleWishlist(book); }}
           className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur rounded-full shadow-md opacity-0 group-hover:opacity-100 transition hover:scale-110">
@@ -50,7 +51,7 @@ function BookCard({ book, isWishlisted, onToggleWishlist, onAddToCart, onViewDet
         <div className="mt-auto pt-4">
           <div className="mb-3">
             <p className="text-xl font-bold text-[#1C1917]">KSh {book.price.toLocaleString()}</p>
-            {book.originalPrice && <p className="text-sm text-stone-400 line-through">KSh {book.originalPrice.toLocaleString()}</p>}
+            {book.original_price && <p className="text-sm text-stone-400 line-through">KSh {book.original_price.toLocaleString()}</p>}
           </div>
           <button onClick={() => onAddToCart(book)}
             className="w-full bg-[#1C1917] hover:bg-[#991B1B] text-white py-3 rounded-lg font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2">
@@ -71,11 +72,20 @@ function BooksInner() {
   const initialQ = searchParams.get("q") || "";
 
   const store = useStore();
+  const [books, setBooks] = useState([]);
+  const [booksLoading, setBooksLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState(initialQ);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("popular");
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState({ priceMax: 2500, formats: [], minRating: null, onSaleOnly: false });
+
+  // Load books from Supabase
+  useEffect(() => {
+    supabase.from("books").select("*").order("id")
+      .then(({ data }) => { setBooks(data || []); setBooksLoading(false); })
+      .catch(() => setBooksLoading(false));
+  }, []);
 
   const updateFilter = (key, val) => setFilters((p) => ({ ...p, [key]: val }));
   const resetFilters = () => setFilters({ priceMax: 2500, formats: [], minRating: null, onSaleOnly: false });
@@ -89,7 +99,7 @@ function BooksInner() {
       const matchesPrice = book.price <= filters.priceMax;
       const matchesFormat = filters.formats.length === 0 || filters.formats.includes(book.format);
       const matchesRating = filters.minRating === null || book.rating >= filters.minRating;
-      const matchesSale = !filters.onSaleOnly || book.originalPrice !== null;
+      const matchesSale = !filters.onSaleOnly || book.original_price !== null;
       return matchesSearch && matchesCategory && matchesPrice && matchesFormat && matchesRating && matchesSale;
     });
     switch (sortBy) {
@@ -100,7 +110,7 @@ function BooksInner() {
       default: break;
     }
     return result;
-  }, [searchQuery, selectedCategory, sortBy, filters]);
+  }, [books, searchQuery, selectedCategory, sortBy, filters]);
 
   return (
     <div className="min-h-screen bg-[#FAF8F5]">
@@ -136,7 +146,7 @@ function BooksInner() {
                 <span className="text-stone-600 font-medium">All Books</span>
               </nav>
               <h1 className="text-2xl sm:text-3xl font-bold text-[#1C1917]">All Books</h1>
-              <p className="text-stone-500 text-sm mt-0.5">{books.length} titles in our catalogue</p>
+              <p className="text-stone-500 text-sm mt-0.5">{booksLoading ? "Loading..." : `${books.length} titles in our catalogue`}</p>
             </div>
             {/* Search on this page */}
             <div className="relative w-full sm:w-80">
