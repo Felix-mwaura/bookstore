@@ -981,7 +981,8 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   const [users] = useState(initialUsers);
   const [booksCount, setBooksCount] = useState(initialBooksCount);
   const [collapsed, setCollapsed] = useState(false);
-  const [verified, setVerified] = useState(false);
+  // Server already verified admin access in page.js — start as true
+  const [verified, setVerified] = useState(true);
   const [dataLoading, setDataLoading] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [toasts, setToasts] = useState([]);
@@ -994,16 +995,13 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
 
   const removeToast = useCallback(id=>setToasts(prev=>prev.filter(t=>t.id!==id)),[]);
 
-  // Client-side double-check
+  // Lightweight client-side session check — just redirect if session lost
   useEffect(()=>{
-    const verify = async () => {
-      const { data:{ session } } = await supabase.auth.getSession();
-      if (!session||session.user.email!==ADMIN_EMAIL) { router.replace("/"); return; }
-      const { data:profile } = await supabase.from("profiles").select("role").eq("id",session.user.id).single();
-      if (profile?.role!=="admin") { router.replace("/"); return; }
-      setVerified(true);
-    };
-    verify();
+    supabase.auth.getSession().then(({ data:{ session } }) => {
+      if (!session || session.user.email !== ADMIN_EMAIL) {
+        router.replace("/login");
+      }
+    }).catch(()=>{}); // Never block the UI on this
   },[router]);
 
   const handleUpdateStatus = useCallback((orderId, newStatus)=>{
