@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "../../../../lib/admin-auth";
+import { requireAdmin } from "../../admin/orders/route.js";
 
 // GET /api/admin/orders — fetch ALL orders (admin only)
 export async function GET(request) {
