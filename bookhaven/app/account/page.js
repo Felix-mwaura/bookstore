@@ -22,42 +22,60 @@ export default function AccountPage() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/login");
-        return;
-      }
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          router.push("/login");
+          return;
+        }
 
-      // Check if admin — redirect to admin dashboard
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("role, first_name, last_name, phone")
-        .eq("id", session.user.id)
-        .single();
+        // Fetch profile
+        const { data: prof, error: profError } = await supabase
+          .from("profiles")
+          .select("role, first_name, last_name, phone")
+          .eq("id", session.user.id)
+          .single();
 
-      if (prof?.role === "admin") {
-        router.push("/admin");
-        return;
-      }
+        // If admin somehow lands here, redirect them to admin dashboard
+        if (prof?.role === "admin") {
+          router.push("/admin");
+          return;
+        }
 
-      setUser(session.user);
-      setProfile(prof || {});
-      setFormData({
-        firstName: prof?.first_name || session.user.user_metadata?.first_name || "",
-        lastName: prof?.last_name || session.user.user_metadata?.last_name || "",
-        phone: prof?.phone || session.user.user_metadata?.phone || "",
-      });
+        // Profile row missing — create it
+        if (profError?.code === "PGRST116") {
+          await supabase.from("profiles").upsert({
+            id: session.user.id,
+            role: "customer",
+            first_name: session.user.user_metadata?.first_name || "",
+            last_name: session.user.user_metadata?.last_name || "",
+            phone: session.user.user_metadata?.phone || "",
+          });
+        }
 
-      // Fetch user's orders
-      const { data: orderData } = await supabase
-        .from("orders")
-        .select("*")
-        .eq("user_id", session.user.id)
-        .order("created_at", { ascending: false });
+        setUser(session.user);
+        setProfile(prof || {});
+        setFormData({
+          firstName: prof?.first_name || session.user.user_metadata?.first_name || "",
+          lastName: prof?.last_name || session.user.user_metadata?.last_name || "",
+          phone: prof?.phone || session.user.user_metadata?.phone || "",
+        });
 
-      if (isMountedRef.current) {
-        setOrders(orderData || []);
-        setLoading(false);
+        // Fetch user's orders
+        const { data: orderData } = await supabase
+          .from("orders")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false });
+
+        if (isMountedRef.current) {
+          setOrders(orderData || []);
+        }
+      } catch (err) {
+        console.error("[BookHaven] Account error:", err);
+      } finally {
+        // Always stop loading — prevents infinite spinner
+        if (isMountedRef.current) setLoading(false);
       }
     };
 

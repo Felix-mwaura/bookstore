@@ -9,7 +9,9 @@ export async function middleware(request) {
   // Only protect /admin routes
   if (!pathname.startsWith("/admin")) return NextResponse.next();
 
-  const response = NextResponse.next();
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -18,38 +20,39 @@ export async function middleware(request) {
       cookies: {
         getAll() { return request.cookies.getAll(); },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
-          });
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          response = NextResponse.next({ request: { headers: request.headers } });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
         },
       },
     }
   );
 
-  // 1. Check session
-  const { data: { session } } = await supabase.auth.getSession();
+  // Use getUser() not getSession() — more reliable in middleware
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session) {
-    // Not logged in → redirect to login
+  // Not logged in → redirect to login
+  if (error || !user) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
-  // 2. Check email matches admin email
-  if (session.user.email !== ADMIN_EMAIL) {
+  // Wrong email → access denied
+  if (user.email !== ADMIN_EMAIL) {
     const url = request.nextUrl.clone();
     url.pathname = "/access-denied";
     return NextResponse.redirect(url);
   }
 
-  // 3. Check admin role in DB
+  // Check role in DB
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single();
 
   if (!profile || profile.role !== "admin") {

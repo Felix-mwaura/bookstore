@@ -1,11 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense, useCallback } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn, signUp, useAuth } from "../lib/auth";
-import { supabase } from "../lib/supabase";
-
+import { signIn, signUp, useAuth, getUserName } from "../lib/auth";
 function Field({ label, name, type = "text", placeholder, value, onChange, error }) {
   const [showPass, setShowPass] = useState(false);
   const isPassword = type === "password";
@@ -15,7 +13,6 @@ function Field({ label, name, type = "text", placeholder, value, onChange, error
       <div className="relative">
         <input
           type={isPassword ? (showPass ? "text" : "password") : type}
-          name={name}
           value={value}
           placeholder={placeholder}
           onChange={(e) => onChange(name, e.target.value)}
@@ -50,22 +47,17 @@ function Particles() {
         pointerEvents: "none", animation: `bh-float ${4 + Math.random() * 4}s linear forwards`,
       });
       container.appendChild(p);
-      setTimeout(() => { if (p.parentNode) p.remove(); }, 8000);
+      setTimeout(() => p.remove(), 8000);
     }, 700);
-    return () => {
-      clearInterval(interval);
-      if (container) container.innerHTML = "";
-    };
+    return () => clearInterval(interval);
   }, []);
   return <div ref={ref} className="absolute inset-0 overflow-hidden pointer-events-none" />;
 }
 
 function celebrate(container) {
-  if (!container) return;
   const emojis = ["📖", "✨", "🌟", "📚", "⭐", "🕯️"];
   for (let i = 0; i < 20; i++) {
     setTimeout(() => {
-      if (!container) return;
       const p = document.createElement("div");
       Object.assign(p.style, {
         position: "absolute", fontSize: `${10 + Math.random() * 16}px`,
@@ -74,7 +66,7 @@ function celebrate(container) {
       });
       p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
       container.appendChild(p);
-      setTimeout(() => { if (p.parentNode) p.remove(); }, 5000);
+      setTimeout(() => p.remove(), 5000);
     }, i * 110);
   }
 }
@@ -86,42 +78,36 @@ function LoginForm({ onSuccess, onError }) {
 
   const handleChange = (name, value) => { setForm((p) => ({ ...p, [name]: value })); setErrors((p) => ({ ...p, [name]: "" })); };
 
-  const submit = async (e) => {
-    e.preventDefault();
-    const eObj = {};
-    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) eObj.email = "Valid email required";
-    if (form.password.length < 6) eObj.password = "At least 6 characters";
-    if (Object.keys(eObj).length) { setErrors(eObj); return; }
+  const submit = async () => {
+    const e = {};
+    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) e.email = "Valid email required";
+    if (form.password.length < 6) e.password = "At least 6 characters";
+    if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
-    try {
-      const { data, error } = await signIn({ email: form.email, password: form.password });
-      if (error) { onError(error.message); return; }
-      onSuccess(data.user);
-    } catch (err) {
-      onError(err.message || "Sign in failed");
-    } finally {
-      setLoading(false);
-    }
+    const { data, error } = await signIn({ email: form.email, password: form.password });
+    setLoading(false);
+    if (error) { onError(error.message); return; }
+    onSuccess(getUserName(data.user), false);
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <div className="space-y-4">
       <p className="text-center italic text-amber-900/50 text-sm mb-5">Welcome back, fellow reader</p>
       <Field label="Email Address" name="email" type="email" placeholder="grace@example.com" value={form.email} onChange={handleChange} error={errors.email} />
       <Field label="Password" name="password" type="password" placeholder="Enter your password" value={form.password} onChange={handleChange} error={errors.password} />
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="remember" className="accent-amber-700 w-3.5 h-3.5" />
+          <input type="checkbox" className="accent-amber-700 w-3.5 h-3.5" />
           <span className="italic text-xs text-amber-900/50">Remember me</span>
         </label>
-        <button type="button" className="italic text-xs text-amber-900/50 hover:text-amber-600/80 transition">Forgot password?</button>
+        <button className="italic text-xs text-amber-900/50 hover:text-amber-600/80 transition">Forgot password?</button>
       </div>
-      <button type="submit" disabled={loading}
+      <button onClick={submit} disabled={loading}
         className="w-full mt-2 py-3.5 rounded-lg text-sm font-semibold tracking-widest text-[#0f0b08] transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
         style={{ background: "linear-gradient(135deg, #7a4f1e 0%, #c9a84c 50%, #7a4f1e 100%)", fontFamily: "'Cinzel', serif" }}>
         {loading ? <><span className="inline-block w-4 h-4 border-2 border-[#0f0b08]/30 border-t-[#0f0b08] rounded-full animate-spin" /> Signing in…</> : "Open the Library"}
       </button>
-    </form>
+    </div>
   );
 }
 
@@ -133,35 +119,24 @@ function RegisterForm({ onSuccess, onError }) {
 
   const handleChange = (name, value) => { setForm((p) => ({ ...p, [name]: value })); setErrors((p) => ({ ...p, [name]: "" })); };
 
-  const validatePhone = (phone) => {
-    const digits = phone.replace(/\D/g, "");
-    return /^((254[170])|(0[170]))\d{8}$/.test(digits);
-  };
-
-  const submit = async (e) => {
-    e.preventDefault();
-    const eObj = {};
-    if (!form.firstName.trim()) eObj.firstName = "Required";
-    if (!form.lastName.trim()) eObj.lastName = "Required";
-    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) eObj.email = "Valid email required";
-    if (!validatePhone(form.phone)) eObj.phone = "Valid Kenyan phone required (e.g. 0712 345 678)";
-    if (form.password.length < 8) eObj.password = "At least 8 characters";
-    if (form.password !== form.confirm) eObj.confirm = "Passwords don't match";
-    if (Object.keys(eObj).length) { setErrors(eObj); return; }
+  const submit = async () => {
+    const e = {};
+    if (!form.firstName.trim()) e.firstName = "Required";
+    if (!form.lastName.trim()) e.lastName = "Required";
+    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) e.email = "Valid email required";
+    if (form.phone.replace(/\D/g, "").length < 9) e.phone = "Valid phone required";
+    if (form.password.length < 8) e.password = "At least 8 characters";
+    if (form.password !== form.confirm) e.confirm = "Passwords don't match";
+    if (Object.keys(e).length) { setErrors(e); return; }
     setLoading(true);
-    try {
-      const { data, error } = await signUp({ email: form.email, password: form.password, firstName: form.firstName, lastName: form.lastName, phone: form.phone });
-      if (error) { onError(error.message); return; }
-      onSuccess(data.user);
-    } catch (err) {
-      onError(err.message || "Sign up failed");
-    } finally {
-      setLoading(false);
-    }
+    const { data, error } = await signUp({ email: form.email, password: form.password, firstName: form.firstName, lastName: form.lastName, phone: form.phone });
+    setLoading(false);
+    if (error) { onError(error.message); return; }
+    onSuccess(form.firstName, true);
   };
 
   return (
-    <form onSubmit={submit} className="space-y-3">
+    <div className="space-y-3">
       <p className="text-center italic text-amber-900/50 text-sm mb-4">Begin your reading journey</p>
       <div className="grid grid-cols-2 gap-3">
         <Field label="First Name" name="firstName" placeholder="Grace" value={form.firstName} onChange={handleChange} error={errors.firstName} />
@@ -180,12 +155,12 @@ function RegisterForm({ onSuccess, onError }) {
           I agree to the <span className="text-amber-700/70 hover:text-amber-600 cursor-pointer">Terms of Service</span> and <span className="text-amber-700/70 hover:text-amber-600 cursor-pointer">Privacy Policy</span>
         </span>
       </label>
-      <button type="submit" disabled={loading || !agreed}
+      <button onClick={submit} disabled={loading || !agreed}
         className="w-full py-3.5 rounded-lg text-sm font-semibold tracking-widest text-[#0f0b08] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
         style={{ background: "linear-gradient(135deg, #7a4f1e 0%, #c9a84c 50%, #7a4f1e 100%)", fontFamily: "'Cinzel', serif" }}>
         {loading ? <><span className="inline-block w-4 h-4 border-2 border-[#0f0b08]/30 border-t-[#0f0b08] rounded-full animate-spin" /> Creating account…</> : "Join the Library"}
       </button>
-    </form>
+    </div>
   );
 }
 
@@ -197,43 +172,64 @@ function LoginInner() {
   const [success, setSuccess] = useState(null);
   const [authError, setAuthError] = useState("");
   const celebrationRef = useRef(null);
-  const [isAdmin, setIsAdmin] = useState(false);
 
-  // Check role and redirect if already logged in
+  // Already logged in → check role and redirect correctly
   useEffect(() => {
-    if (authLoading || !user) return;
+    if (!authLoading && user) {
+      checkRoleAndRedirect(user);
+    }
+  }, [user, authLoading]);
 
-    const checkRoleAndRedirect = async () => {
-      const { data: profile } = await supabase
+  const checkRoleAndRedirect = async (u) => {
+    try {
+      const { supabase } = await import("../lib/supabase");
+      const { data: prof } = await supabase
         .from("profiles")
         .select("role")
-        .eq("id", user.id)
+        .eq("id", u.id)
         .single();
-
-      if (profile?.role === "admin") {
-        setIsAdmin(true);
-        setSuccess({ name: user.user_metadata?.first_name || "Admin", isNew: false, isAdmin: true });
-        if (celebrationRef.current) celebrate(celebrationRef.current);
-        setTimeout(() => router.push("/admin"), 2000);
+      if (prof?.role === "admin") {
+        router.push("/admin");
       } else {
-        setSuccess({ name: user.user_metadata?.first_name || "Reader", isNew: false, isAdmin: false });
-        if (celebrationRef.current) celebrate(celebrationRef.current);
-        setTimeout(() => router.push("/account"), 2800);
+        router.push("/account");
       }
-    };
+    } catch {
+      router.push("/account");
+    }
+  };
 
-    checkRoleAndRedirect();
-  }, [user, authLoading, router]);
+  const handleSuccess = (name, isNew) => {
+    setSuccess({ name, isNew });
+    if (celebrationRef.current) celebrate(celebrationRef.current);
+    // After sign-in, check role then redirect
+    setTimeout(async () => {
+      try {
+        const { supabase } = await import("../lib/supabase");
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("role")
+            .eq("id", session.user.id)
+            .single();
+          if (prof?.role === "admin") {
+            router.push("/admin");
+          } else {
+            router.push("/account");
+          }
+        } else {
+          router.push("/account");
+        }
+      } catch {
+        router.push("/account");
+      }
+    }, 2800);
+  };
 
-  const handleSuccess = useCallback((user) => {
-    // The useEffect above will handle redirect based on role
-    // This just shows the success state briefly
-  }, []);
-
-  const handleError = useCallback((msg) => {
+  const handleError = (msg) => {
     setAuthError(msg);
     setTimeout(() => setAuthError(""), 4000);
-  }, []);
+  };
 
   if (authLoading) return (
     <div className="min-h-screen bg-[#050302] flex items-center justify-center">
@@ -243,8 +239,8 @@ function LoginInner() {
 
   return (
     <>
-      <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
         @keyframes bh-float { 0% { transform:translateY(0) rotate(0deg); opacity:0; } 10% { opacity:0.7; } 90% { opacity:0.2; } 100% { transform:translateY(-120px) rotate(360deg); opacity:0; } }
         @keyframes bh-twinkle { 0%,100% { opacity:0.1; transform:scale(1); } 50% { opacity:0.9; transform:scale(1.4); } }
         @keyframes bh-breathe { 0%,100% { transform:translateY(0px) rotate(-2deg); } 50% { transform:translateY(-8px) rotate(-1deg); } }
@@ -264,7 +260,7 @@ function LoginInner() {
           <div className="hidden md:flex md:w-[42%] flex-col items-center justify-center p-10 relative overflow-hidden"
             style={{ background: "linear-gradient(160deg, #1a0f05 0%, #0d0805 50%, #1a1005 100%)", borderRight: "1px solid #2a1a08" }}>
             {[{ t:"12%",l:"20%",d:"2.1s",dy:"0s" },{ t:"25%",l:"72%",d:"3.4s",dy:"0.5s" },{ t:"8%",l:"55%",d:"2.7s",dy:"1s" },{ t:"38%",l:"14%",d:"4.1s",dy:"0.3s" },{ t:"62%",l:"82%",d:"2.9s",dy:"1.5s" },{ t:"78%",l:"32%",d:"3.7s",dy:"0.8s" },{ t:"88%",l:"68%",d:"2.3s",dy:"0.2s" },{ t:"18%",l:"42%",d:"4.5s",dy:"1.2s" },{ t:"50%",l:"58%",d:"3.1s",dy:"0.6s" }].map((s,i)=>(
-              <div key={`star-${i}`} className="absolute rounded-full bg-[#e8d5a3]"
+              <div key={i} className="absolute rounded-full bg-[#e8d5a3]"
                 style={{ width:i%2===0?"2px":"1px", height:i%2===0?"2px":"1px", top:s.t, left:s.l, animation:`bh-twinkle ${s.d} ease-in-out ${s.dy} infinite` }} />
             ))}
             <div className="absolute rounded-full pointer-events-none" style={{ width:"200px",height:"200px",background:"#c9a84c",opacity:0.05,filter:"blur(50px)",top:"30%",left:"50%",transform:"translate(-50%,-50%)" }} />
@@ -310,18 +306,14 @@ function LoginInner() {
 
             {success ? (
               <div className="text-center py-8" style={{ animation:"bh-pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards" }}>
-                <div className="text-6xl mb-5">{success.isAdmin ? "👑" : "✨"}</div>
+                <div className="text-6xl mb-5">✨</div>
                 <h2 style={{ fontFamily:"'Cinzel',serif" }} className="text-[#e8d5a3] text-2xl mb-2">
                   {success.isNew ? `Welcome, ${success.name}!` : `Welcome back, ${success.name}!`}
                 </h2>
                 <p style={{ fontFamily:"'IM Fell English',serif" }} className="italic text-amber-900/60 text-base">
-                  {success.isAdmin 
-                    ? "Accessing the admin dashboard..." 
-                    : success.isNew 
-                      ? "Account created. The library awaits..." 
-                      : "The library awaits your return..."}
+                  {success.isNew ? "Account created. The library awaits..." : "The library awaits your return..."}
                 </p>
-                {success.isNew && !success.isAdmin && (
+                {success.isNew && (
                   <p className="text-amber-900/40 text-xs mt-3 italic">Check your email to verify your account</p>
                 )}
                 <p className="text-amber-900/40 text-sm mt-2">Redirecting...</p>
@@ -332,7 +324,7 @@ function LoginInner() {
                   <div className="absolute top-0.5 left-0.5 h-[calc(100%-4px)] w-[calc(50%-2px)] rounded-md transition-transform duration-300 ease-in-out"
                     style={{ background:"linear-gradient(135deg,#7a4f1e,#c9a84c)", transform:tab==="register"?"translateX(100%)":"translateX(0)" }} />
                   {["login","register"].map((t) => (
-                    <button key={t} type="button" onClick={() => { setTab(t); setAuthError(""); }}
+                    <button key={t} onClick={() => { setTab(t); setAuthError(""); }}
                       className={`flex-1 py-2.5 text-xs tracking-[0.15em] uppercase relative z-10 transition-colors duration-300 rounded-md ${tab===t?"text-[#0f0b08] font-bold":"text-amber-900/50 hover:text-amber-800/70"}`}
                       style={{ fontFamily:"'Cinzel',serif" }}>
                       {t==="login"?"Sign In":"Create Account"}
