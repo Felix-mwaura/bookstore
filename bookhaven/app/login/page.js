@@ -173,13 +173,18 @@ function LoginInner() {
   const [success, setSuccess] = useState(null);
   const [authError, setAuthError] = useState("");
   const celebrationRef = useRef(null);
-
-  // Already logged in → check role and redirect correctly
-  useEffect(() => {
-    if (!authLoading && user) {
-      checkRoleAndRedirect(user);
-    }
-  }, [user, authLoading]);
+  // Set the moment a fresh sign-in succeeds, so the effect below knows
+  // handleSuccess already owns the redirect for this session and steps
+  // aside — previously BOTH fired independently on every sign-in, each
+  // running its own role query and its own router.push(). Whichever one
+  // resolved first (often the effect, firing within milliseconds of
+  // onAuthStateChange) "won" the navigation. If that first, faster query
+  // hit any transient hiccup and fell back to "/account", the correct,
+  // later result from the 2800ms success-screen check never got a chance
+  // to redirect — this component had already navigated away/unmounted.
+  // That race, not bad data, is what could send an admin to the customer
+  // dashboard: the DB role was right the whole time.
+  const freshSignInRef = useRef(false);
 
   const checkRoleAndRedirect = async (u) => {
     try {
@@ -189,39 +194,33 @@ function LoginInner() {
         .select("role")
         .eq("id", u.id)
         .single();
-      if (prof?.role === "admin") {
-        router.push("/admin");
-      } else {
-        router.push("/account");
-      }
+      router.push(prof?.role === "admin" ? "/admin" : "/account");
     } catch {
       router.push("/account");
     }
   };
 
+  // Handles ONLY the "already logged in when this page loaded" case
+  // (e.g. a signed-in user pastes /login into the address bar). A fresh
+  // sign-in is handled exclusively by handleSuccess below.
+  useEffect(() => {
+    if (!authLoading && user && !freshSignInRef.current) {
+      checkRoleAndRedirect(user);
+    }
+  }, [user, authLoading]);
+
   const handleSuccess = (name, isNew) => {
+    freshSignInRef.current = true;
     setSuccess({ name, isNew });
     if (celebrationRef.current) celebrate(celebrationRef.current);
-    // After sign-in, check role then redirect
+    // Single source of truth for the redirect after a fresh sign-in —
+    // same checkRoleAndRedirect function as above, called once.
     setTimeout(async () => {
-      try {
-        const { supabase } = await import("../lib/supabase");
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("role")
-            .eq("id", session.user.id)
-            .single();
-          if (prof?.role === "admin") {
-            router.push("/admin");
-          } else {
-            router.push("/account");
-          }
-        } else {
-          router.push("/account");
-        }
-      } catch {
+      const { supabase } = await import("../lib/supabase");
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        await checkRoleAndRedirect(session.user);
+      } else {
         router.push("/account");
       }
     }, 2800);

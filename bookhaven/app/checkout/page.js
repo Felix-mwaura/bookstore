@@ -504,7 +504,7 @@ function StepPayment({ details, total, orderId, onSuccess, onBack }) {
   );
 }
 
-function StepConfirmation({ orderId, details, method, cart, total }) {
+function StepConfirmation({ orderId, details, method, cart, total, saveError }) {
   const delivery = total >= 3000 ? 0 : 300;
   const grand = total + delivery + (method === "cod" ? 50 : 0);
   const methodLabels = { mpesa: "M-Pesa", card: "Card", cod: "Cash on Delivery" };
@@ -519,6 +519,12 @@ function StepConfirmation({ orderId, details, method, cart, total }) {
       </div>
       <h2 className="text-3xl font-black text-[#1C1917]">Order Confirmed! 🎉</h2>
       <p className="text-stone-500 mt-2 mb-8">Thank you {details.firstName}! Your books are on their way.</p>
+      {saveError && (
+        <div className="max-w-sm mx-auto mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-left text-sm text-amber-800">
+          Your payment was received, but we couldn't attach this order to your account automatically.
+          Please save your order reference <strong>{orderId}</strong> and contact support so we can confirm it manually.
+        </div>
+      )}
       <div className="bg-stone-50 rounded-2xl p-6 text-left max-w-sm mx-auto space-y-3 mb-6">
         {[{ label: "Order ID", value: orderId, mono: true }, { label: "Delivering to", value: `${details.address}, ${details.city}` }, { label: "Payment", value: methodLabels[method] || method }, { label: "Amount paid", value: `KSh ${grand.toLocaleString()}` }, { label: "Estimated delivery", value: eta }].map(({ label, value, mono }) => (
           <div key={label} className="flex justify-between text-sm gap-4">
@@ -558,19 +564,35 @@ export default function CheckoutPage() {
   const updateDetail = (key, val) => setDetails((p) => ({ ...p, [key]: val }));
   const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
+  const [orderSaveError, setOrderSaveError] = useState(false);
+
   const handlePaymentSuccess = async (method) => {
     setPaymentMethod(method);
-    // Save order to Supabase if user is logged in
+    // Save order to Supabase if user is logged in.
+    // The response is now actually checked — previously this fetch's
+    // result was discarded, so a failed insert (RLS, expired token, bad
+    // payload) was invisible and the customer still saw "Order Confirmed."
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        await fetch("/api/orders", {
+        const res = await fetch("/api/orders", {
           method: "POST",
           headers: { "Content-Type": "application/json", authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({ items: cart, total, deliveryDetails: details, paymentMethod: method }),
         });
+        const json = await res.json();
+        if (!res.ok || json.error) {
+          console.error("Order save failed:", json.error || res.status);
+          setOrderSaveError(true);
+        }
+      } else {
+        // Not logged in — order can't be attached to an account/My Orders
+        setOrderSaveError(true);
       }
-    } catch (e) { console.error("Order save failed", e); }
+    } catch (e) {
+      console.error("Order save failed", e);
+      setOrderSaveError(true);
+    }
     localStorage.removeItem("bh_cart");
     setStep(3);
   };
@@ -628,7 +650,7 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 lg:p-8">
             {step === 1 && <StepDetails data={details} onChange={updateDetail} onNext={() => setStep(2)} />}
             {step === 2 && <StepPayment details={details} total={total} orderId={orderId} onSuccess={handlePaymentSuccess} onBack={() => setStep(1)} />}
-            {step === 3 && <StepConfirmation orderId={orderId} details={details} method={paymentMethod} cart={cart} total={total} />}
+            {step === 3 && <StepConfirmation orderId={orderId} details={details} method={paymentMethod} cart={cart} total={total} saveError={orderSaveError} />}
           </div>
           {step < 3 && (
             <div className="hidden lg:block">

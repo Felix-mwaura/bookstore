@@ -1,24 +1,37 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL ,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY 
-);
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://luniopceavtkljywukyi.supabase.co";
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bmlvcGNlYXZ0a2xqeXd1a3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzk1NTUsImV4cCI6MjA5NDc1NTU1NX0.zmZcxS2uxyon8Est9l3feYLuYy02hgcIpCNKAqKWtCE";
 
-async function getUser(request) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (!token) return null;
-  const { data: { user } } = await supabase.auth.getUser(token);
-  return user;
+// Builds a client that carries the CALLER'S OWN JWT on every request.
+// This is the missing piece: supabase.auth.getUser(token) only verifies
+// a token — it does NOT attach it to later .from() calls on a plain
+// createClient(url, anonKey) instance. Without this, every .from("orders")
+// query below would run as the anon Postgres role, so
+// `auth.uid() = user_id` RLS policies correctly (and silently) block
+// both the SELECT (customer sees zero orders) and the INSERT (order
+// never gets created), even though the API route itself reports success.
+function clientForToken(token) {
+  return createClient(supabaseUrl, supabaseAnonKey, {
+    global: { headers: token ? { Authorization: `Bearer ${token}` } : {} },
+  });
 }
 
-// GET /api/orders — fetch logged-in user's orders
-export async function GET(request) {
-  const user = await getUser(request);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+function getToken(request) {
+  return request.headers.get("authorization")?.replace("Bearer ", "") || null;
+}
 
-  const { data, error } = await supabase
+// GET /api/orders — fetch the logged-in user's own orders (RLS-enforced)
+export async function GET(request) {
+  const token = getToken(request);
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const client = clientForToken(token);
+  const { data: { user }, error: userError } = await client.auth.getUser(token);
+  if (userError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data, error } = await client
     .from("orders")
     .select("*")
     .eq("user_id", user.id)
@@ -28,10 +41,14 @@ export async function GET(request) {
   return NextResponse.json({ orders: data || [] });
 }
 
-// POST /api/orders — save a new order after checkout
+// POST /api/orders — save a new order after checkout (RLS-enforced)
 export async function POST(request) {
-  const user = await getUser(request);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const token = getToken(request);
+  if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const client = clientForToken(token);
+  const { data: { user }, error: userError } = await client.auth.getUser(token);
+  if (userError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
   const { items, total, deliveryDetails, paymentMethod, checkoutRequestId } = body;
@@ -40,7 +57,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await client
     .from("orders")
     .insert({
       user_id: user.id,
