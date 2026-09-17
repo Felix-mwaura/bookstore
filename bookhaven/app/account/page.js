@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
-export default function AccountPage() {
+function AccountInner() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -403,5 +403,20 @@ export default function AccountPage() {
         )}
       </main>
     </div>
+  );
+}
+
+export default function AccountPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-12 h-12 border-4 border-stone-200 border-t-[#991B1B] rounded-full animate-spin mx-auto" />
+          <p className="text-stone-500 text-sm">Loading your account...</p>
+        </div>
+      </div>
+    }>
+      <AccountInner />
+    </Suspense>
   );
 }

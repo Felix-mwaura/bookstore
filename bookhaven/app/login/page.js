@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, signUp, useAuth, getUserName } from "../lib/auth";
+
 function Field({ label, name, type = "text", placeholder, value, onChange, error }) {
   const [showPass, setShowPass] = useState(false);
   const isPassword = type === "password";

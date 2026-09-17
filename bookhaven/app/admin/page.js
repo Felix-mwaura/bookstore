@@ -4,8 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import AdminClient from "./admin-client";
 
-// ── ONLY this email can access /admin ─────────────────────
-const ADMIN_EMAIL = "mwaurafelix754@gmail.com";
+export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const cookieStore = await cookies();
@@ -27,47 +26,48 @@ export default async function AdminPage() {
     }
   );
 
-  // 1. Not logged in → go to login
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect("/login");
+  // 1. Secure check using getUser()
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) redirect("/login");
 
-  // 2. Wrong email → go to home (not account, so they can't snoop)
-  if (session.user.email !== ADMIN_EMAIL) redirect("/");
+  // 2. Case-insensitive email check using environment variables
+  const adminEmail = process.env.ADMIN_EMAIL || "mwaurafelix754@gmail.com";
+  if (user.email?.toLowerCase() !== adminEmail.toLowerCase()) redirect("/");
 
-  // 3. Must have admin role in DB
+  // 3. Validate admin role in DB
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", session.user.id)
+    .eq("id", user.id)
     .single();
 
   if (profile?.role !== "admin") redirect("/");
 
-  // 4. Service role client — bypasses ALL RLS
+  // 4. Service role client
   const admin = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 
-  // Fetch ALL orders
+  // Fetch ALL orders with error logging
   const { data: ordersData, error: ordersError } = await admin
     .from("orders")
     .select("*")
     .order("created_at", { ascending: false });
 
-  // Fetch ALL profiles
-  const { data: profilesData } = await admin
-    .from("profiles")
-    .select("*");
+  if (ordersError) console.error("Error fetching orders:", ordersError);
 
-  // Fetch ALL auth users → real emails, names, phones
-  const { data: authData } = await admin.auth.admin.listUsers();
+  // Fetch ALL profiles
+  const { data: profilesData } = await admin.from("profiles").select("*");
+
+  // Increase listUsers perPage limit to retrieve all users
+  const { data: authData } = await admin.auth.admin.listUsers({ perPage: 1000 });
   const authUsers = authData?.users || [];
 
   // Merge profiles with auth user data
-  const users = (profilesData || []).map(p => {
-    const au = authUsers.find(u => u.id === p.id);
+  const users = (profilesData || []).map((p) => {
+    const au = authUsers.find((u) => u.id === p.id);
     const meta = au?.user_metadata || {};
     return {
       id: p.id,
@@ -90,7 +90,7 @@ export default async function AdminPage() {
       initialOrders={ordersData || []}
       initialUsers={users}
       initialBooksCount={booksCount || 0}
-      sessionUser={{ id: session.user.id, email: session.user.email }}
+      sessionUser={{ id: user.id, email: user.email }}
     />
   );
 }
