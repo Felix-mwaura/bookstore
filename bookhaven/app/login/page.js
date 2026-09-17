@@ -72,7 +72,7 @@ function celebrate(container) {
   }
 }
 
-function LoginForm({ onSuccess, onError }) {
+function LoginForm({ onSuccess, onError, onStart }) {
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -84,7 +84,11 @@ function LoginForm({ onSuccess, onError }) {
     if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) e.email = "Valid email required";
     if (form.password.length < 6) e.password = "At least 6 characters";
     if (Object.keys(e).length) { setErrors(e); return; }
+    
+    // Set the freshSignIn ref BEFORE the network request fires to block the useEffect race condition
+    if (onStart) onStart();
     setLoading(true);
+    
     const { data, error } = await signIn({ email: form.email, password: form.password });
     setLoading(false);
     if (error) { onError(error.message); return; }
@@ -112,7 +116,7 @@ function LoginForm({ onSuccess, onError }) {
   );
 }
 
-function RegisterForm({ onSuccess, onError }) {
+function RegisterForm({ onSuccess, onError, onStart }) {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "", confirm: "" });
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -129,7 +133,10 @@ function RegisterForm({ onSuccess, onError }) {
     if (form.password.length < 8) e.password = "At least 8 characters";
     if (form.password !== form.confirm) e.confirm = "Passwords don't match";
     if (Object.keys(e).length) { setErrors(e); return; }
+    
+    if (onStart) onStart();
     setLoading(true);
+    
     const { data, error } = await signUp({ email: form.email, password: form.password, firstName: form.firstName, lastName: form.lastName, phone: form.phone });
     setLoading(false);
     if (error) { onError(error.message); return; }
@@ -173,55 +180,72 @@ function LoginInner() {
   const [success, setSuccess] = useState(null);
   const [authError, setAuthError] = useState("");
   const celebrationRef = useRef(null);
-  // Set the moment a fresh sign-in succeeds, so the effect below knows
-  // handleSuccess already owns the redirect for this session and steps
-  // aside — previously BOTH fired independently on every sign-in, each
-  // running its own role query and its own router.push(). Whichever one
-  // resolved first (often the effect, firing within milliseconds of
-  // onAuthStateChange) "won" the navigation. If that first, faster query
-  // hit any transient hiccup and fell back to "/account", the correct,
-  // later result from the 2800ms success-screen check never got a chance
-  // to redirect — this component had already navigated away/unmounted.
-  // That race, not bad data, is what could send an admin to the customer
-  // dashboard: the DB role was right the whole time.
   const freshSignInRef = useRef(false);
 
   const checkRoleAndRedirect = async (u) => {
     try {
       const { supabase } = await import("../lib/supabase");
-      const { data: prof } = await supabase
+      const { data: prof, error } = await supabase
         .from("profiles")
         .select("role")
         .eq("id", u.id)
         .single();
-      router.push(prof?.role === "admin" ? "/admin" : "/account");
-    } catch {
-      router.push("/account");
+
+      // Diagnostic logging
+      console.log("[AUTH REDIRECT DEBUG]", {
+        userId: u.id,
+        userEmail: u.email,
+        profileFound: !!prof,
+        profileQueryError: error || "none",
+        profileRole: prof?.role || "none",
+      });
+
+      // Explicitly handle errors instead of blindly defaulting to /account
+      if (error && error.code !== "PGRST116") {
+        console.error("[Book Haven] Profile lookup error:", error);
+        setAuthError("Failed to verify account permissions. Please try again.");
+        return; // Halt redirect
+      }
+
+      // Align logic completely with server-side admin-auth.js
+      const ADMIN_EMAIL = "mwaurafelix754@gmail.com";
+      const isAdmin = u.email === ADMIN_EMAIL && prof?.role === "admin";
+      
+      console.log("[AUTH REDIRECT DEBUG] Redirect destination:", isAdmin ? "/admin" : "/account");
+
+      if (isAdmin) {
+        router.replace("/admin");
+      } else {
+        router.replace("/account");
+      }
+    } catch (e) {
+      console.error("[Book Haven] Unexpected redirect error:", e);
+      setAuthError("An unexpected error occurred during login.");
     }
   };
 
-  // Handles ONLY the "already logged in when this page loaded" case
-  // (e.g. a signed-in user pastes /login into the address bar). A fresh
-  // sign-in is handled exclusively by handleSuccess below.
   useEffect(() => {
     if (!authLoading && user && !freshSignInRef.current) {
       checkRoleAndRedirect(user);
     }
   }, [user, authLoading]);
 
-  const handleSuccess = (name, isNew) => {
+  const handleStart = () => {
     freshSignInRef.current = true;
+  };
+
+  const handleSuccess = (name, isNew) => {
     setSuccess({ name, isNew });
     if (celebrationRef.current) celebrate(celebrationRef.current);
-    // Single source of truth for the redirect after a fresh sign-in —
-    // same checkRoleAndRedirect function as above, called once.
+    
     setTimeout(async () => {
       const { supabase } = await import("../lib/supabase");
       const { data: { session } } = await supabase.auth.getSession();
+      
       if (session) {
         await checkRoleAndRedirect(session.user);
       } else {
-        router.push("/account");
+        setAuthError("Session was lost. Please log in again.");
       }
     }, 2800);
   };
@@ -297,9 +321,8 @@ function LoginInner() {
           <div className="flex-1 bg-[#0f0b08] flex flex-col justify-center p-8 relative overflow-hidden">
             <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-amber-900/5 blur-3xl pointer-events-none" />
 
-            {/* Auth error banner */}
             {authError && (
-              <div className="mb-4 bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3 text-red-400 text-sm italic text-center">
+              <div className="mb-4 bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3 text-red-400 text-sm italic text-center z-10 relative">
                 {authError}
               </div>
             )}
@@ -333,10 +356,10 @@ function LoginInner() {
                 </div>
                 <div className="relative">
                   <div className={`transition-all duration-300 ${tab==="login"?"opacity-100 translate-x-0":"opacity-0 translate-x-4 absolute inset-0 pointer-events-none"}`}>
-                    <LoginForm onSuccess={handleSuccess} onError={handleError} />
+                    <LoginForm onSuccess={handleSuccess} onError={handleError} onStart={handleStart} />
                   </div>
                   <div className={`transition-all duration-300 ${tab==="register"?"opacity-100 translate-x-0":"opacity-0 -translate-x-4 absolute inset-0 pointer-events-none"}`}>
-                    <RegisterForm onSuccess={handleSuccess} onError={handleError} />
+                    <RegisterForm onSuccess={handleSuccess} onError={handleError} onStart={handleStart} />
                   </div>
                 </div>
               </>
