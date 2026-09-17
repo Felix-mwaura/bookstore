@@ -5,6 +5,150 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
+const BookLoader = () => (
+  <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+    <div className="flex flex-col items-center justify-center space-y-8">
+      <style dangerouslySetInnerHTML={{ __html: `
+        .bh-book-scene {
+          position: relative;
+          perspective: 800px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          width: 140px;
+          height: 100px;
+        }
+        .bh-book-float {
+          position: relative;
+          width: 88px;
+          height: 60px;
+          transform-style: preserve-3d;
+          animation: bh-floatBounce 2.5s ease-in-out infinite;
+        }
+        .bh-book-glow-wrap {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          opacity: 0;
+          animation: bh-fadeIn 0.8s ease forwards 0.6s;
+          z-index: 0;
+        }
+        .bh-book-glow {
+          width: 70px;
+          height: 50px;
+          background: rgba(245, 158, 11, 0.45);
+          filter: blur(14px);
+          border-radius: 50%;
+          animation: bh-pulseGlow 2s ease-in-out infinite;
+        }
+        .bh-cover {
+          position: absolute;
+          top: 0;
+          width: 50%;
+          height: 100%;
+          background-color: #991B1B;
+          border: 3px solid #1C1917;
+          z-index: 2;
+        }
+        .bh-cover-left {
+          left: 0;
+          border-radius: 8px 0 0 8px;
+          border-right: none;
+        }
+        .bh-cover-right {
+          right: 0;
+          border-radius: 0 8px 8px 0;
+          border-left: none;
+          transform-origin: left center;
+          transform: rotateY(-180deg);
+          animation: bh-openRight 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.2s;
+        }
+        .bh-spine {
+          position: absolute;
+          left: 50%;
+          top: 3px;
+          bottom: 3px;
+          width: 6px;
+          background: #1C1917;
+          transform: translateX(-50%);
+          border-radius: 3px;
+          z-index: 3;
+          opacity: 0;
+          animation: bh-fadeIn 0.3s ease forwards 0.5s;
+        }
+        .bh-page {
+          position: absolute;
+          top: 5px;
+          right: 0;
+          width: calc(50% - 2px);
+          height: calc(100% - 10px);
+          background-color: #fff;
+          border: 2px solid #1C1917;
+          border-radius: 0 5px 5px 0;
+          transform-origin: left center;
+          transform-style: preserve-3d;
+          opacity: 0;
+          z-index: 1;
+        }
+        
+        .bh-page-1 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 0.8s; }
+        .bh-page-2 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 1.2s; }
+        .bh-page-3 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 1.6s; }
+        .bh-page-4 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 2.0s; }
+        .bh-page-5 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 2.4s; }
+        .bh-page-6 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 2.8s; }
+
+        @keyframes bh-openRight {
+          0% { transform: rotateY(-180deg); }
+          100% { transform: rotateY(0deg); }
+        }
+        @keyframes bh-fadeIn {
+          to { opacity: 1; }
+        }
+        @keyframes bh-flipPage {
+          0% { transform: rotateY(0deg) translateZ(0px); opacity: 0; }
+          5% { transform: rotateY(0deg) translateZ(0px); opacity: 1; }
+          20% { background-color: #fdfdfd; }
+          50% { background-color: #f5f5f5; }
+          80% { transform: rotateY(-175deg) translateZ(3px); opacity: 1; }
+          85% { transform: rotateY(-180deg) translateZ(0px); opacity: 0; }
+          100% { transform: rotateY(-180deg) translateZ(0px); opacity: 0; }
+        }
+        @keyframes bh-floatBounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        @keyframes bh-pulseGlow {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.2); }
+        }
+      `}} />
+      
+      <div className="bh-book-scene">
+        <div className="bh-book-glow-wrap">
+          <div className="bh-book-glow"></div>
+        </div>
+        <div className="bh-book-float">
+          <div className="bh-cover bh-cover-left"></div>
+          <div className="bh-cover bh-cover-right"></div>
+          <div className="bh-spine"></div>
+          <div className="bh-page bh-page-1"></div>
+          <div className="bh-page bh-page-2"></div>
+          <div className="bh-page bh-page-3"></div>
+          <div className="bh-page bh-page-4"></div>
+          <div className="bh-page bh-page-5"></div>
+          <div className="bh-page bh-page-6"></div>
+        </div>
+      </div>
+      
+      <p className="text-stone-500 font-semibold text-sm animate-pulse">
+        Loading your account...
+      </p>
+    </div>
+  </div>
+);
+
 function AccountInner() {
   const router = useRouter();
   const [user, setUser] = useState(null);
@@ -143,14 +287,7 @@ function AccountInner() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-stone-200 border-t-[#991B1B] rounded-full animate-spin mx-auto" />
-          <p className="text-stone-500 text-sm">Loading your account...</p>
-        </div>
-      </div>
-    );
+    return <BookLoader />;
   }
 
   const totalSpent = orders.reduce((s, o) => s + (o.total || 0), 0);
@@ -408,14 +545,7 @@ function AccountInner() {
 
 export default function AccountPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <div className="w-12 h-12 border-4 border-stone-200 border-t-[#991B1B] rounded-full animate-spin mx-auto" />
-          <p className="text-stone-500 text-sm">Loading your account...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<BookLoader />}>
       <AccountInner />
     </Suspense>
   );
