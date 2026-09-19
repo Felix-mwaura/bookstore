@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "../../../../lib/admin-auth";
+import { requireAdmin } from "../../../lib/admin-auth";
 
 // GET /api/admin/books — fetch all books (including archived, for the
 // admin list; the customer-facing catalogue filters is_archived itself)

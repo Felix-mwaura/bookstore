@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "../../../../lib/admin-auth";
+import { requireAdmin } from "../../../lib/admin-auth";
 
 // GET /api/admin/users — fetch ALL users with emails (admin only)
 export async function GET(request) {
