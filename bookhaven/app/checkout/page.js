@@ -504,7 +504,7 @@ function StepPayment({ details, total, orderId, onSuccess, onBack }) {
   );
 }
 
-function StepConfirmation({ orderId, details, method, cart, total, saveError }) {
+function StepConfirmation({ orderId, details, method, cart, total, saveError, stockError }) {
   const delivery = total >= 3000 ? 0 : 300;
   const grand = total + delivery + (method === "cod" ? 50 : 0);
   const methodLabels = { mpesa: "M-Pesa", card: "Card", cod: "Cash on Delivery" };
@@ -519,7 +519,12 @@ function StepConfirmation({ orderId, details, method, cart, total, saveError }) 
       </div>
       <h2 className="text-3xl font-black text-[#1C1917]">Order Confirmed! 🎉</h2>
       <p className="text-stone-500 mt-2 mb-8">Thank you {details.firstName}! Your books are on their way.</p>
-      {saveError && (
+      {stockError && (
+        <div className="max-w-sm mx-auto mb-6 bg-red-50 border border-red-200 rounded-xl p-4 text-left text-sm text-red-800">
+          {stockError} Your payment was received — please contact support with reference <strong>{orderId}</strong> and we'll sort out a substitute or refund for that item.
+        </div>
+      )}
+      {saveError && !stockError && (
         <div className="max-w-sm mx-auto mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-left text-sm text-amber-800">
           Your payment was received, but we couldn't attach this order to your account automatically.
           Please save your order reference <strong>{orderId}</strong> and contact support so we can confirm it manually.
@@ -565,13 +570,10 @@ export default function CheckoutPage() {
   const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
   const [orderSaveError, setOrderSaveError] = useState(false);
+  const [stockError, setStockError] = useState(null);
 
   const handlePaymentSuccess = async (method) => {
     setPaymentMethod(method);
-    // Save order to Supabase if user is logged in.
-    // The response is now actually checked — previously this fetch's
-    // result was discarded, so a failed insert (RLS, expired token, bad
-    // payload) was invisible and the customer still saw "Order Confirmed."
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
@@ -582,11 +584,18 @@ export default function CheckoutPage() {
         });
         const json = await res.json();
         if (!res.ok || json.error) {
-          console.error("Order save failed:", json.error || res.status);
-          setOrderSaveError(true);
+          if (json.code === "INSUFFICIENT_STOCK") {
+            // Stock changed between adding to cart and checkout — this is a
+            // real, customer-facing outcome, not a hidden failure. Payment
+            // already succeeded for M-Pesa/card, so this still needs a human
+            // to resolve, but at least the customer sees WHY, not a lie.
+            setStockError(json.error);
+          } else {
+            console.error("Order save failed:", json.error || res.status);
+            setOrderSaveError(true);
+          }
         }
       } else {
-        // Not logged in — order can't be attached to an account/My Orders
         setOrderSaveError(true);
       }
     } catch (e) {
@@ -650,7 +659,7 @@ export default function CheckoutPage() {
           <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 lg:p-8">
             {step === 1 && <StepDetails data={details} onChange={updateDetail} onNext={() => setStep(2)} />}
             {step === 2 && <StepPayment details={details} total={total} orderId={orderId} onSuccess={handlePaymentSuccess} onBack={() => setStep(1)} />}
-            {step === 3 && <StepConfirmation orderId={orderId} details={details} method={paymentMethod} cart={cart} total={total} saveError={orderSaveError} />}
+            {step === 3 && <StepConfirmation orderId={orderId} details={details} method={paymentMethod} cart={cart} total={total} saveError={orderSaveError} stockError={stockError} />}
           </div>
           {step < 3 && (
             <div className="hidden lg:block">

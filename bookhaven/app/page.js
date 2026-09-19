@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import books from "./books";
+import { supabase } from "./lib/supabase";
 import { BookCover } from "./components/BookCard";
 import BookDetailPage from "./components/BookCard";
 import { useStore, StoreHeader, StoreFooter, categoryIcons, categories, CartDrawer } from "./components/StoreShell";
 import WishlistDrawer from "./components/WishlistDrawer";
 
-function HeroBanner() {
+function HeroBanner({ books }) {
+  const heroBooks = books.slice(0, 3);
   return (
     <section className="bg-[#F5F5F4] border-b border-stone-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14 lg:py-24">
@@ -35,27 +36,29 @@ function HeroBanner() {
           </div>
 
           {/* Book covers — show smaller on tablet, hidden on mobile */}
-          <div className="hidden sm:flex justify-center gap-4 lg:gap-6">
-            {[books[0], books[5], books[7]].map((book, i) => (
-              <Link key={book.id} href="/books"
-                className="rounded-r-md overflow-hidden block hover:scale-105 transition-transform duration-300"
-                style={{
-                  width: "clamp(80px, 15vw, 176px)",
-                  aspectRatio: "2/3",
-                  boxShadow: "-2px 0 4px rgba(0,0,0,0.1), 6px 12px 32px rgba(0,0,0,0.2)",
-                  transform: i === 1 ? "translateY(-20px)" : "translateY(8px)",
-                }}>
-                <BookCover book={book} className="w-full h-full" />
-              </Link>
-            ))}
-          </div>
+          {heroBooks.length > 0 && (
+            <div className="hidden sm:flex justify-center gap-4 lg:gap-6">
+              {heroBooks.map((book, i) => (
+                <Link key={book.id} href="/books"
+                  className="rounded-r-md overflow-hidden block hover:scale-105 transition-transform duration-300"
+                  style={{
+                    width: "clamp(80px, 15vw, 176px)",
+                    aspectRatio: "2/3",
+                    boxShadow: "-2px 0 4px rgba(0,0,0,0.1), 6px 12px 32px rgba(0,0,0,0.2)",
+                    transform: i === 1 ? "translateY(-20px)" : "translateY(8px)",
+                  }}>
+                  <BookCover book={book} className="w-full h-full" />
+                </Link>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-function CategoryTiles() {
+function CategoryTiles({ books }) {
   const tiles = categories.filter((c) => c !== "All");
   const colors = {
     "Self-Help": "bg-[#2d4a22]", Finance: "bg-[#0f3460]",
@@ -89,13 +92,19 @@ function CategoryTiles() {
   );
 }
 
-function RecommendedSection({ onViewDetail, onAddToCart, wishlist, onToggleWishlist }) {
-  const picks = [
-    { book: books[0], reason: "📈 Trending this week" },
-    { book: books[5], reason: "⭐ Highest rated" },
-    { book: books[7], reason: "❤️ Staff favourite" },
-    { book: books[4], reason: "🏆 Award winning" },
-  ];
+function RecommendedSection({ books, booksLoading, onViewDetail, onAddToCart, wishlist, onToggleWishlist }) {
+  const featured = books.filter(b => b.is_featured);
+  let source = featured.slice(0, 4);
+  if (source.length < 4) {
+    // Fresh store with nothing marked featured yet — fall back to
+    // top-rated so the section still shows something real, not empty.
+    const existingIds = new Set(source.map(b => b.id));
+    const topRated = [...books].sort((a, b) => (b.rating||0) - (a.rating||0));
+    source = [...source, ...topRated.filter(b => !existingIds.has(b.id))].slice(0, 4);
+  }
+  const picks = source.map(book => ({ book, reason: book.is_featured ? "★ Featured" : "⭐ Highly rated" }));
+
+  if (!booksLoading && picks.length === 0) return null;
   return (
     <section className="bg-[#FAF8F5] border-t border-stone-200 py-10 sm:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -330,12 +339,21 @@ function Newsletter() {
 
 export default function Home() {
   const store = useStore();
+  const [books, setBooks] = useState([]);
+  const [booksLoading, setBooksLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.from("books").select("*").eq("is_archived", false).order("id")
+      .then(({ data }) => { setBooks(data || []); setBooksLoading(false); })
+      .catch(() => setBooksLoading(false));
+  }, []);
+
   return (
     <main className="min-h-screen bg-[#FAF8F5]">
       <StoreHeader cartCount={store.cartCount} wishlistCount={store.wishlist.length} onCartClick={() => store.setIsCartOpen(true)} onWishlistClick={() => store.setIsWishlistOpen(true)} />
-      <HeroBanner />
-      <CategoryTiles />
-      <RecommendedSection onViewDetail={store.setSelectedBook} onAddToCart={store.addToCart} wishlist={store.wishlist} onToggleWishlist={store.toggleWishlist} />
+      <HeroBanner books={books} />
+      <CategoryTiles books={books} />
+      <RecommendedSection books={books} booksLoading={booksLoading} onViewDetail={store.setSelectedBook} onAddToCart={store.addToCart} wishlist={store.wishlist} onToggleWishlist={store.toggleWishlist} />
       <ReviewsSection />
       <AboutSection />
       <TrustBadges />
