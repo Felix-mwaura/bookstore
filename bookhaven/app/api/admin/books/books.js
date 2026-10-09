@@ -10,7 +10,7 @@ export async function GET(request) {
   const { adminClient } = auth;
   const { data, error } = await adminClient.from("books").select("*").order("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ books: data });
+  return NextResponse.json({ books: data }, { headers: { "Cache-Control": "no-store" } });
 }
 
 // POST /api/admin/books — add a book
@@ -62,7 +62,7 @@ export async function PATCH(request) {
   await adminClient.from("admin_activity_log").insert({
     admin_id: user.id, admin_email: user.email,
     action: "book_updated", target_type: "book", target_id: String(id),
-    details: { fields: Object.keys(updates) },
+    details: { title: data?.title, fields: Object.keys(updates) },
   });
 
   return NextResponse.json({ book: data });
@@ -79,6 +79,8 @@ export async function DELETE(request) {
   const { adminClient, user } = auth;
   const { id } = await request.json();
 
+  const { data: existingBook } = await adminClient.from("books").select("title").eq("id", id).single();
+
   const { data: hasOrders, error: checkError } = await adminClient.rpc("book_has_orders", { p_book_id: id });
   if (checkError) return NextResponse.json({ error: checkError.message }, { status: 500 });
 
@@ -89,7 +91,7 @@ export async function DELETE(request) {
     await adminClient.from("admin_activity_log").insert({
       admin_id: user.id, admin_email: user.email,
       action: "book_archived", target_type: "book", target_id: String(id),
-      details: { reason: "referenced by existing orders" },
+      details: { title: existingBook?.title, reason: "referenced by existing orders" },
     });
 
     return NextResponse.json({ archived: true, deleted: false });
@@ -101,6 +103,7 @@ export async function DELETE(request) {
   await adminClient.from("admin_activity_log").insert({
     admin_id: user.id, admin_email: user.email,
     action: "book_deleted", target_type: "book", target_id: String(id),
+    details: { title: existingBook?.title },
   });
 
   return NextResponse.json({ archived: false, deleted: true });

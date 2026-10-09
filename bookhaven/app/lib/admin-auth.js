@@ -1,12 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-const ADMIN_EMAIL = "mwaurafelix754@gmail.com";
+// Was previously hardcoded here — now required from the environment so no
+// personal credential lives in source. Every admin API route calls this
+// helper, so if ADMIN_EMAIL is missing, every one of them will fail loudly
+// (500, clear message) rather than silently granting/denying access wrong.
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
 /**
  * Server-side admin check for API routes.
  * Returns { user, adminClient } if authorized,
- * or returns a 403 NextResponse if not.
+ * or returns a NextResponse (401/403/500) if not.
  *
  * Usage in any API route:
  *   const auth = await requireAdmin(request);
@@ -14,6 +18,13 @@ const ADMIN_EMAIL = "mwaurafelix754@gmail.com";
  *   const { user, adminClient } = auth;
  */
 export async function requireAdmin(request) {
+  if (!ADMIN_EMAIL) {
+    return NextResponse.json(
+      { error: "Server misconfigured: ADMIN_EMAIL environment variable is not set" },
+      { status: 500 }
+    );
+  }
+
   const token = request.headers.get("authorization")?.replace("Bearer ", "");
 
   if (!token) {

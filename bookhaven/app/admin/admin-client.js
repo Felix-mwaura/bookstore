@@ -5,8 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 
-const ADMIN_EMAIL = "mwaurafelix754@gmail.com";
-
 // ─────────────────────────────────────────────────────────
 // Helpers
 // ─────────────────────────────────────────────────────────
@@ -59,11 +57,11 @@ function Toast({ toasts, onRemove }) {
   );
 }
 
-function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger }) {
+function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger, loading, confirmLabel="Confirm", loadingLabel="Working…" }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onCancel}/>
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={loading?undefined:onCancel}/>
       <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-stone-200">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${danger?"bg-red-50":"bg-amber-50"}`}>
           <svg className={`w-6 h-6 ${danger?"text-red-500":"text-amber-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -73,8 +71,11 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger }) {
         <h3 className="text-lg font-bold text-[#1C1917] mb-2">{title}</h3>
         <p className="text-stone-500 text-sm mb-6">{message}</p>
         <div className="flex gap-3">
-          <button onClick={onConfirm} className={`flex-1 py-2.5 rounded-xl font-bold text-sm text-white transition active:scale-95 ${danger?"bg-red-600 hover:bg-red-700":"bg-[#1C1917] hover:bg-[#991B1B]"}`}>Confirm</button>
-          <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl font-bold text-sm border border-stone-200 text-stone-600 hover:bg-stone-50 transition">Cancel</button>
+          <button onClick={onConfirm} disabled={loading} className={`flex-1 py-2.5 rounded-xl font-bold text-sm text-white transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 ${danger?"bg-red-600 hover:bg-red-700":"bg-[#1C1917] hover:bg-[#991B1B]"}`}>
+            {loading && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>}
+            {loading?loadingLabel:confirmLabel}
+          </button>
+          <button onClick={onCancel} disabled={loading} className="flex-1 py-2.5 rounded-xl font-bold text-sm border border-stone-200 text-stone-600 hover:bg-stone-50 transition disabled:opacity-40">Cancel</button>
         </div>
       </div>
     </div>
@@ -201,7 +202,7 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
 // ─────────────────────────────────────────────────────────
 // TOPBAR
 // ─────────────────────────────────────────────────────────
-function Topbar({ activeTab, sessionUser, onLogout, darkMode, setDarkMode }) {
+function Topbar({ activeTab, sessionUser, onLogout }) {
   const labels = { overview:"Dashboard", orders:"Orders", books:"Products", customers:"Customers", payments:"Payments", reports:"Reports", inventory:"Inventory", reviews:"Reviews", coupons:"Coupons", users:"Users & Roles", activity:"Activity Logs", settings:"Settings" };
   const [search, setSearch] = useState("");
   return (
@@ -224,9 +225,6 @@ function Topbar({ activeTab, sessionUser, onLogout, darkMode, setDarkMode }) {
 
       {/* Actions */}
       <div className="flex items-center gap-2 ml-2">
-        <button onClick={()=>setDarkMode(!darkMode)} className="w-8 h-8 rounded-lg border border-stone-200 bg-stone-50 flex items-center justify-center text-stone-500 hover:bg-stone-100 transition" title="Toggle theme">
-          {darkMode ? "☀️" : "🌙"}
-        </button>
         <button className="w-8 h-8 rounded-lg border border-stone-200 bg-stone-50 flex items-center justify-center text-stone-500 hover:bg-stone-100 transition relative" title="Notifications">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
           <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#991B1B] rounded-full"/>
@@ -471,17 +469,28 @@ function OrdersTab({ orders, onUpdateStatus, showToast }) {
 
   const updateStatus = async (orderId, newStatus) => {
     setUpdating(orderId);
-    const { data: { session } } = await supabase.auth.getSession();
-    const token = session?.access_token;
-    const res = await fetch("/api/admin/orders", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", authorization: `Bearer ${token}` },
-      body: JSON.stringify({ id: orderId, status: newStatus }),
-    });
-    const json = await res.json();
-    if (!json.error) { onUpdateStatus(orderId, newStatus); showToast(`Order updated to ${newStatus}`); }
-    else showToast("Update failed: " + json.error, "error");
-    setUpdating(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+      const res = await fetch("/api/admin/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ id: orderId, status: newStatus }),
+      });
+      let json;
+      try { json = await res.json(); } catch { throw new Error(`Server returned an unreadable response (${res.status})`); }
+      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+
+      // Only reflected in the UI because the server just confirmed the
+      // database write succeeded — never before that.
+      onUpdateStatus(orderId, newStatus);
+      showToast(newStatus === "Cancelled" ? `Order ${orderId.slice(0,8).toUpperCase()} cancelled` : `Order updated to ${newStatus}`);
+    } catch (err) {
+      // Order status in the UI is left exactly as it was — no fake success.
+      showToast("Failed to update order: " + err.message, "error");
+    } finally {
+      setUpdating(null);
+    }
   };
 
   const cancelOrder = (orderId) => {
@@ -493,9 +502,12 @@ function OrdersTab({ orders, onUpdateStatus, showToast }) {
       <ConfirmDialog
         open={!!confirm}
         title="Cancel order?"
-        message="This will mark the order as cancelled. This action can be reversed."
+        message="This will mark the order as cancelled and restore any reserved stock. This can be reversed by changing the status again."
         danger
-        onConfirm={()=>{ updateStatus(confirm.orderId,confirm.status); setConfirm(null); }}
+        loading={!!confirm && updating===confirm.orderId}
+        confirmLabel="Cancel Order"
+        loadingLabel="Cancelling…"
+        onConfirm={async ()=>{ await updateStatus(confirm.orderId,confirm.status); setConfirm(null); }}
         onCancel={()=>setConfirm(null)}
       />
 
@@ -617,75 +629,117 @@ function OrdersTab({ orders, onUpdateStatus, showToast }) {
 // BOOKS TAB — data comes from AdminClient's shared `books` state (one
 // source of truth, also used by Overview and Inventory) instead of its
 // own separate fetch.
-function BooksTab({ books, loading, reloadBooks, showToast }) {
+function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editBook, setEditBook] = useState(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [formErrors, setFormErrors] = useState({});
   const emptyForm = {title:"",author:"",price:"",original_price:"",category:"Self-Help",format:"Paperback",badge:"",stock_quantity:"0",low_stock_threshold:"5",is_featured:false,description:"",pages:"",publisher:"",year:""};
   const [form, setForm] = useState(emptyForm);
 
   const categories = ["Self-Help","Finance","Productivity","Psychology","History","Philosophy","Fiction","Biography"];
   const coverMap = {"Self-Help":["#2d4a22","#86efac"],"Finance":["#0f3460","#fbbf24"],"Productivity":["#1b1b2f","#f87171"],"Psychology":["#3b1f5e","#a78bfa"],"History":["#2c1810","#fb923c"],"Philosophy":["#0d0d0d","#f9a8d4"],"Fiction":["#1a3a4a","#67e8f9"],"Biography":["#1c3a5e","#6ee7b7"]};
 
+  // Throws a real Error (with a useful message) instead of ever returning
+  // a value that lets the caller pretend the request succeeded.
   async function authedFetch(method, body) {
     const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch("/api/admin/books", { method, headers:{ "Content-Type":"application/json", authorization:`Bearer ${session?.access_token}` }, body: body?JSON.stringify(body):undefined });
-    return res.json();
+    if (!session) throw new Error("Your session has expired — please sign in again.");
+    const res = await fetch("/api/admin/books", { method, headers:{ "Content-Type":"application/json", authorization:`Bearer ${session.access_token}` }, body: body?JSON.stringify(body):undefined });
+    let json;
+    try { json = await res.json(); }
+    catch { throw new Error(`Server returned an unreadable response (${res.status})`); }
+    if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+    return json;
   }
 
   const filtered = books
     .filter(b => showArchived ? true : !b.is_archived)
     .filter(b=>b.title.toLowerCase().includes(search.toLowerCase())||b.author.toLowerCase().includes(search.toLowerCase())||b.category.toLowerCase().includes(search.toLowerCase()));
 
-  const openAdd = () => { setEditBook(null); setForm(emptyForm); setShowForm(true); };
-  const openEdit = (book) => { setEditBook(book); setForm({title:book.title,author:book.author,price:book.price,original_price:book.original_price||"",category:book.category,format:book.format,badge:book.badge||"",stock_quantity:String(book.stock_quantity ?? 0),low_stock_threshold:String(book.low_stock_threshold ?? 5),is_featured:!!book.is_featured,description:book.description||"",pages:book.pages||"",publisher:book.publisher||"",year:book.year||""}); setShowForm(true); };
+  const openAdd = () => { setEditBook(null); setForm(emptyForm); setFormErrors({}); setShowForm(true); };
+  const openEdit = (book) => { setEditBook(book); setForm({title:book.title,author:book.author,price:book.price,original_price:book.original_price||"",category:book.category,format:book.format,badge:book.badge||"",stock_quantity:String(book.stock_quantity ?? 0),low_stock_threshold:String(book.low_stock_threshold ?? 5),is_featured:!!book.is_featured,description:book.description||"",pages:book.pages||"",publisher:book.publisher||"",year:book.year||""}); setFormErrors({}); setShowForm(true); };
+
+  function validate() {
+    const errs = {};
+    if (!form.title.trim()) errs.title = "Title is required";
+    if (!form.author.trim()) errs.author = "Author is required";
+    if (form.price === "" || isNaN(Number(form.price)) || Number(form.price) < 0) errs.price = "Enter a valid, non-negative price";
+    if (form.original_price !== "" && (isNaN(Number(form.original_price)) || Number(form.original_price) < 0)) errs.original_price = "Must be a non-negative number";
+    if (form.stock_quantity === "" || !Number.isInteger(Number(form.stock_quantity)) || Number(form.stock_quantity) < 0) errs.stock_quantity = "Enter a whole number, 0 or more";
+    if (form.pages !== "" && (!Number.isInteger(Number(form.pages)) || Number(form.pages) < 0)) errs.pages = "Must be a whole number";
+    if (form.year !== "" && (!Number.isInteger(Number(form.year)) || Number(form.year) < 1000 || Number(form.year) > new Date().getFullYear()+1)) errs.year = "Enter a valid year";
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
 
   const save = async () => {
-    if (!form.title.trim()||!form.price) { showToast("Title and price are required","error"); return; }
+    if (!validate()) { showToast("Please fix the highlighted fields", "error"); return; }
     setSaving(true);
-    const [bg,accent] = coverMap[form.category]||["#1C1917","#991B1B"];
-    const payload = {
-      title:form.title.trim(), author:form.author.trim(), price:Number(form.price),
-      original_price:form.original_price?Number(form.original_price):null,
-      category:form.category, format:form.format, badge:form.badge||null,
-      stock_quantity: Math.max(0, Number(form.stock_quantity) || 0),
-      low_stock_threshold: Math.max(1, Number(form.low_stock_threshold) || 5),
-      is_featured: !!form.is_featured,
-      description:form.description.trim(), pages:form.pages?Number(form.pages):null,
-      publisher:form.publisher.trim(), year:form.year?Number(form.year):null,
-      cover:{bg,accent,pattern:"dots"},
-    };
-    const json = editBook
-      ? await authedFetch("PATCH", { id: editBook.id, ...payload })
-      : await authedFetch("POST", payload);
-    if (json.error) showToast((editBook?"Update":"Add")+" failed: "+json.error, "error");
-    else { showToast(`"${form.title}" ${editBook?"updated":"added to catalogue"}`); await reloadBooks(); setShowForm(false); }
-    setSaving(false);
+    try {
+      const [bg,accent] = coverMap[form.category]||["#1C1917","#991B1B"];
+      const payload = {
+        title:form.title.trim(), author:form.author.trim(), price:Number(form.price),
+        original_price:form.original_price?Number(form.original_price):null,
+        category:form.category, format:form.format, badge:form.badge||null,
+        stock_quantity: Math.max(0, Number(form.stock_quantity) || 0),
+        low_stock_threshold: Math.max(1, Number(form.low_stock_threshold) || 5),
+        is_featured: !!form.is_featured,
+        description:form.description.trim(), pages:form.pages?Number(form.pages):null,
+        publisher:form.publisher.trim(), year:form.year?Number(form.year):null,
+        cover:{bg,accent,pattern:"dots"},
+      };
+      if (editBook) await authedFetch("PATCH", { id: editBook.id, ...payload });
+      else await authedFetch("POST", payload);
+
+      // Only now — after the server has confirmed success — do we touch
+      // the UI as if the book actually exists in the database.
+      showToast(`"${form.title}" ${editBook?"updated":"added to catalogue"}`);
+      await reloadBooks();
+      setShowForm(false);
+    } catch (err) {
+      // Modal stays open, form data stays exactly as the admin left it —
+      // no fake success, nothing pretends to have worked.
+      showToast((editBook?"Failed to update book: ":"Failed to add book: ")+err.message, "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const deleteBook = async () => {
-    const json = await authedFetch("DELETE", { id: deleteConfirm });
-    if (json.error) showToast("Delete failed: "+json.error,"error");
-    else if (json.archived) showToast("This book has order history — archived instead of deleted, so past orders stay intact.");
-    else showToast("Book removed");
-    await reloadBooks();
-    setDeleteConfirm(null);
+    setDeleting(true);
+    try {
+      const json = await authedFetch("DELETE", { id: deleteConfirm });
+      if (json.archived) showToast("This book has order history — archived instead of deleted, so past orders stay intact.");
+      else showToast("Book removed");
+      await reloadBooks();
+      setDeleteConfirm(null);
+    } catch (err) {
+      showToast("Failed to delete book: "+err.message, "error");
+      // Deliberately do NOT clear deleteConfirm here — keep the dialog up
+      // so the admin can see the error and retry, instead of it vanishing
+      // as if the delete had gone through.
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const F = ({label,name,type="text",placeholder,full}) => (
     <div className={full?"col-span-2":""}>
       <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">{label}</label>
       <input type={type} value={form[name]} placeholder={placeholder} onChange={e=>setForm(p=>({...p,[name]:e.target.value}))}
-        className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] focus:ring-1 focus:ring-[#991B1B]/20 transition"/>
+        className={`w-full bg-stone-50 border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-1 transition ${formErrors[name]?"border-red-400 focus:border-red-500 focus:ring-red-100":"border-stone-200 focus:border-[#991B1B] focus:ring-[#991B1B]/20"}`}/>
+      {formErrors[name] && <p className="text-red-500 text-xs mt-1">{formErrors[name]}</p>}
     </div>
   );
 
   return (
     <div>
-      <ConfirmDialog open={!!deleteConfirm} title="Delete book?" message="If this book has no order history it's removed permanently. If it does, it's archived instead (hidden from the store, order records kept intact)." danger onConfirm={deleteBook} onCancel={()=>setDeleteConfirm(null)}/>
+      <ConfirmDialog open={!!deleteConfirm} title="Delete book?" message="If this book has no order history it's removed permanently. If it does, it's archived instead (hidden from the store, order records kept intact)." danger loading={deleting} confirmLabel="Delete" loadingLabel="Deleting…" onConfirm={deleteBook} onCancel={()=>setDeleteConfirm(null)}/>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
@@ -767,7 +821,14 @@ function BooksTab({ books, loading, reloadBooks, showToast }) {
         </label>
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+          <div className="text-3xl mb-2">⚠️</div>
+          <p className="text-red-800 font-semibold text-sm mb-1">Failed to load books</p>
+          <p className="text-red-600 text-xs mb-4">{error}</p>
+          <button onClick={onRetry} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition">Retry</button>
+        </div>
+      ) : loading ? (
         <div className="space-y-2">{[...Array(5)].map((_,i)=><Skeleton key={i} className="h-14"/>)}</div>
       ) : (
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
@@ -824,7 +885,7 @@ function BooksTab({ books, loading, reloadBooks, showToast }) {
 // ─────────────────────────────────────────────────────────
 // INVENTORY TAB — fast stock adjustments + low-stock triage
 // ─────────────────────────────────────────────────────────
-function InventoryTab({ books, loading, reloadBooks, showToast, jumpToBook }) {
+function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast, jumpToBook }) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
@@ -849,16 +910,24 @@ function InventoryTab({ books, loading, reloadBooks, showToast, jumpToBook }) {
   async function adjustStock(book, newQty) {
     const safeQty = Math.max(0, Math.round(newQty));
     setAdjusting(book.id);
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch("/api/admin/books", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", authorization: `Bearer ${session?.access_token}` },
-      body: JSON.stringify({ id: book.id, stock_quantity: safeQty }),
-    });
-    const json = await res.json();
-    if (json.error) showToast("Stock update failed: "+json.error, "error");
-    else { showToast(`${book.title}: stock set to ${safeQty}`); await reloadBooks(); }
-    setAdjusting(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+      const res = await fetch("/api/admin/books", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ id: book.id, stock_quantity: safeQty }),
+      });
+      let json;
+      try { json = await res.json(); } catch { throw new Error(`Server returned an unreadable response (${res.status})`); }
+      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+      showToast(`${book.title}: stock set to ${safeQty}`);
+      await reloadBooks();
+    } catch (err) {
+      showToast("Stock update failed: "+err.message, "error");
+    } finally {
+      setAdjusting(null);
+    }
   }
 
   return (
@@ -903,7 +972,14 @@ function InventoryTab({ books, loading, reloadBooks, showToast, jumpToBook }) {
         </div>
       </div>
 
-      {loading ? (
+      {error ? (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+          <div className="text-3xl mb-2">⚠️</div>
+          <p className="text-red-800 font-semibold text-sm mb-1">Failed to load inventory</p>
+          <p className="text-red-600 text-xs mb-4">{error}</p>
+          <button onClick={onRetry} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition">Retry</button>
+        </div>
+      ) : loading ? (
         <div className="space-y-2">{[...Array(5)].map((_,i)=><Skeleton key={i} className="h-14"/>)}</div>
       ) : (
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
@@ -1042,16 +1118,25 @@ function UsersTab({ users, orders, session, showToast }) {
     if (userId===session?.id) { showToast("You cannot change your own role","error"); return; }
     setUpdating(userId);
     const newRole = currentRole==="admin"?"customer":"admin";
-    const { data: { session: s } } = await supabase.auth.getSession();
-    const res = await fetch("/api/admin/users", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json", authorization: `Bearer ${s?.access_token}` },
-      body: JSON.stringify({ id: userId, role: newRole }),
-    });
-    const json = await res.json();
-    if (!json.error) { setLocalUsers(prev=>prev.map(u=>u.id===userId?{...u,role:newRole}:u)); showToast(`Role updated to ${newRole}`); }
-    else showToast("Failed: "+json.error,"error");
-    setUpdating(null);
+    try {
+      const { data: { session: s } } = await supabase.auth.getSession();
+      if (!s) throw new Error("Your session has expired — please sign in again.");
+      const res = await fetch("/api/admin/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${s.access_token}` },
+        body: JSON.stringify({ id: userId, role: newRole }),
+      });
+      let json;
+      try { json = await res.json(); } catch { throw new Error(`Server returned an unreadable response (${res.status})`); }
+      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+
+      setLocalUsers(prev=>prev.map(u=>u.id===userId?{...u,role:newRole}:u));
+      showToast(`Role updated to ${newRole}`);
+    } catch (err) {
+      showToast("Failed to change role: "+err.message, "error");
+    } finally {
+      setUpdating(null);
+    }
   };
 
   return (
@@ -1136,10 +1221,19 @@ function ActivityLogTab() {
     })();
   }, []);
 
-  const actionLabels = {
-    book_added: "Added a book", book_updated: "Updated a book", book_deleted: "Deleted a book",
-    book_archived: "Archived a book", order_status_updated: "Updated order status",
-  };
+  function describeActivity(entry) {
+    const d = entry.details || {};
+    const shortId = entry.target_id ? String(entry.target_id).slice(0,8).toUpperCase() : "";
+    switch (entry.action) {
+      case "book_added": return `Added "${d.title || "a book"}"`;
+      case "book_updated": return `Updated book${d.title?` "${d.title}"`:` (#${shortId})`}${d.fields?.length ? ` — changed: ${d.fields.join(", ")}` : ""}`;
+      case "book_deleted": return `Deleted "${d.title || `book #${shortId}`}"`;
+      case "book_archived": return `Archived "${d.title || `book #${shortId}`}"${d.reason?` — ${d.reason}`:""}`;
+      case "order_status_updated": return `Order #${shortId} changed from ${d.from || "?"} to ${d.to || "?"}`;
+      case "user_role_changed": return `Changed a user's role to ${d.newRole || "?"}`;
+      default: return entry.action.replace(/_/g, " ");
+    }
+  }
 
   return (
     <div>
@@ -1154,20 +1248,19 @@ function ActivityLogTab() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
-                <tr>{["Admin","Action","Details","When"].map(h=>(
+                <tr>{["Admin","What happened","When"].map(h=>(
                   <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}</tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
                 {log.map(entry=>(
                   <tr key={entry.id} className="hover:bg-stone-50/50 transition-colors">
-                    <td className="px-4 py-3 text-xs text-stone-600">{entry.admin_email}</td>
-                    <td className="px-4 py-3 text-xs font-semibold text-[#1C1917]">{actionLabels[entry.action]||entry.action}</td>
-                    <td className="px-4 py-3 text-xs text-stone-400">{entry.details ? JSON.stringify(entry.details) : "—"}</td>
+                    <td className="px-4 py-3 text-xs text-stone-600 whitespace-nowrap">{entry.admin_email}</td>
+                    <td className="px-4 py-3 text-xs font-medium text-[#1C1917]">{describeActivity(entry)}</td>
                     <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{new Date(entry.created_at).toLocaleString("en-KE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</td>
                   </tr>
                 ))}
-                {log.length===0&&<tr><td colSpan={4} className="px-4 py-12 text-center"><div className="text-3xl mb-2">📋</div><p className="text-stone-400 text-sm">No admin actions recorded yet</p></td></tr>}
+                {log.length===0&&<tr><td colSpan={3} className="px-4 py-12 text-center"><div className="text-3xl mb-2">📋</div><p className="text-stone-400 text-sm">No admin actions recorded yet</p></td></tr>}
               </tbody>
             </table>
           </div>
@@ -1197,29 +1290,83 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
   const [orders, setOrders] = useState(initialOrders);
-  const [users] = useState(initialUsers);
+  const [users, setUsers] = useState(initialUsers);
+  const [usersDetailLoaded, setUsersDetailLoaded] = useState(false);
   const [books, setBooks] = useState([]);
   const [booksLoading, setBooksLoading] = useState(true);
+  // Distinguishes "genuinely zero books" from "the request failed" — the
+  // old code collapsed both into an empty array via `json.books || []`,
+  // so a broken API call looked identical to an empty catalogue.
+  const [booksError, setBooksError] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
   // Server already verified admin access in page.js — start as true
   const [verified, setVerified] = useState(true);
-  const [dataLoading, setDataLoading] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [toasts, setToasts] = useState([]);
 
-  // Single shared fetch of books — used by Overview, Products, and
-  // Inventory, so all three always agree (no separate copies that can
-  // drift out of sync with each other or with what customers see).
+  // Guards against an older, slower request overwriting a newer one's
+  // result if the admin reloads quickly (e.g. Save → immediate manual
+  // refresh) — only the response matching the most recent call is applied.
+  const booksRequestId = useRef(0);
+
   const loadBooks = useCallback(async () => {
+    const requestId = ++booksRequestId.current;
     setBooksLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch("/api/admin/books", { headers: { authorization: `Bearer ${session?.access_token}` } });
-    const json = await res.json();
-    setBooks(json.books || []);
-    setBooksLoading(false);
+    setBooksError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+
+      const res = await fetch("/api/admin/books", {
+        headers: { authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+
+      let json;
+      try {
+        json = await res.json();
+      } catch {
+        throw new Error(`Server returned an unreadable response (${res.status})`);
+      }
+
+      if (!res.ok) throw new Error(json?.error || `Failed to load books (${res.status})`);
+      if (!Array.isArray(json.books)) throw new Error("Server response was missing the books list");
+
+      if (requestId === booksRequestId.current) {
+        setBooks(json.books);
+      }
+    } catch (err) {
+      if (requestId === booksRequestId.current) {
+        setBooksError(err.message || "Failed to load books");
+      }
+    } finally {
+      if (requestId === booksRequestId.current) setBooksLoading(false);
+    }
   }, []);
 
   useEffect(() => { loadBooks(); }, [loadBooks]);
+
+  // The full user list (with real emails, via the Auth Admin API) is
+  // expensive, so it's fetched once, lazily, the first time the admin
+  // actually opens Users or Customers — not on every dashboard load.
+  const loadFullUsers = useCallback(async () => {
+    if (usersDetailLoaded) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/admin/users", {
+        headers: { authorization: `Bearer ${session?.access_token}` },
+        cache: "no-store",
+      });
+      const json = await res.json();
+      if (res.ok && Array.isArray(json.users)) {
+        setUsers(json.users);
+        setUsersDetailLoaded(true);
+      }
+    } catch { /* keep showing the profiles-only list already in state */ }
+  }, [usersDetailLoaded]);
+
+  useEffect(() => {
+    if (activeTab === "users" || activeTab === "customers") loadFullUsers();
+  }, [activeTab, loadFullUsers]);
 
   const showToast = useCallback((msg, type="success") => {
     const id = Date.now();
@@ -1229,12 +1376,15 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
 
   const removeToast = useCallback(id=>setToasts(prev=>prev.filter(t=>t.id!==id)),[]);
 
-  // Lightweight client-side session check — just redirect if session lost
+  // Lightweight client-side session check — just redirect if session lost.
+  // The actual authorization boundary is server-side (page.js's redirect
+  // before this component ever renders, and requireAdmin() on every
+  // /api/admin/* call) — this is only a UX safety net for a session that
+  // expires while the tab is already open, so it doesn't need to know or
+  // re-check the admin email itself.
   useEffect(()=>{
     supabase.auth.getSession().then(({ data:{ session } }) => {
-      if (!session || session.user.email !== ADMIN_EMAIL) {
-        router.replace("/login");
-      }
+      if (!session) router.replace("/login");
     }).catch(()=>{}); // Never block the UI on this
   },[router]);
 
@@ -1259,22 +1409,22 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   );
 
   return (
-    <div className={`flex h-screen overflow-hidden bg-stone-50 ${darkMode?"dark":""}`}>
+    <div className="flex h-screen overflow-hidden bg-stone-50">
       <Toast toasts={toasts} onRemove={removeToast}/>
 
       <Sidebar activeTab={activeTab} setTab={setActiveTab} collapsed={collapsed} setCollapsed={setCollapsed} pendingCount={processingCount}/>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar activeTab={activeTab} sessionUser={sessionUser} onLogout={handleLogout} darkMode={darkMode} setDarkMode={setDarkMode}/>
+        <Topbar activeTab={activeTab} sessionUser={sessionUser} onLogout={handleLogout}/>
 
         <main className="flex-1 overflow-y-auto p-5 sm:p-6">
-          {activeTab==="overview"&&<OverviewTab orders={orders} users={users} books={books} loading={dataLoading||booksLoading} onNavigate={setActiveTab}/>}
+          {activeTab==="overview"&&<OverviewTab orders={orders} users={users} books={books} loading={booksLoading} onNavigate={setActiveTab}/>}
           {activeTab==="orders"&&<OrdersTab orders={orders} onUpdateStatus={handleUpdateStatus} showToast={showToast}/>}
-          {activeTab==="books"&&<BooksTab books={books} loading={booksLoading} reloadBooks={loadBooks} showToast={showToast}/>}
+          {activeTab==="books"&&<BooksTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}
           {activeTab==="customers"&&<CustomersTab users={users} orders={orders}/>}
           {activeTab==="payments"&&<PlaceholderTab icon="💳" title="Payments" description="View M-Pesa transactions, card payments, refund history, and payout reports."/>}
           {activeTab==="reports"&&<PlaceholderTab icon="📈" title="Reports" description="Generate sales, inventory, customer, and revenue reports. Export as CSV or PDF."/>}
-          {activeTab==="inventory"&&<InventoryTab books={books} loading={booksLoading} reloadBooks={loadBooks} showToast={showToast}/>}
+          {activeTab==="inventory"&&<InventoryTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}
           {activeTab==="reviews"&&<PlaceholderTab icon="⭐" title="Reviews" description="Manage customer reviews and ratings for all books."/>}
           {activeTab==="coupons"&&<PlaceholderTab icon="🏷️" title="Coupons" description="Create and manage discount codes and promotional offers."/>}
           {activeTab==="users"&&<UsersTab users={users} orders={orders} session={sessionUser} showToast={showToast}/>}
