@@ -1,8 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 
-const ADMIN_EMAIL = "mwaurafelix754@gmail.com";
-
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
@@ -38,13 +36,6 @@ export async function middleware(request) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
-  }
-
-  // Wrong email → access denied
-  if (user.email !== ADMIN_EMAIL) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/access-denied";
     return NextResponse.redirect(url);
   }
 

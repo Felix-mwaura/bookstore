@@ -1,8 +1,25 @@
 "use client";
 
-// ── BookCover — pure CSS, no images ──────────────────────
+import { useState } from "react";
+
+// ── BookCover — uploaded image when there is one, otherwise the CSS cover ──
 export function BookCover({ book, className = "", style = {} }) {
+  const [imgFailed, setImgFailed] = useState(false);
   const { bg, accent, pattern } = book.cover ?? { bg: "#1C1917", accent: "#991B1B", pattern: "dots" };
+
+  // Real cover uploaded by the admin (Supabase Storage). If it ever fails
+  // to load, fall through to the CSS cover below instead of a broken image.
+  if (book.cover_url && !imgFailed) {
+    return (
+      <div className={`relative overflow-hidden select-none bg-stone-200 ${className}`} style={style}>
+        {/* plain <img>: avoids needing next/image remotePatterns config */}
+        <img src={book.cover_url} alt={`${book.title} cover`} loading="lazy"
+          onError={() => setImgFailed(true)}
+          className="absolute inset-0 w-full h-full object-cover" />
+        <div className="absolute left-0 top-0 bottom-0 w-3 z-10" style={{ background: "linear-gradient(to right, rgba(0,0,0,0.35), rgba(0,0,0,0.08) 60%, transparent)" }} />
+      </div>
+    );
+  }
 
   const patternSvg = {
     dots: `radial-gradient(circle, ${accent}22 1.5px, transparent 1.5px)`,

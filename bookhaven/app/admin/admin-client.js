@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
@@ -545,8 +545,8 @@ function OrdersTab({ orders, onUpdateStatus, showToast }) {
             </thead>
             <tbody className="divide-y divide-stone-50">
               {paginated.map(o=>(
-                <>
-                  <tr key={o.id} className="hover:bg-stone-50/50 transition-colors">
+                <Fragment key={o.id}>
+                  <tr className="hover:bg-stone-50/50 transition-colors">
                     <td className="px-3 py-3">
                       <button onClick={()=>setExpanded(expanded===o.id?null:o.id)} className="text-stone-400 hover:text-[#1C1917] transition">
                         <svg className={`w-4 h-4 transition-transform ${expanded===o.id?"rotate-90":""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
@@ -603,7 +603,7 @@ function OrdersTab({ orders, onUpdateStatus, showToast }) {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
               {paginated.length===0&&<tr><td colSpan={10} className="px-4 py-12 text-center"><div className="text-3xl mb-2">📦</div><p className="text-stone-400 text-sm">No orders found</p></td></tr>}
             </tbody>
@@ -629,6 +629,17 @@ function OrdersTab({ orders, onUpdateStatus, showToast }) {
 // BOOKS TAB — data comes from AdminClient's shared `books` state (one
 // source of truth, also used by Overview and Inventory) instead of its
 // own separate fetch.
+const COVER_BUCKET = "book-covers";
+const MAX_COVER_BYTES = 2 * 1024 * 1024; // matches the bucket's 2 MB limit
+const COVER_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
+// Storage path from a public URL, or null if it isn't one of ours.
+function coverPathFromUrl(url) {
+  const marker = `/storage/v1/object/public/${COVER_BUCKET}/`;
+  const i = url ? url.indexOf(marker) : -1;
+  return i >= 0 ? url.slice(i + marker.length) : null;
+}
+
 function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
@@ -638,8 +649,12 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [formErrors, setFormErrors] = useState({});
-  const emptyForm = {title:"",author:"",price:"",original_price:"",category:"Self-Help",format:"Paperback",badge:"",stock_quantity:"0",low_stock_threshold:"5",is_featured:false,description:"",pages:"",publisher:"",year:""};
+  const emptyForm = {title:"",author:"",price:"",original_price:"",category:"Self-Help",format:"Paperback",badge:"",stock_quantity:"0",low_stock_threshold:"5",is_featured:false,description:"",pages:"",publisher:"",year:"",isbn:""};
   const [form, setForm] = useState(emptyForm);
+  const [coverFile, setCoverFile] = useState(null);      // newly chosen file, not yet uploaded
+  const [coverPreview, setCoverPreview] = useState(null); // blob: preview or the saved cover_url
+  const [removeCover, setRemoveCover] = useState(false);
+  const [saveStage, setSaveStage] = useState("");
 
   const categories = ["Self-Help","Finance","Productivity","Psychology","History","Philosophy","Fiction","Biography"];
   const coverMap = {"Self-Help":["#2d4a22","#86efac"],"Finance":["#0f3460","#fbbf24"],"Productivity":["#1b1b2f","#f87171"],"Psychology":["#3b1f5e","#a78bfa"],"History":["#2c1810","#fb923c"],"Philosophy":["#0d0d0d","#f9a8d4"],"Fiction":["#1a3a4a","#67e8f9"],"Biography":["#1c3a5e","#6ee7b7"]};
@@ -661,8 +676,29 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
     .filter(b => showArchived ? true : !b.is_archived)
     .filter(b=>b.title.toLowerCase().includes(search.toLowerCase())||b.author.toLowerCase().includes(search.toLowerCase())||b.category.toLowerCase().includes(search.toLowerCase()));
 
-  const openAdd = () => { setEditBook(null); setForm(emptyForm); setFormErrors({}); setShowForm(true); };
-  const openEdit = (book) => { setEditBook(book); setForm({title:book.title,author:book.author,price:book.price,original_price:book.original_price||"",category:book.category,format:book.format,badge:book.badge||"",stock_quantity:String(book.stock_quantity ?? 0),low_stock_threshold:String(book.low_stock_threshold ?? 5),is_featured:!!book.is_featured,description:book.description||"",pages:book.pages||"",publisher:book.publisher||"",year:book.year||""}); setFormErrors({}); setShowForm(true); };
+  const resetCover = (url = null) => { setCoverFile(null); setCoverPreview(url); setRemoveCover(false); };
+  const openAdd = () => { setEditBook(null); setForm(emptyForm); setFormErrors({}); resetCover(); setShowForm(true); };
+  const openEdit = (book) => { setEditBook(book); setForm({title:book.title,author:book.author,price:book.price,original_price:book.original_price||"",category:book.category,format:book.format,badge:book.badge||"",stock_quantity:String(book.stock_quantity ?? 0),low_stock_threshold:String(book.low_stock_threshold ?? 5),is_featured:!!book.is_featured,description:book.description||"",pages:book.pages||"",publisher:book.publisher||"",year:book.year||"",isbn:book.isbn||""}); setFormErrors({}); resetCover(book.cover_url || null); setShowForm(true); };
+
+  function onCoverSelected(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+    if (!COVER_TYPES[file.type]) { setFormErrors(p => ({...p, cover: "Use a JPG, PNG or WebP image"})); return; }
+    if (file.size > MAX_COVER_BYTES) { setFormErrors(p => ({...p, cover: `Image is ${(file.size/1024/1024).toFixed(1)} MB — the limit is 2 MB`})); return; }
+    setFormErrors(p => { const { cover, ...rest } = p; return rest; });
+    if (coverPreview?.startsWith("blob:")) URL.revokeObjectURL(coverPreview);
+    setCoverFile(file);
+    setCoverPreview(URL.createObjectURL(file));
+    setRemoveCover(false);
+  }
+
+  function onCoverRemoved() {
+    if (coverPreview?.startsWith("blob:")) URL.revokeObjectURL(coverPreview);
+    setCoverFile(null);
+    setCoverPreview(null);
+    setRemoveCover(true);
+  }
 
   function validate() {
     const errs = {};
@@ -680,6 +716,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
   const save = async () => {
     if (!validate()) { showToast("Please fix the highlighted fields", "error"); return; }
     setSaving(true);
+    let uploadedPath = null; // file we uploaded in THIS attempt (to clean up on failure)
     try {
       const [bg,accent] = coverMap[form.category]||["#1C1917","#991B1B"];
       const payload = {
@@ -687,26 +724,60 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
         original_price:form.original_price?Number(form.original_price):null,
         category:form.category, format:form.format, badge:form.badge||null,
         stock_quantity: Math.max(0, Number(form.stock_quantity) || 0),
-        low_stock_threshold: Math.max(1, Number(form.low_stock_threshold) || 5),
+        low_stock_threshold: Math.max(1, Math.round(Number(form.low_stock_threshold)) || 5),
         is_featured: !!form.is_featured,
         description:form.description.trim(), pages:form.pages?Number(form.pages):null,
         publisher:form.publisher.trim(), year:form.year?Number(form.year):null,
         cover:{bg,accent,pattern:"dots"},
+        isbn: form.isbn.trim() || null,
       };
+
+      // Image first: if the upload fails we stop here, so no book row is
+      // ever created pointing at an image that doesn't exist.
+      let cover_url = editBook?.cover_url || null;
+      if (coverFile) {
+        setSaveStage("Uploading image…");
+        const path = `${crypto.randomUUID()}.${COVER_TYPES[coverFile.type]}`;
+        const { error: upError } = await supabase.storage.from(COVER_BUCKET)
+          .upload(path, coverFile, { contentType: coverFile.type, upsert: false, cacheControl: "3600" });
+        if (upError) throw new Error("Image upload failed: " + upError.message);
+        uploadedPath = path;
+        cover_url = supabase.storage.from(COVER_BUCKET).getPublicUrl(path).data.publicUrl;
+      } else if (removeCover) {
+        cover_url = null;
+      }
+      payload.cover_url = cover_url;
+
+      setSaveStage("Saving…");
       if (editBook) await authedFetch("PATCH", { id: editBook.id, ...payload });
       else await authedFetch("POST", payload);
 
       // Only now — after the server has confirmed success — do we touch
       // the UI as if the book actually exists in the database.
+      // Replaced or removed an image → delete the old file (best effort; a
+      // leftover file is harmless, so this never fails the save).
+      const oldPath = editBook ? coverPathFromUrl(editBook.cover_url) : null;
+      if (oldPath && (coverFile || removeCover)) {
+        const { error: rmError } = await supabase.storage.from(COVER_BUCKET).remove([oldPath]);
+        if (rmError) console.error("Old cover cleanup failed:", rmError.message);
+      }
+
       showToast(`"${form.title}" ${editBook?"updated":"added to catalogue"}`);
       await reloadBooks();
       setShowForm(false);
     } catch (err) {
+      // The database write failed after the image went up — don't leave an
+      // orphaned file behind.
+      if (uploadedPath) {
+        const { error: rmError } = await supabase.storage.from(COVER_BUCKET).remove([uploadedPath]);
+        if (rmError) console.error("Cleanup of uploaded cover failed:", rmError.message);
+      }
       // Modal stays open, form data stays exactly as the admin left it —
       // no fake success, nothing pretends to have worked.
       showToast((editBook?"Failed to update book: ":"Failed to add book: ")+err.message, "error");
     } finally {
       setSaving(false);
+      setSaveStage("");
     }
   };
 
@@ -728,6 +799,9 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
     }
   };
 
+  // NOTE: F is called as a plain function ({F({...})}), NOT rendered as <F />.
+  // A component defined inside BooksTab gets a new identity every render, so React
+  // remounts the <input> on each keystroke and focus/cursor is lost.
   const F = ({label,name,type="text",placeholder,full}) => (
     <div className={full?"col-span-2":""}>
       <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">{label}</label>
@@ -763,10 +837,10 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <F label="Title *" name="title" placeholder="Book title" full/>
-            <F label="Author *" name="author" placeholder="Author name"/>
-            <F label="Price (KSh) *" name="price" type="number" placeholder="1299"/>
-            <F label="Original price (KSh)" name="original_price" type="number" placeholder="Leave blank if no discount"/>
+            {F({label:"Title *",name:"title",placeholder:"Book title",full:true})}
+            {F({label:"Author *",name:"author",placeholder:"Author name"})}
+            {F({label:"Price (KSh) *",name:"price",type:"number",placeholder:"1299"})}
+            {F({label:"Original price (KSh)",name:"original_price",type:"number",placeholder:"Leave blank if no discount"})}
             <div>
               <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Category</label>
               <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] transition">
@@ -786,11 +860,33 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                 {["Bestseller","New","Trending","Staff Pick","Award Winner","Classic","Top Rated"].map(b=><option key={b}>{b}</option>)}
               </select>
             </div>
-            <F label="Stock quantity *" name="stock_quantity" type="number" placeholder="20"/>
-            <F label="Low-stock warning below" name="low_stock_threshold" type="number" placeholder="5"/>
-            <F label="Pages" name="pages" type="number" placeholder="320"/>
-            <F label="Publisher" name="publisher" placeholder="Publisher name"/>
-            <F label="Year" name="year" type="number" placeholder="2024"/>
+            {F({label:"Stock quantity *",name:"stock_quantity",type:"number",placeholder:"20"})}
+            {F({label:"Low-stock warning below",name:"low_stock_threshold",type:"number",placeholder:"5"})}
+            {F({label:"Pages",name:"pages",type:"number",placeholder:"320"})}
+            {F({label:"Publisher",name:"publisher",placeholder:"Publisher name"})}
+            {F({label:"Year",name:"year",type:"number",placeholder:"2024"})}
+            {F({label:"ISBN",name:"isbn",placeholder:"9780735211292"})}
+            <div className="col-span-2">
+              <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Cover image</label>
+              <div className="flex items-start gap-4">
+                <div className="w-20 flex-shrink-0 rounded-lg overflow-hidden border border-stone-200 bg-stone-100 flex items-center justify-center text-stone-300 text-2xl" style={{aspectRatio:"2/3"}}>
+                  {coverPreview ? <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover"/> : "📖"}
+                </div>
+                <div className="flex-1">
+                  <div className="flex flex-wrap gap-2">
+                    <label className={`px-4 py-2 rounded-xl text-sm font-semibold border border-stone-200 bg-white hover:bg-stone-50 cursor-pointer transition ${saving?"opacity-50 pointer-events-none":""}`}>
+                      {coverPreview ? "Replace image" : "Choose image"}
+                      <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onCoverSelected} disabled={saving} className="sr-only"/>
+                    </label>
+                    {coverPreview && (
+                      <button type="button" onClick={onCoverRemoved} disabled={saving} className="px-4 py-2 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition disabled:opacity-50">Remove</button>
+                    )}
+                  </div>
+                  <p className="text-xs text-stone-400 mt-2">JPG, PNG or WebP, up to 2 MB. Without an image the store shows the styled text cover.</p>
+                  {formErrors.cover && <p className="text-red-500 text-xs mt-1">{formErrors.cover}</p>}
+                </div>
+              </div>
+            </div>
             <label className="flex items-center gap-2 mt-6 cursor-pointer">
               <input type="checkbox" checked={form.is_featured} onChange={e=>setForm(p=>({...p,is_featured:e.target.checked}))} className="w-4 h-4 accent-[#991B1B]"/>
               <span className="text-sm text-stone-600">Show in "Recommended" on the homepage</span>
@@ -802,7 +898,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
           </div>
           <div className="flex gap-3 mt-5 pt-4 border-t border-stone-100">
             <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-[#1C1917] hover:bg-[#991B1B] disabled:bg-stone-200 disabled:text-stone-400 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95">
-              {saving?<><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block"/>Saving…</>:editBook?"Save changes":"Add book"}
+              {saving?<><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block"/>{saveStage||"Saving…"}</>:editBook?"Save changes":"Add book"}
             </button>
             <button onClick={()=>setShowForm(false)} className="border border-stone-200 text-stone-600 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-stone-50 transition">Cancel</button>
           </div>
@@ -843,8 +939,13 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                 {filtered.map(book=>(
                   <tr key={book.id} className={`hover:bg-stone-50/50 transition-colors group ${book.is_archived?"opacity-50":""}`}>
                     <td className="px-4 py-3">
-                      <p className="text-sm font-semibold text-[#1C1917]">{book.title} {book.is_archived && <span className="text-[10px] text-stone-400 font-normal">(archived)</span>}</p>
-                      <p className="text-xs text-stone-400">{book.author}</p>
+                      <div className="flex items-center gap-3">
+                        {book.cover_url && <img src={book.cover_url} alt="" loading="lazy" className="w-8 h-12 object-cover rounded border border-stone-200 flex-shrink-0"/>}
+                        <div>
+                          <p className="text-sm font-semibold text-[#1C1917]">{book.title} {book.is_archived && <span className="text-[10px] text-stone-400 font-normal">(archived)</span>}</p>
+                          <p className="text-xs text-stone-400">{book.author}</p>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3"><Badge status={book.category}/></td>
                     <td className="px-4 py-3">
@@ -1109,8 +1210,13 @@ function CustomersTab({ users, orders }) {
 function UsersTab({ users, orders, session, showToast }) {
   const [search, setSearch] = useState("");
   const [localUsers, setLocalUsers] = useState(users);
+  const [previousUsers, setPreviousUsers] = useState(users);
   const [updating, setUpdating] = useState(null);
-  useEffect(()=>setLocalUsers(users),[users]);
+  const [roleConfirm, setRoleConfirm] = useState(null); // { id, role, label }
+  if (users !== previousUsers) {
+    setPreviousUsers(users);
+    setLocalUsers(users);
+  }
 
   const filtered = localUsers.filter(u=>!search||u.email?.toLowerCase().includes(search.toLowerCase())||`${u.first_name||""} ${u.last_name||""}`.toLowerCase().includes(search.toLowerCase()));
 
@@ -1141,6 +1247,19 @@ function UsersTab({ users, orders, session, showToast }) {
 
   return (
     <div>
+      <ConfirmDialog
+        open={!!roleConfirm}
+        title={roleConfirm?.role==="admin" ? "Remove administrator access?" : "Make this user an administrator?"}
+        message={roleConfirm?.role==="admin"
+          ? `${roleConfirm?.label} will lose access to the admin dashboard and become a regular customer.`
+          : `${roleConfirm?.label} will get full access to the admin dashboard: books, orders, customers and roles. Only do this for people you trust.`}
+        danger={roleConfirm?.role==="admin"}
+        loading={!!roleConfirm && updating===roleConfirm.id}
+        confirmLabel={roleConfirm?.role==="admin" ? "Remove admin" : "Make admin"}
+        loadingLabel="Saving…"
+        onConfirm={async ()=>{ await toggleRole(roleConfirm.id, roleConfirm.role); setRoleConfirm(null); }}
+        onCancel={()=>setRoleConfirm(null)}
+      />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <h2 className="text-lg font-bold text-[#1C1917]">Users & Roles</h2>
@@ -1186,7 +1305,7 @@ function UsersTab({ users, orders, session, showToast }) {
                     <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
                     <td className="px-4 py-3">
                       {!isYou&&(
-                        <button onClick={()=>toggleRole(u.id,u.role)} disabled={updating===u.id}
+                        <button onClick={()=>setRoleConfirm({ id:u.id, role:u.role, label: `${u.first_name||""} ${u.last_name||""}`.trim() || u.email || "This user" })} disabled={updating===u.id}
                           className={`text-xs font-semibold transition disabled:opacity-50 ${u.role==="admin"?"text-purple-600 hover:text-red-600":"text-stone-400 hover:text-[#991B1B]"}`}>
                           {updating===u.id?"…":u.role==="admin"?"Remove admin":"Make admin"}
                         </button>

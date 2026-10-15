@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "../../../lib/admin-auth";
+import { requireAdmin, isOwnerEmail } from "../../../lib/admin-auth";
 
 // GET /api/admin/users — full user list including real emails.
 // This is the expensive call (auth.admin.listUsers()) that used to run
@@ -37,29 +37,38 @@ export async function GET(request) {
 }
 
 // PATCH /api/admin/users — change a user's role (admin only).
-// This endpoint did not exist before, so every role-change click in the
-// Users tab was silently calling a route with no PATCH handler and
-// failing — the UI just never reflected it because the response was
-// never checked.
+// Authorization: requireAdmin() already verified, server-side, that the
+// CALLER has role=admin. The write itself uses the service role, which the
+// protect_profile_role DB trigger allows — ordinary customers can't reach
+// this path, and the trigger blocks them from changing roles directly.
 export async function PATCH(request) {
   const auth = await requireAdmin(request);
   if (auth instanceof NextResponse) return auth;
 
   const { adminClient, user } = auth;
-  const { id, role } = await request.json();
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const { id, role } = body;
 
   if (!id || !["admin", "customer"].includes(role)) {
-    return NextResponse.json({ error: "Invalid id or role" }, { status: 400 });
+    return NextResponse.json({ error: "A valid user id and role (admin or customer) are required" }, { status: 400 });
   }
-
-  // Never rely on the browser to enforce this — a direct API call could
-  // otherwise demote the caller themselves.
   if (id === user.id) {
     return NextResponse.json({ error: "You cannot change your own role" }, { status: 400 });
   }
 
-  // Refuse to leave the store with zero administrators.
+  const { data: target, error: targetError } = await adminClient.from("profiles").select("id, role").eq("id", id).maybeSingle();
+  if (targetError) return NextResponse.json({ error: targetError.message }, { status: 500 });
+  if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
+  if (target.role === role) return NextResponse.json({ profile: target });
+
   if (role === "customer") {
+    // The owner account can never be demoted, and the store must always
+    // keep at least one administrator — either would be a lock-out.
+    const { data: authTarget } = await adminClient.auth.admin.getUserById(id);
+    if (isOwnerEmail(authTarget?.user?.email)) {
+      return NextResponse.json({ error: "The owner account cannot be demoted" }, { status: 409 });
+    }
     const { count } = await adminClient.from("profiles").select("*", { count: "exact", head: true }).eq("role", "admin");
     if ((count || 0) <= 1) {
       return NextResponse.json({ error: "Cannot remove the last administrator" }, { status: 409 });
@@ -67,13 +76,17 @@ export async function PATCH(request) {
   }
 
   const { data, error } = await adminClient.from("profiles").update({ role }).eq("id", id).select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("PATCH /api/admin/users:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  await adminClient.from("admin_activity_log").insert({
+  const { error: logError } = await adminClient.from("admin_activity_log").insert({
     admin_id: user.id, admin_email: user.email,
     action: "user_role_changed", target_type: "user", target_id: id,
-    details: { newRole: role },
+    details: { from: target.role, newRole: role },
   });
+  if (logError) console.error("activity log failed:", logError.message);
 
   return NextResponse.json({ profile: data });
 }

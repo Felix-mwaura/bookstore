@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import books from "../../books";
+import { supabase } from "../../lib/supabase";
 import { BookCover } from "../../components/BookCard";
 import BookDetailPage from "../../components/BookCard";
 import FilterPanel from "../../components/FilterPanel";
@@ -50,7 +50,7 @@ function BookCard({ book, isWishlisted, onToggleWishlist, onAddToCart, onViewDet
         </div>
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
           {book.badge && <span className="px-2.5 py-1 bg-[#991B1B] text-white text-[10px] font-bold uppercase tracking-wider rounded-md">{book.badge}</span>}
-          {book.originalPrice && <span className="px-2.5 py-1 bg-green-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-md">Save {Math.round((1 - book.price / book.originalPrice) * 100)}%</span>}
+          {book.original_price && <span className="px-2.5 py-1 bg-green-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-md">Save {Math.round((1 - book.price / book.original_price) * 100)}%</span>}
         </div>
         <button onClick={(e) => { e.stopPropagation(); onToggleWishlist(book); }}
           className="absolute top-3 right-3 p-2 bg-white/90 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition hover:scale-110">
@@ -76,7 +76,7 @@ function BookCard({ book, isWishlisted, onToggleWishlist, onAddToCart, onViewDet
         <div className="mt-auto pt-4">
           <div className="mb-3">
             <p className="text-xl font-bold text-[#1C1917]">KSh {book.price.toLocaleString()}</p>
-            {book.originalPrice && <p className="text-sm text-stone-400 line-through">KSh {book.originalPrice.toLocaleString()}</p>}
+            {book.original_price && <p className="text-sm text-stone-400 line-through">KSh {book.original_price.toLocaleString()}</p>}
           </div>
           <button onClick={() => onAddToCart(book)}
             className="w-full bg-[#1C1917] hover:bg-[#991B1B] text-white py-3 rounded-lg font-semibold text-sm transition-all duration-200 active:scale-95 flex items-center justify-center gap-2">
@@ -94,10 +94,17 @@ function BookCard({ book, isWishlisted, onToggleWishlist, onAddToCart, onViewDet
 export default function CategoryPage({ params }) {
   const { slug } = use(params);
   const category = slugToCategory(slug);
-
-  if (!category) return notFound();
-
   const store = useStore();
+
+  // Live from Supabase (previously a frozen static file, so new books,
+  // price/stock edits and cover images never appeared on category pages).
+  const [books, setBooks] = useState([]);
+  const [booksLoading, setBooksLoading] = useState(true);
+  useEffect(() => {
+    supabase.from("books").select("*").eq("is_archived", false).order("id")
+      .then(({ data }) => { setBooks(data || []); setBooksLoading(false); })
+      .catch(() => setBooksLoading(false));
+  }, []);
   const colors = categoryColors[category] || { bg: "#1C1917", accent: "#991B1B" };
 
   const [sortBy, setSortBy] = useState("popular");
@@ -113,7 +120,7 @@ export default function CategoryPage({ params }) {
       const matchesPrice = b.price <= filters.priceMax;
       const matchesFormat = filters.formats.length === 0 || filters.formats.includes(b.format);
       const matchesRating = filters.minRating === null || b.rating >= filters.minRating;
-      const matchesSale = !filters.onSaleOnly || b.originalPrice !== null;
+      const matchesSale = !filters.onSaleOnly || b.original_price != null;
       return matchesCategory && matchesPrice && matchesFormat && matchesRating && matchesSale;
     });
     switch (sortBy) {
@@ -124,9 +131,11 @@ export default function CategoryPage({ params }) {
       default: break;
     }
     return result;
-  }, [category, sortBy, filters]);
+  }, [books, category, sortBy, filters]);
 
   const allCategoryBooks = books.filter((b) => b.category === category);
+
+  if (!category) return notFound();
 
   return (
     <div className="min-h-screen bg-[#FAF8F5]">

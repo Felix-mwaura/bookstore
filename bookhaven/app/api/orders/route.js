@@ -67,7 +67,18 @@ export async function POST(request) {
   // moment can't both succeed, and an order is never created for stock that
   // doesn't exist. user_id is always the SERVER-VERIFIED user — never taken
   // from the request body — so nobody can place an order as someone else.
-  const { data, error } = await client.rpc("place_order", {
+  // place_order is executable by the service role ONLY (a customer calling
+  // it directly could forge orders for other users). The caller's identity
+  // was verified above via their token; user.id comes from that, never
+  // from the request body.
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    console.error("/api/orders: SUPABASE_SERVICE_ROLE_KEY is not set");
+    return NextResponse.json({ error: "Server misconfigured — please contact support" }, { status: 500 });
+  }
+  const serverClient = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
+
+  const { data, error } = await serverClient.rpc("place_order", {
     p_user_id: user.id,
     p_items: items,
     p_total: total,
