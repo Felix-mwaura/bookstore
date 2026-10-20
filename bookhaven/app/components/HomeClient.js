@@ -220,8 +220,8 @@ function ShelfFacts({ stats }) {
           <dl className="grid grid-cols-2 gap-3 sm:gap-4">
             {facts.map(({ value, label }) => (
               <div key={label} className="rounded-card border border-line bg-white p-4 sm:p-6">
-                <dt className="order-2 mt-1 text-xs sm:text-sm text-muted">{label}</dt>
                 <dd className="text-2xl sm:text-3xl font-bold text-navy">{value}</dd>
+                <dt className="mt-1 text-xs sm:text-sm text-muted">{label}</dt>
               </div>
             ))}
           </dl>
