@@ -53,7 +53,7 @@ export default function WishlistDrawer({ wishlist, isOpen, onClose, onRemove, on
               </svg>
               <h3 className="mt-4 text-base font-semibold text-navy">Nothing saved yet</h3>
               <p className="mt-1 text-sm text-muted">
-                Use the heart on a book to keep it here for later. Saved books stay on this device.
+                Open a book and choose Save to keep it here for later. Saved books stay on this device.
               </p>
               <Link href="/books" onClick={close} className="btn-primary mt-5 text-sm">Browse books</Link>
             </div>

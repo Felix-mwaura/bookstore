@@ -47,6 +47,9 @@ export function BookCover({ book, className = "", style = {}, sizes = "(min-widt
   // Typographic cover: text is real, so it stays selectable and legible.
   return (
     <div
+      // The typographic cover repeats the title that the card already
+      // announces, so it is hidden from screen readers rather than read twice.
+      aria-hidden="true"
       className={`relative overflow-hidden select-none aspect-[2/3] ${className}`}
       style={{ backgroundColor: bg, backgroundImage: patternSvg[pattern], backgroundSize: patternSize[pattern], ...style }}
     >

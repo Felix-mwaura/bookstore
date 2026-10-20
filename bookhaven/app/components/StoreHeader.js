@@ -337,6 +337,14 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
 
               <div className="mt-3 pt-3 border-t border-line">
                 <p className="px-5 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted">Account</p>
+                <button
+                  type="button"
+                  onClick={() => { setMenuOpen(false); onWishlistClick?.(); }}
+                  className="flex w-full items-center justify-between px-5 py-3 text-left text-sm text-ink hover:bg-subtle transition"
+                >
+                  Saved books
+                  <span className="text-xs text-muted">{wishlistCount}</span>
+                </button>
                 <Link href="/account" onClick={() => setMenuOpen(false)} className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">My orders</Link>
                 <Link href="/login" onClick={() => setMenuOpen(false)} className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">Sign in</Link>
                 <Link href="/#contact" onClick={() => setMenuOpen(false)} className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">Contact</Link>
