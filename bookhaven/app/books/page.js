@@ -11,7 +11,9 @@ import { SITE_NAME } from "../lib/site";
 
 export const dynamic = "force-dynamic";
 
-export const metadata = {
+const one = (value) => (Array.isArray(value) ? value[0] : value) || "";
+
+const BASE_METADATA = {
   title: "All books",
   description:
     "Browse every title on the Book Haven shelf — fiction, finance, self-help, history and more, priced in Kenyan shillings with delivery across Kenya.",
@@ -23,7 +25,21 @@ export const metadata = {
   },
 };
 
-const one = (value) => (Array.isArray(value) ? value[0] : value) || "";
+// A filtered or searched view is not a separate page to index: it points
+// back at the canonical catalogue instead of competing with it.
+export async function generateMetadata({ searchParams }) {
+  const sp = await searchParams;
+  const category = categories.includes(one(sp.category)) ? one(sp.category) : "";
+  const q = one(sp.q).slice(0, 80);
+
+  if (!category && !q) return BASE_METADATA;
+
+  return {
+    ...BASE_METADATA,
+    title: q ? `Search: ${q}` : `${category} books`,
+    robots: { index: false, follow: true },
+  };
+}
 
 export default async function BooksPage({ searchParams }) {
   const sp = await searchParams;
@@ -63,7 +79,9 @@ export default async function BooksPage({ searchParams }) {
             <p className="mt-1 text-sm text-muted">
               {total === 0
                 ? "No titles match this selection."
-                : `${total} ${total === 1 ? "title" : "titles"}${hasFilters ? " match your filters" : " on the shelf"}`}
+                : hasFilters
+                  ? `${total} ${total === 1 ? "title matches" : "titles match"} your filters`
+                  : `${total} ${total === 1 ? "title" : "titles"} on the shelf`}
             </p>
           </div>
           <div className="flex items-center gap-2">
