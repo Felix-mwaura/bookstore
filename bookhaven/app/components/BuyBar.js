@@ -132,13 +132,11 @@ export default function BuyBar({ book }) {
             <span aria-hidden="true">+</span>
           </button>
         </div>
-        <p className="text-xs text-muted">
-          {outOfStock
-            ? "This title is out of stock."
-            : capped
-              ? `${label} — that is all we have.`
-              : `${label} — ready to ship.`}
-        </p>
+        {(outOfStock || capped) && (
+          <p className="text-xs text-muted">
+            {outOfStock ? "This title is out of stock." : `${label} — that is all we have.`}
+          </p>
+        )}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3">

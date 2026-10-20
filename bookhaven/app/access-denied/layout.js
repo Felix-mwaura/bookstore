@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Access denied",
+  title: "Access denied · Book Haven",
   robots: { index: false, follow: false },
 };
 

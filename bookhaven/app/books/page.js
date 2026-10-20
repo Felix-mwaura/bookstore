@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 const one = (value) => (Array.isArray(value) ? value[0] : value) || "";
 
 const BASE_METADATA = {
-  title: "All books",
+  title: `All books · ${SITE_NAME}`,
   description:
     "Browse every title on the Book Haven shelf — fiction, finance, self-help, history and more, priced in Kenyan shillings with delivery across Kenya.",
   alternates: { canonical: "/books" },
@@ -36,7 +36,7 @@ export async function generateMetadata({ searchParams }) {
 
   return {
     ...BASE_METADATA,
-    title: q ? `Search: ${q}` : `${category} books`,
+    title: q ? `Search: ${q} · ${SITE_NAME}` : `${category} books · ${SITE_NAME}`,
     robots: { index: false, follow: true },
   };
 }

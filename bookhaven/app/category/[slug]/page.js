@@ -35,12 +35,12 @@ export async function generateMetadata({ params }) {
   const category = categoryFromSlug(slug);
   if (!category) return { title: "Category not found" };
 
-  const title = `${category} books`;
+  const title = `${category} books · ${SITE_NAME}`;
   return {
     title,
     description: descriptions[category] ?? `Browse ${category} books at ${SITE_NAME}.`,
     alternates: { canonical: `/category/${categorySlug(category)}` },
-    openGraph: { title: `${title} — ${SITE_NAME}`, url: `/category/${categorySlug(category)}` },
+    openGraph: { title, url: `/category/${categorySlug(category)}` },
   };
 }
 
