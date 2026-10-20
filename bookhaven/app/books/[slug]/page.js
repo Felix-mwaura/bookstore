@@ -6,10 +6,13 @@ import StoreLayout from "../../components/StoreLayout";
 import { getBookById, getRelatedBooks, bookPath, bookSlug, parseBookSlug } from "../../lib/catalogue";
 import { SITE_NAME, SITE_URL, formatKsh, absoluteUrl } from "../../lib/site";
 
-// Re-render at most once a minute: prices and stock change from the admin
-// dashboard, and a stale price on a crawlable page is worse than a slow one.
-export const revalidate = 60;
-export const dynamicParams = true;
+// Rendered per request rather than cached.
+//
+// These pages change whenever an admin edits a price or sells a copy, and an
+// ISR-cached product page served from a previous deployment kept showing a
+// stale heading and, worse, could show a stale price. Thirteen product pages
+// are cheap to render; being wrong about the price is not.
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
