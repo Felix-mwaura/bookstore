@@ -1,20 +1,84 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────
+   Design tokens
+   One palette for the storefront and the admin dashboard. Warm
+   cream paper, navy ink, sienna for the one action that matters
+   on each screen. Every text/background pair below is checked
+   for WCAG AA (4.5:1 for body text, 3:1 for large text).
+   ───────────────────────────────────────────────────────────── */
 @theme {
+  --color-cream: #FAF6EE;
+  --color-surface: #FFFFFF;
+  --color-subtle: #F2ECDF;
+  --color-navy: #1B2A4A;
+  --color-navy-hover: #14203A;
+  --color-sienna: #B5532F;
+  --color-sienna-hover: #96431F;
+  --color-ink: #1F2430;
+  --color-muted: #5B6270;
+  --color-line: #E3DCCB;
+  --color-success: #2F7D4F;
+  --color-warning: #B7791F;
+  --color-error: #B3261E;
+  --color-info: #2A5DA8;
+
   --font-inter: 'Inter', system-ui, sans-serif;
   --font-playfair: 'Playfair Display', Georgia, serif;
+
+  --radius-control: 8px;
+  --radius-card: 12px;
+
+  --shadow-card: 0 1px 2px rgba(27, 42, 74, 0.04), 0 4px 16px rgba(27, 42, 74, 0.06);
+  --shadow-pop: 0 8px 32px rgba(27, 42, 74, 0.14);
+
+  --default-transition-duration: 180ms;
+  --default-transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
 
 body {
-  background-color: #FAF8F5;
-  color: #1C1917;
+  background-color: var(--color-cream);
+  color: var(--color-ink);
   font-family: var(--font-inter);
+  font-size: 16px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-playfair);
+  color: var(--color-navy);
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* A visible focus ring on every interactive element, for keyboard users
+   and for people who use the site without a mouse. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-sienna);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Small screens: keep tap targets comfortable. */
+@media (max-width: 640px) {
+  button, [role="button"], a.btn-primary, a.btn-secondary {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Book styling */
@@ -35,43 +99,52 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .book-shadow {
-  box-shadow: -2px 0 4px rgba(0,0,0,0.1), 4px 8px 24px rgba(0,0,0,0.12);
+  box-shadow: -2px 0 4px rgba(27, 42, 74, 0.1), 4px 8px 24px rgba(27, 42, 74, 0.12);
 }
 
 .book-shadow-hover {
-  box-shadow: -2px 0 4px rgba(0,0,0,0.1), 8px 16px 40px rgba(0,0,0,0.18);
+  box-shadow: -2px 0 4px rgba(27, 42, 74, 0.1), 8px 16px 40px rgba(27, 42, 74, 0.18);
 }
 
 /* Buttons */
 .btn-primary {
-  background-color: #991B1B;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--color-sienna);
   color: white;
   padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-control);
   font-weight: 600;
-  transition: all 0.2s;
+  transition: background-color 180ms ease-out, transform 180ms ease-out;
 }
 
 .btn-primary:hover {
-  background-color: #7F1D1D;
+  background-color: var(--color-sienna-hover);
 }
 
 .btn-primary:active {
-  transform: scale(0.95);
+  transform: scale(0.98);
 }
 
 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   background-color: white;
-  border: 1px solid #d6d3d1;
-  color: #44403c;
+  border: 1px solid var(--color-line);
+  color: var(--color-navy);
   padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
+  border-radius: var(--radius-control);
   font-weight: 600;
-  transition: all 0.2s;
+  transition: border-color 180ms ease-out, background-color 180ms ease-out;
 }
 
 .btn-secondary:hover {
-  border-color: #a8a29e;
+  border-color: var(--color-navy);
+  background-color: var(--color-subtle);
 }
 
 /* Utilities */
@@ -104,19 +177,19 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.5s ease-out forwards;
+  animation: fadeIn 0.3s ease-out forwards;
 }
 
 .animate-slide-up {
-  animation: slideUp 0.6s ease-out forwards;
+  animation: slideUp 0.25s ease-out forwards;
 }
 
 .animate-slide-in-right {
-  animation: slideInRight 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .animate-slide-in-left {
-  animation: slideInLeft 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideInLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes dropdownIn {
@@ -130,14 +203,14 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f5f5f4;
+  background: var(--color-subtle);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d6d3d1;
+  background: #C9BFA8;
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a29e;
+  background: #B0A48A;
 }

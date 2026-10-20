@@ -21,7 +21,7 @@ function Badge({ status }) {
     Active:"bg-green-50 text-green-700 border border-green-200",
     Suspended:"bg-red-50 text-red-700 border border-red-200",
     admin:"bg-purple-50 text-purple-700 border border-purple-200",
-    customer:"bg-stone-50 text-stone-600 border border-stone-200",
+    customer:"bg-stone-50 text-stone-600 border border-[#E3DCCB]",
     "In Stock":"bg-green-50 text-green-700 border border-green-200",
     "Out of Stock":"bg-red-50 text-red-700 border border-red-200",
     "Only 3 left":"bg-amber-50 text-amber-700 border border-amber-200",
@@ -29,7 +29,7 @@ function Badge({ status }) {
     "Pre-order":"bg-blue-50 text-blue-700 border border-blue-200",
   };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${map[status]||"bg-stone-50 text-stone-600 border border-stone-200"}`}>
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${map[status]||"bg-stone-50 text-stone-600 border border-[#E3DCCB]"}`}>
       {status}
     </span>
   );
@@ -47,7 +47,7 @@ function Toast({ toasts, onRemove }) {
   return (
     <div className="fixed bottom-6 right-6 z-[200] space-y-2">
       {toasts.map(t => (
-        <div key={t.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white min-w-[280px] ${t.type==="error"?"bg-red-600":"bg-[#1C1917]"}`}>
+        <div key={t.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white min-w-[280px] ${t.type==="error"?"bg-red-600":"bg-[#1B2A4A]"}`}>
           <span>{t.type==="error"?"⚠️":"✓"}</span>
           <span className="flex-1">{t.msg}</span>
           <button onClick={()=>onRemove(t.id)} className="text-white/60 hover:text-white">✕</button>
@@ -62,20 +62,20 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger, load
   return (
     <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={loading?undefined:onCancel}/>
-      <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-stone-200">
+      <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-[#E3DCCB]">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${danger?"bg-red-50":"bg-amber-50"}`}>
           <svg className={`w-6 h-6 ${danger?"text-red-500":"text-amber-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
           </svg>
         </div>
-        <h3 className="text-lg font-bold text-[#1C1917] mb-2">{title}</h3>
+        <h3 className="text-lg font-bold text-[#1B2A4A] mb-2">{title}</h3>
         <p className="text-stone-500 text-sm mb-6">{message}</p>
         <div className="flex gap-3">
-          <button onClick={onConfirm} disabled={loading} className={`flex-1 py-2.5 rounded-xl font-bold text-sm text-white transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 ${danger?"bg-red-600 hover:bg-red-700":"bg-[#1C1917] hover:bg-[#991B1B]"}`}>
+          <button onClick={onConfirm} disabled={loading} className={`flex-1 py-2.5 rounded-xl font-bold text-sm text-white transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 ${danger?"bg-red-600 hover:bg-red-700":"bg-[#1B2A4A] hover:bg-[#B5532F]"}`}>
             {loading && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>}
             {loading?loadingLabel:confirmLabel}
           </button>
-          <button onClick={onCancel} disabled={loading} className="flex-1 py-2.5 rounded-xl font-bold text-sm border border-stone-200 text-stone-600 hover:bg-stone-50 transition disabled:opacity-40">Cancel</button>
+          <button onClick={onCancel} disabled={loading} className="flex-1 py-2.5 rounded-xl font-bold text-sm border border-[#E3DCCB] text-stone-600 hover:bg-stone-50 transition disabled:opacity-40">Cancel</button>
         </div>
       </div>
     </div>
@@ -88,11 +88,11 @@ function Skeleton({ className="" }) {
 
 function StatCard({ icon, label, value, delta, deltaUp, sub, accent }) {
   return (
-    <div className={`rounded-2xl border p-5 flex flex-col gap-3 ${accent?"bg-[#1C1917] border-[#1C1917]":"bg-white border-stone-200 hover:shadow-sm transition-shadow"}`}>
+    <div className={`rounded-2xl border p-5 flex flex-col gap-3 ${accent?"bg-[#1B2A4A] border-[#1B2A4A]":"bg-white border-[#E3DCCB] hover:shadow-sm transition-shadow"}`}>
       <div className="flex items-start justify-between">
         <div>
           <p className={`text-xs font-bold uppercase tracking-widest ${accent?"text-stone-400":"text-stone-400"}`}>{label}</p>
-          <p className={`text-2xl font-black mt-1 leading-none ${accent?"text-amber-400":"text-[#1C1917]"}`}>{value}</p>
+          <p className={`text-2xl font-black mt-1 leading-none ${accent?"text-amber-400":"text-[#1B2A4A]"}`}>{value}</p>
           {sub && <p className={`text-xs mt-1 ${accent?"text-stone-500":"text-stone-400"}`}>{sub}</p>}
         </div>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accent?"bg-white/10":"bg-stone-50"}`}>
@@ -111,7 +111,7 @@ function StatCard({ icon, label, value, delta, deltaUp, sub, accent }) {
   );
 }
 
-function MiniChart({ data, color="#991B1B" }) {
+function MiniChart({ data, color="#B5532F" }) {
   const max = Math.max(...data, 1);
   return (
     <div className="flex items-end gap-1 h-12">
@@ -148,13 +148,13 @@ const NAV = [
 
 function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
   return (
-    <aside className={`flex flex-col border-r border-stone-200 bg-white transition-all duration-200 flex-shrink-0 ${collapsed?"w-[56px]":"w-[220px]"}`}>
+    <aside className={`flex flex-col border-r border-[#E3DCCB] bg-white transition-all duration-200 flex-shrink-0 ${collapsed?"w-[56px]":"w-[220px]"}`}>
       {/* Logo */}
-      <div className="h-14 flex items-center gap-2.5 px-3.5 border-b border-stone-200 flex-shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-[#1C1917] flex items-center justify-center flex-shrink-0">
+      <div className="h-14 flex items-center gap-2.5 px-3.5 border-b border-[#E3DCCB] flex-shrink-0">
+        <div className="w-7 h-7 rounded-lg bg-[#1B2A4A] flex items-center justify-center flex-shrink-0">
           <span className="text-sm">📚</span>
         </div>
-        {!collapsed && <span className="font-black text-sm text-[#1C1917] tracking-tight whitespace-nowrap">Book Haven</span>}
+        {!collapsed && <span className="font-black text-sm text-[#1B2A4A] tracking-tight whitespace-nowrap">Book Haven</span>}
       </div>
 
       {/* Nav */}
@@ -167,19 +167,19 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
           const isActive = activeTab === item.id;
           return (
             <button key={item.id} onClick={()=>setTab(item.id)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm transition-all ${isActive?"bg-[#1C1917] text-white":"text-stone-600 hover:bg-stone-50 hover:text-[#1C1917]"}`}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm transition-all ${isActive?"bg-[#1B2A4A] text-white":"text-stone-600 hover:bg-stone-50 hover:text-[#1B2A4A]"}`}
               title={collapsed?item.label:""}>
               <span className="text-base flex-shrink-0">{item.icon}</span>
               {!collapsed && (
                 <>
                   <span className="flex-1 text-left font-medium whitespace-nowrap text-[13px]">{item.label}</span>
                   {item.badge && pendingCount > 0 && (
-                    <span className="bg-[#991B1B] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingCount}</span>
+                    <span className="bg-[#B5532F] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingCount}</span>
                   )}
                 </>
               )}
               {collapsed && item.badge && pendingCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[#991B1B] rounded-full"/>
+                <span className="absolute top-1 right-1 w-2 h-2 bg-[#B5532F] rounded-full"/>
               )}
             </button>
           );
@@ -187,7 +187,7 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
       </nav>
 
       {/* Collapse toggle */}
-      <div className="border-t border-stone-200 p-2 flex-shrink-0">
+      <div className="border-t border-[#E3DCCB] p-2 flex-shrink-0">
         <button onClick={()=>setCollapsed(!collapsed)}
           className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-stone-500 hover:bg-stone-50 transition text-sm">
           <svg className={`w-4 h-4 flex-shrink-0 transition-transform ${collapsed?"rotate-180":""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,7 +207,7 @@ function Topbar({ activeTab, sessionUser, onLogout }) {
   const labels = { overview:"Dashboard", orders:"Orders", books:"Products", customers:"Customers", payments:"Payments", reports:"Reports", inventory:"Inventory", reviews:"Reviews", coupons:"Coupons", users:"Users & Roles", activity:"Activity Logs", settings:"Settings" };
   const [search, setSearch] = useState("");
   return (
-    <div className="h-14 flex items-center gap-3 px-4 border-b border-stone-200 bg-white flex-shrink-0">
+    <div className="h-14 flex items-center gap-3 px-4 border-b border-[#E3DCCB] bg-white flex-shrink-0">
       {/* Breadcrumb */}
       <div className="hidden sm:flex items-center gap-1 text-xs text-stone-400">
         <span>Book Haven</span>
@@ -218,7 +218,7 @@ function Topbar({ activeTab, sessionUser, onLogout }) {
       {/* Search */}
       <div className="flex-1 max-w-xs ml-auto sm:ml-4 relative">
         <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search anything…"
-          className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1C1917] transition"/>
+          className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition"/>
         <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
         </svg>
@@ -226,17 +226,17 @@ function Topbar({ activeTab, sessionUser, onLogout }) {
 
       {/* Actions */}
       <div className="flex items-center gap-2 ml-2">
-        <button className="w-8 h-8 rounded-lg border border-stone-200 bg-stone-50 flex items-center justify-center text-stone-500 hover:bg-stone-100 transition relative" title="Notifications">
+        <button className="w-8 h-8 rounded-lg border border-[#E3DCCB] bg-stone-50 flex items-center justify-center text-stone-500 hover:bg-stone-100 transition relative" title="Notifications">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#991B1B] rounded-full"/>
+          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#B5532F] rounded-full"/>
         </button>
-        <Link href="/" className="w-8 h-8 rounded-lg border border-stone-200 bg-stone-50 flex items-center justify-center text-stone-500 hover:bg-stone-100 transition" title="View store">
+        <Link href="/" className="w-8 h-8 rounded-lg border border-[#E3DCCB] bg-stone-50 flex items-center justify-center text-stone-500 hover:bg-stone-100 transition" title="View store">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         </Link>
-        <div className="flex items-center gap-2 pl-2 border-l border-stone-200">
+        <div className="flex items-center gap-2 pl-2 border-l border-[#E3DCCB]">
           <Avatar name="Felix Mwaura" email={sessionUser?.email} size="sm"/>
           <div className="hidden sm:block">
-            <p className="text-xs font-bold text-[#1C1917] leading-none">Felix Mwaura</p>
+            <p className="text-xs font-bold text-[#1B2A4A] leading-none">Felix Mwaura</p>
             <p className="text-[10px] text-stone-400 mt-0.5">Admin</p>
           </div>
           <button onClick={onLogout} className="ml-1 text-xs text-stone-400 hover:text-red-600 transition" title="Sign out">
@@ -305,7 +305,7 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-[#1C1917]">Dashboard</h2>
+          <h2 className="text-lg font-bold text-[#1B2A4A]">Dashboard</h2>
           <p className="text-stone-400 text-xs mt-0.5">
             Every figure below is computed in the database for the selected period.
           </p>
@@ -317,8 +317,8 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
               onClick={() => setRange(r.id)}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
                 range === r.id
-                  ? "bg-[#1C1917] text-white"
-                  : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
+                  ? "bg-[#1B2A4A] text-white"
+                  : "bg-white border border-[#E3DCCB] text-stone-600 hover:border-stone-300"
               }`}
             >
               {r.label}
@@ -400,16 +400,16 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 p-5">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E3DCCB] p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[#1C1917] text-sm">Net revenue by day</h3>
+            <h3 className="font-bold text-[#1B2A4A] text-sm">Net revenue by day</h3>
             <span className="text-xs text-stone-400">
               {daily.length ? `${daily.length} trading day${daily.length !== 1 ? "s" : ""}` : "No activity"}
             </span>
           </div>
           {dailyValues.length ? (
             <>
-              <MiniChart data={dailyValues} color="#991B1B" />
+              <MiniChart data={dailyValues} color="#B5532F" />
               <div className="flex justify-between mt-2 text-[10px] text-stone-400">
                 <span>{daily[0]?.date}</span>
                 <span>{daily[daily.length - 1]?.date}</span>
@@ -425,17 +425,17 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-stone-200 p-5">
-          <h3 className="font-bold text-[#1C1917] text-sm mb-4">Best-selling books</h3>
+        <div className="bg-white rounded-2xl border border-[#E3DCCB] p-5">
+          <h3 className="font-bold text-[#1B2A4A] text-sm mb-4">Best-selling books</h3>
           <div className="space-y-3">
             {bestSellers.map((b, i) => (
               <div key={b.book_id} className="flex items-center gap-3">
                 <span className="text-xs text-stone-400 w-4">{i + 1}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-[#1C1917] truncate">{b.title}</p>
+                  <p className="text-xs font-semibold text-[#1B2A4A] truncate">{b.title}</p>
                   <p className="text-[10px] text-stone-400">{fmt(b.revenue)}</p>
                 </div>
-                <span className="text-xs font-bold text-[#1C1917]">{b.units} sold</span>
+                <span className="text-xs font-bold text-[#1B2A4A]">{b.units} sold</span>
               </div>
             ))}
             {bestSellers.length === 0 && (
@@ -451,10 +451,10 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
           <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
-            <h3 className="font-bold text-[#1C1917] text-sm">Recent orders</h3>
-            <button onClick={() => onNavigate?.("orders")} className="text-xs font-semibold text-[#991B1B] hover:underline">
+            <h3 className="font-bold text-[#1B2A4A] text-sm">Recent orders</h3>
+            <button onClick={() => onNavigate?.("orders")} className="text-xs font-semibold text-[#B5532F] hover:underline">
               View all
             </button>
           </div>
@@ -472,13 +472,13 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
               <tbody className="divide-y divide-stone-50">
                 {recent.map((o) => (
                   <tr key={o.id} className="hover:bg-stone-50/50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs text-[#991B1B]">
+                    <td className="px-4 py-3 font-mono text-xs text-[#B5532F]">
                       {String(o.id).slice(0, 8).toUpperCase()}
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#1C1917]">
+                    <td className="px-4 py-3 text-xs text-[#1B2A4A]">
                       {o.first_name} {o.last_name}
                     </td>
-                    <td className="px-4 py-3 text-xs font-bold text-[#1C1917]">
+                    <td className="px-4 py-3 text-xs font-bold text-[#1B2A4A]">
                       {fmt(o.total)}
                     </td>
                     <td className="px-4 py-3">
@@ -504,8 +504,8 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-stone-200 p-5">
-          <h3 className="font-bold text-[#1C1917] text-sm mb-4">Needs attention</h3>
+        <div className="bg-white rounded-2xl border border-[#E3DCCB] p-5">
+          <h3 className="font-bold text-[#1B2A4A] text-sm mb-4">Needs attention</h3>
           <div className="space-y-3">
             {(counts.awaiting_dispatch ?? 0) > 0 && (
               <button onClick={() => onNavigate?.("orders")} className="w-full text-left flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition">
@@ -748,7 +748,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1C1917]">Orders</h2>
+          <h2 className="text-lg font-bold text-[#1B2A4A]">Orders</h2>
           <p className="text-stone-400 text-xs mt-0.5">
             {orders.length} total · {orders.filter((o) => o.status === "Delivered").length} delivered ·{" "}
             {orders.filter((o) => o.status !== "Cancelled").reduce((s, o) => s + (o.total || 0), 0).toLocaleString()} KSh ordered
@@ -761,7 +761,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search orders…"
-              className="bg-white border border-stone-200 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1C1917] transition w-56"
+              className="bg-white border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition w-56"
             />
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -776,7 +776,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
             key={s}
             onClick={() => { setStatusFilter(s); setPage(1); }}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-              statusFilter === s ? "bg-[#1C1917] text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
+              statusFilter === s ? "bg-[#1B2A4A] text-white" : "bg-white border border-[#E3DCCB] text-stone-600 hover:border-stone-300"
             }`}
           >
             {s} <span className="opacity-60 ml-0.5">({s === "All" ? orders.length : orders.filter((o) => o.status === s).length})</span>
@@ -785,7 +785,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
       </div>
 
       {selected.length > 0 && (
-        <div className="mb-4 bg-[#1C1917] text-white rounded-2xl p-4">
+        <div className="mb-4 bg-[#1B2A4A] text-white rounded-2xl p-4">
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm font-bold">{selected.length} selected</p>
 
@@ -819,7 +819,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                 <button
                   onClick={runBulk}
                   disabled={bulkBusy || !effectiveBulkStatus}
-                  className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-[#1C1917] text-xs font-bold px-4 py-2 rounded-lg transition"
+                  className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-[#1B2A4A] text-xs font-bold px-4 py-2 rounded-lg transition"
                 >
                   {bulkBusy ? "Applying…" : `Apply to ${selected.length}`}
                 </button>
@@ -849,7 +849,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 border-b border-stone-100">
@@ -884,18 +884,18 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                         />
                       </td>
                       <td className="px-3 py-3">
-                        <button onClick={() => setExpanded(expanded === o.id ? null : o.id)} className="text-stone-400 hover:text-[#1C1917] transition" aria-label="Toggle order details">
+                        <button onClick={() => setExpanded(expanded === o.id ? null : o.id)} className="text-stone-400 hover:text-[#1B2A4A] transition" aria-label="Toggle order details">
                           <svg className={`w-4 h-4 transition-transform ${expanded === o.id ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </button>
                       </td>
-                      <td className="px-3 py-3 font-mono text-xs text-[#991B1B]">{o.id.slice(0, 8).toUpperCase()}</td>
+                      <td className="px-3 py-3 font-mono text-xs text-[#B5532F]">{o.id.slice(0, 8).toUpperCase()}</td>
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2">
                           <Avatar name={`${o.delivery_details?.firstName || ""} ${o.delivery_details?.lastName || ""}`} email="" size="sm" />
                           <div>
-                            <p className="text-xs font-semibold text-[#1C1917]">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
+                            <p className="text-xs font-semibold text-[#1B2A4A]">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
                             <p className="text-[10px] text-stone-400">{o.delivery_details?.phone}</p>
                           </div>
                         </div>
@@ -905,7 +905,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                         <p className="text-[10px] text-stone-400">{o.delivery_details?.city}</p>
                       </td>
                       <td className="px-3 py-3 text-xs text-stone-500">{(o.items || []).length} book{(o.items || []).length !== 1 ? "s" : ""}</td>
-                      <td className="px-3 py-3 text-xs font-bold text-[#1C1917]">KSh {(o.total || 0).toLocaleString()}</td>
+                      <td className="px-3 py-3 text-xs font-bold text-[#1B2A4A]">KSh {(o.total || 0).toLocaleString()}</td>
                       <td className="px-3 py-3">
                         <p className={`text-[10px] font-semibold ${o.payment_status === "paid" ? "text-green-600" : o.payment_status === "failed" ? "text-red-600" : o.payment_status === "refunded" ? "text-purple-600" : "text-amber-600"}`}>
                           {PAYMENT_LABEL[o.payment_status] || o.payment_status}
@@ -923,7 +923,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                             onChange={(e) => updateStatus(o.id, e.target.value, e.target.value === "Shipped" && courier ? { courier } : {})}
                             disabled={updating === o.id || isTerminal(o.status)}
                             title={isTerminal(o.status) ? "Delivered and cancelled orders are final" : "Change fulfilment status"}
-                            className="text-xs bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 outline-none focus:border-[#991B1B] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="text-xs bg-stone-50 border border-[#E3DCCB] rounded-lg px-2 py-1 outline-none focus:border-[#B5532F] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                           >
                             <option value={o.status}>{o.status}</option>
                             {(STATUS_FLOW[o.status] || []).map((s) => <option key={s} value={s}>{s}</option>)}
@@ -950,12 +950,12 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                                         )}
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-semibold text-[#1C1917] truncate">{item.title}</p>
+                                        <p className="text-xs font-semibold text-[#1B2A4A] truncate">{item.title}</p>
                                         <p className="text-[10px] text-stone-400">
                                           {item.author} · Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}
                                         </p>
                                       </div>
-                                      <p className="text-xs font-bold text-[#1C1917]">
+                                      <p className="text-xs font-bold text-[#1B2A4A]">
                                         KSh {((item.price || 0) * (item.quantity || 1)).toLocaleString()}
                                       </p>
                                     </div>
@@ -978,9 +978,9 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                                 </div>
                                 <div className="bg-white rounded-xl border border-stone-100 p-4">
                                   <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">Money & dispatch</p>
-                                  <p className="text-stone-500">Subtotal: <span className="font-semibold text-[#1C1917]">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
-                                  <p className="text-stone-500">Delivery: <span className="font-semibold text-[#1C1917]">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
-                                  <p className="text-stone-500">Total: <span className="font-bold text-[#1C1917]">KSh {(o.total ?? 0).toLocaleString()}</span></p>
+                                  <p className="text-stone-500">Subtotal: <span className="font-semibold text-[#1B2A4A]">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
+                                  <p className="text-stone-500">Delivery: <span className="font-semibold text-[#1B2A4A]">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
+                                  <p className="text-stone-500">Total: <span className="font-bold text-[#1B2A4A]">KSh {(o.total ?? 0).toLocaleString()}</span></p>
                                   {o.payment_ref && <p className="text-stone-500 mt-1">Receipt: <span className="font-mono font-bold">{o.payment_ref}</span></p>}
                                   {o.courier && <p className="text-stone-500 mt-1">Courier: {o.courier}</p>}
                                   {o.tracking_ref && <p className="text-stone-500">Tracking: <span className="font-mono">{o.tracking_ref}</span></p>}
@@ -993,7 +993,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                             <div>
                               <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-3">Payment</p>
                               <div className="bg-white rounded-xl border border-stone-100 p-4">
-                                <p className="text-sm font-bold text-[#1C1917]">{PAYMENT_LABEL[o.payment_status] || o.payment_status}</p>
+                                <p className="text-sm font-bold text-[#1B2A4A]">{PAYMENT_LABEL[o.payment_status] || o.payment_status}</p>
                                 <p className="text-[10px] text-stone-400 mt-0.5">via {o.payment_method}</p>
 
                                 {payFlow.length > 0 ? (
@@ -1003,7 +1003,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                                         key={s}
                                         disabled={updating === o.id}
                                         onClick={() => updatePayment(o.id, s)}
-                                        className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-stone-200 hover:border-stone-300 hover:bg-stone-50 disabled:opacity-40 transition"
+                                        className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-[#E3DCCB] hover:border-stone-300 hover:bg-stone-50 disabled:opacity-40 transition"
                                       >
                                         {s === "paid" ? "Mark paid" : s === "failed" ? "Mark failed" : s === "refund_pending" ? "Start refund" : s === "refunded" ? "Mark refunded" : "Reset to unpaid"}
                                       </button>
@@ -1051,11 +1051,11 @@ function OrdersTab({ orders, books, onReload, showToast }) {
               Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length}
             </p>
             <div className="flex gap-1">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 text-xs border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-50">Prev</button>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 text-xs border border-[#E3DCCB] rounded-lg disabled:opacity-40 hover:bg-stone-50">Prev</button>
               {[...Array(totalPages)].map((_, i) => (
-                <button key={i} onClick={() => setPage(i + 1)} className={`w-7 h-7 text-xs rounded-lg border transition ${page === i + 1 ? "bg-[#1C1917] text-white border-[#1C1917]" : "border-stone-200 hover:bg-stone-50"}`}>{i + 1}</button>
+                <button key={i} onClick={() => setPage(i + 1)} className={`w-7 h-7 text-xs rounded-lg border transition ${page === i + 1 ? "bg-[#1B2A4A] text-white border-[#1B2A4A]" : "border-[#E3DCCB] hover:bg-stone-50"}`}>{i + 1}</button>
               ))}
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 text-xs border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-50">Next</button>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 text-xs border border-[#E3DCCB] rounded-lg disabled:opacity-40 hover:bg-stone-50">Next</button>
             </div>
           </div>
         )}
@@ -1156,7 +1156,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
     setSaving(true);
     let uploadedPath = null; // file we uploaded in THIS attempt (to clean up on failure)
     try {
-      const [bg,accent] = coverMap[form.category]||["#1C1917","#991B1B"];
+      const [bg,accent] = coverMap[form.category]||["#1B2A4A","#B5532F"];
       const payload = {
         title:form.title.trim(), author:form.author.trim(), price:Number(form.price),
         original_price:form.original_price?Number(form.original_price):null,
@@ -1244,7 +1244,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
     <div className={full?"col-span-2":""}>
       <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">{label}</label>
       <input type={type} value={form[name]} placeholder={placeholder} onChange={e=>setForm(p=>({...p,[name]:e.target.value}))}
-        className={`w-full bg-stone-50 border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-1 transition ${formErrors[name]?"border-red-400 focus:border-red-500 focus:ring-red-100":"border-stone-200 focus:border-[#991B1B] focus:ring-[#991B1B]/20"}`}/>
+        className={`w-full bg-stone-50 border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-1 transition ${formErrors[name]?"border-red-400 focus:border-red-500 focus:ring-red-100":"border-[#E3DCCB] focus:border-[#B5532F] focus:ring-[#B5532F]/20"}`}/>
       {formErrors[name] && <p className="text-red-500 text-xs mt-1">{formErrors[name]}</p>}
     </div>
   );
@@ -1255,19 +1255,19 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1C1917]">Products</h2>
+          <h2 className="text-lg font-bold text-[#1B2A4A]">Products</h2>
           <p className="text-stone-400 text-xs mt-0.5">{books.filter(b=>!b.is_archived).length} active · {books.filter(b=>b.is_archived).length} archived</p>
         </div>
-        <button onClick={openAdd} className="flex items-center gap-2 bg-[#1C1917] hover:bg-[#991B1B] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95">
+        <button onClick={openAdd} className="flex items-center gap-2 bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> Add book
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white border border-stone-200 rounded-2xl p-5 mb-5 shadow-sm">
+        <div className="bg-white border border-[#E3DCCB] rounded-2xl p-5 mb-5 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-bold text-[#1C1917]">{editBook?`Editing: ${editBook.title}`:"Add new book"}</h3>
+              <h3 className="font-bold text-[#1B2A4A]">{editBook?`Editing: ${editBook.title}`:"Add new book"}</h3>
               <p className="text-xs text-stone-400 mt-0.5">{editBook?"Update the book details below":"Fill in the details for the new title"}</p>
             </div>
             <button onClick={()=>setShowForm(false)} className="p-2 hover:bg-stone-100 rounded-full transition text-stone-400">
@@ -1281,19 +1281,19 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
             {F({label:"Original price (KSh)",name:"original_price",type:"number",placeholder:"Leave blank if no discount"})}
             <div>
               <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Category</label>
-              <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] transition">
+              <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))} className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition">
                 {categories.map(c=><option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Format</label>
-              <select value={form.format} onChange={e=>setForm(p=>({...p,format:e.target.value}))} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] transition">
+              <select value={form.format} onChange={e=>setForm(p=>({...p,format:e.target.value}))} className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition">
                 {["Paperback","Hardcover","eBook"].map(f=><option key={f}>{f}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Badge</label>
-              <select value={form.badge} onChange={e=>setForm(p=>({...p,badge:e.target.value}))} className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] transition">
+              <select value={form.badge} onChange={e=>setForm(p=>({...p,badge:e.target.value}))} className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition">
                 <option value="">No badge</option>
                 {["Bestseller","New","Trending","Staff Pick","Award Winner","Classic","Top Rated"].map(b=><option key={b}>{b}</option>)}
               </select>
@@ -1307,12 +1307,12 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
             <div className="col-span-2">
               <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Cover image</label>
               <div className="flex items-start gap-4">
-                <div className="w-20 flex-shrink-0 rounded-lg overflow-hidden border border-stone-200 bg-stone-100 flex items-center justify-center text-stone-300 text-2xl" style={{aspectRatio:"2/3"}}>
+                <div className="w-20 flex-shrink-0 rounded-lg overflow-hidden border border-[#E3DCCB] bg-stone-100 flex items-center justify-center text-stone-300 text-2xl" style={{aspectRatio:"2/3"}}>
                   {coverPreview ? <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover"/> : "📖"}
                 </div>
                 <div className="flex-1">
                   <div className="flex flex-wrap gap-2">
-                    <label className={`px-4 py-2 rounded-xl text-sm font-semibold border border-stone-200 bg-white hover:bg-stone-50 cursor-pointer transition ${saving?"opacity-50 pointer-events-none":""}`}>
+                    <label className={`px-4 py-2 rounded-xl text-sm font-semibold border border-[#E3DCCB] bg-white hover:bg-stone-50 cursor-pointer transition ${saving?"opacity-50 pointer-events-none":""}`}>
                       {coverPreview ? "Replace image" : "Choose image"}
                       <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onCoverSelected} disabled={saving} className="sr-only"/>
                     </label>
@@ -1326,19 +1326,19 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
               </div>
             </div>
             <label className="flex items-center gap-2 mt-6 cursor-pointer">
-              <input type="checkbox" checked={form.is_featured} onChange={e=>setForm(p=>({...p,is_featured:e.target.checked}))} className="w-4 h-4 accent-[#991B1B]"/>
+              <input type="checkbox" checked={form.is_featured} onChange={e=>setForm(p=>({...p,is_featured:e.target.checked}))} className="w-4 h-4 accent-[#B5532F]"/>
               <span className="text-sm text-stone-600">Show in &quot;Recommended&quot; on the homepage</span>
             </label>
             <div className="col-span-2">
               <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Description</label>
-              <textarea value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} rows={3} placeholder="Book description…" className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] transition resize-none"/>
+              <textarea value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} rows={3} placeholder="Book description…" className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition resize-none"/>
             </div>
           </div>
           <div className="flex gap-3 mt-5 pt-4 border-t border-stone-100">
-            <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-[#1C1917] hover:bg-[#991B1B] disabled:bg-stone-200 disabled:text-stone-400 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95">
+            <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-[#1B2A4A] hover:bg-[#B5532F] disabled:bg-stone-200 disabled:text-stone-400 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95">
               {saving?<><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block"/>{saveStage||"Saving…"}</>:editBook?"Save changes":"Add book"}
             </button>
-            <button onClick={()=>setShowForm(false)} className="border border-stone-200 text-stone-600 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-stone-50 transition">Cancel</button>
+            <button onClick={()=>setShowForm(false)} className="border border-[#E3DCCB] text-stone-600 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-stone-50 transition">Cancel</button>
           </div>
         </div>
       )}
@@ -1346,11 +1346,11 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search books…"
-            className="w-full bg-white border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#991B1B] transition"/>
+            className="w-full bg-white border border-[#E3DCCB] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"/>
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
         <label className="flex items-center gap-2 text-sm text-stone-500 whitespace-nowrap">
-          <input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)} className="w-4 h-4 accent-[#991B1B]"/>
+          <input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)} className="w-4 h-4 accent-[#B5532F]"/>
           Show archived
         </label>
       </div>
@@ -1365,7 +1365,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
       ) : loading ? (
         <div className="space-y-2">{[...Array(5)].map((_,i)=><Skeleton key={i} className="h-14"/>)}</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
@@ -1378,16 +1378,16 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                   <tr key={book.id} className={`hover:bg-stone-50/50 transition-colors group ${book.is_archived?"opacity-50":""}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        {book.cover_url && <img src={book.cover_url} alt="" loading="lazy" className="w-8 h-12 object-cover rounded border border-stone-200 flex-shrink-0"/>}
+                        {book.cover_url && <img src={book.cover_url} alt="" loading="lazy" className="w-8 h-12 object-cover rounded border border-[#E3DCCB] flex-shrink-0"/>}
                         <div>
-                          <p className="text-sm font-semibold text-[#1C1917]">{book.title} {book.is_archived && <span className="text-[10px] text-stone-400 font-normal">(archived)</span>}</p>
+                          <p className="text-sm font-semibold text-[#1B2A4A]">{book.title} {book.is_archived && <span className="text-[10px] text-stone-400 font-normal">(archived)</span>}</p>
                           <p className="text-xs text-stone-400">{book.author}</p>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3"><Badge status={book.category}/></td>
                     <td className="px-4 py-3">
-                      <p className="text-xs font-bold text-[#1C1917]">KSh {book.price.toLocaleString()}</p>
+                      <p className="text-xs font-bold text-[#1B2A4A]">KSh {book.price.toLocaleString()}</p>
                       {book.original_price&&<p className="text-[10px] text-stone-400 line-through">KSh {book.original_price.toLocaleString()}</p>}
                     </td>
                     <td className="px-4 py-3">
@@ -1405,7 +1405,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={()=>openEdit(book)} className="text-xs text-[#991B1B] font-semibold hover:underline">Edit</button>
+                        <button onClick={()=>openEdit(book)} className="text-xs text-[#B5532F] font-semibold hover:underline">Edit</button>
                         <button onClick={()=>setDeleteConfirm(book.id)} className="text-xs text-stone-400 hover:text-red-600 font-semibold">Delete</button>
                       </div>
                     </td>
@@ -1559,7 +1559,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1C1917]">Inventory</h2>
+          <h2 className="text-lg font-bold text-[#1B2A4A]">Inventory</h2>
           <p className="text-stone-400 text-xs mt-0.5">{active.length} active titles · every change is recorded</p>
         </div>
       </div>
@@ -1571,7 +1571,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search inventory…"
-            className="w-full bg-white border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#991B1B] transition"
+            className="w-full bg-white border border-[#E3DCCB] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"
           />
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1580,7 +1580,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] transition"
+          className="bg-white border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"
         >
           {categories.map((c) => <option key={c}>{c}</option>)}
         </select>
@@ -1590,7 +1590,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
               key={s}
               onClick={() => setStatusFilter(s)}
               className={`px-3 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap ${
-                statusFilter === s ? "bg-[#1C1917] text-white" : "bg-white border border-stone-200 text-stone-600"
+                statusFilter === s ? "bg-[#1B2A4A] text-white" : "bg-white border border-[#E3DCCB] text-stone-600"
               }`}
             >
               {s}
@@ -1609,7 +1609,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
       ) : loading ? (
         <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
@@ -1626,11 +1626,11 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                   return (
                     <tr key={book.id} className="hover:bg-stone-50/50 transition-colors">
                       <td className="px-4 py-3">
-                        <p className="text-sm font-semibold text-[#1C1917]">{book.title}</p>
+                        <p className="text-sm font-semibold text-[#1B2A4A]">{book.title}</p>
                         <p className="text-xs text-stone-400">{book.author}</p>
                       </td>
                       <td className="px-4 py-3 text-xs text-stone-500">{book.category}</td>
-                      <td className="px-4 py-3 font-bold text-[#1C1917] text-sm">{book.stock_quantity ?? 0}</td>
+                      <td className="px-4 py-3 font-bold text-[#1B2A4A] text-sm">{book.stock_quantity ?? 0}</td>
                       <td className="px-4 py-3 text-xs text-stone-500">{book.low_stock_threshold ?? 5}</td>
                       <td className="px-4 py-3"><span className={`text-xs font-semibold ${statusColor}`}>{status}</span></td>
                       <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">
@@ -1639,7 +1639,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                       <td className="px-4 py-3">
                         <button
                           onClick={() => openAdjust(book)}
-                          className="text-xs font-semibold border border-stone-200 rounded-lg px-3 py-1.5 hover:border-stone-300 hover:bg-stone-50 transition"
+                          className="text-xs font-semibold border border-[#E3DCCB] rounded-lg px-3 py-1.5 hover:border-stone-300 hover:bg-stone-50 transition"
                         >
                           Adjust
                         </button>
@@ -1647,7 +1647,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                       <td className="px-4 py-3">
                         <button
                           onClick={() => openHistory(book)}
-                          className="text-xs font-semibold text-[#991B1B] hover:underline whitespace-nowrap"
+                          className="text-xs font-semibold text-[#B5532F] hover:underline whitespace-nowrap"
                         >
                           History
                         </button>
@@ -1673,7 +1673,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
       {modal && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true">
           <div className="bg-white rounded-2xl w-full max-w-md p-6">
-            <h3 className="font-black text-[#1C1917]">Adjust stock</h3>
+            <h3 className="font-black text-[#1B2A4A]">Adjust stock</h3>
             <p className="text-xs text-stone-400 mt-0.5 mb-4">{modal.book.title}</p>
 
             <label className="block text-xs font-semibold text-stone-600 mb-1" htmlFor="inv-qty">
@@ -1685,7 +1685,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
               min="0"
               value={modal.quantity}
               onChange={(e) => setModal({ ...modal, quantity: e.target.value })}
-              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#991B1B] mb-3"
+              className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#B5532F] mb-3"
             />
 
             <label className="block text-xs font-semibold text-stone-600 mb-1" htmlFor="inv-reason">Reason</label>
@@ -1693,7 +1693,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
               id="inv-reason"
               value={modal.reason}
               onChange={(e) => setModal({ ...modal, reason: e.target.value })}
-              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#991B1B] mb-3"
+              className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#B5532F] mb-3"
             >
               {REASONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
             </select>
@@ -1708,14 +1708,14 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
               value={modal.note}
               onChange={(e) => setModal({ ...modal, note: e.target.value })}
               placeholder="e.g. Received 20 copies from supplier, invoice #4471"
-              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#991B1B] mb-4 resize-none"
+              className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#B5532F] mb-4 resize-none"
             />
 
             <div className="flex gap-2">
-              <button onClick={() => setModal(null)} className="flex-1 border border-stone-200 rounded-xl py-2.5 text-sm font-bold text-stone-600 hover:bg-stone-50 transition">
+              <button onClick={() => setModal(null)} className="flex-1 border border-[#E3DCCB] rounded-xl py-2.5 text-sm font-bold text-stone-600 hover:bg-stone-50 transition">
                 Cancel
               </button>
-              <button onClick={submitAdjust} disabled={busy} className="flex-1 bg-[#1C1917] hover:bg-[#991B1B] disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-bold transition">
+              <button onClick={submitAdjust} disabled={busy} className="flex-1 bg-[#1B2A4A] hover:bg-[#B5532F] disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-bold transition">
                 {busy ? "Saving…" : "Save change"}
               </button>
             </div>
@@ -1729,10 +1729,10 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
           <div className="bg-white rounded-2xl w-full max-w-2xl p-6 max-h-[85vh] flex flex-col">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-black text-[#1C1917]">Stock history</h3>
+                <h3 className="font-black text-[#1B2A4A]">Stock history</h3>
                 <p className="text-xs text-stone-400 mt-0.5">{history.book.title}</p>
               </div>
-              <button onClick={() => setHistory(null)} className="text-stone-400 hover:text-[#1C1917] text-xl leading-none" aria-label="Close">×</button>
+              <button onClick={() => setHistory(null)} className="text-stone-400 hover:text-[#1B2A4A] text-xl leading-none" aria-label="Close">×</button>
             </div>
 
             <div className="overflow-y-auto -mx-2 px-2">
@@ -1797,33 +1797,33 @@ function CustomersTab({ users, orders }) {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1C1917]">Customers</h2>
+          <h2 className="text-lg font-bold text-[#1B2A4A]">Customers</h2>
           <p className="text-stone-400 text-xs mt-0.5">{users.length} registered users</p>
         </div>
         <div className="relative">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customers…"
-            className="bg-white border border-stone-200 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1C1917] transition w-56"/>
+            className="bg-white border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition w-56"/>
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-5">
-        <div className="bg-white rounded-2xl border border-stone-200 p-4 text-center">
-          <p className="text-2xl font-black text-[#1C1917]">{users.length}</p>
+        <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 text-center">
+          <p className="text-2xl font-black text-[#1B2A4A]">{users.length}</p>
           <p className="text-xs text-stone-400 mt-0.5">Total users</p>
         </div>
-        <div className="bg-white rounded-2xl border border-stone-200 p-4 text-center">
+        <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 text-center">
           <p className="text-2xl font-black text-green-600">{users.filter(u=>getUserOrders(u.id).length>0).length}</p>
           <p className="text-xs text-stone-400 mt-0.5">Have ordered</p>
         </div>
-        <div className="bg-white rounded-2xl border border-stone-200 p-4 text-center">
-          <p className="text-2xl font-black text-[#991B1B]">KSh {Math.round(users.reduce((s,u)=>s+getLTV(u.id),0)/Math.max(users.filter(u=>getLTV(u.id)>0).length,1)).toLocaleString()}</p>
+        <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 text-center">
+          <p className="text-2xl font-black text-[#B5532F]">KSh {Math.round(users.reduce((s,u)=>s+getLTV(u.id),0)/Math.max(users.filter(u=>getLTV(u.id)>0).length,1)).toLocaleString()}</p>
           <p className="text-xs text-stone-400 mt-0.5">Avg lifetime value</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 border-b border-stone-100">
@@ -1838,14 +1838,14 @@ function CustomersTab({ users, orders }) {
                     <div className="flex items-center gap-3">
                       <Avatar name={`${u.first_name} ${u.last_name}`} email={u.email}/>
                       <div>
-                        <p className="text-xs font-semibold text-[#1C1917]">{u.first_name||""} {u.last_name||""||<span className="text-stone-400 italic">No name</span>}</p>
+                        <p className="text-xs font-semibold text-[#1B2A4A]">{u.first_name||""} {u.last_name||""||<span className="text-stone-400 italic">No name</span>}</p>
                         <p className="text-[10px] text-stone-400">{u.id.slice(0,8)}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-4 py-3 text-xs text-stone-600">{u.email||"—"}</td>
                   <td className="px-4 py-3 text-xs text-stone-500">{u.phone||"—"}</td>
-                  <td className="px-4 py-3 text-xs font-bold text-[#1C1917]">{getUserOrders(u.id).length}</td>
+                  <td className="px-4 py-3 text-xs font-bold text-[#1B2A4A]">{getUserOrders(u.id).length}</td>
                   <td className="px-4 py-3 text-xs font-bold text-green-600">{getLTV(u.id)>0?`KSh ${getLTV(u.id).toLocaleString()}`:"—"}</td>
                   <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
                   <td className="px-4 py-3"><Badge status={u.role}/></td>
@@ -1918,17 +1918,17 @@ function UsersTab({ users, orders, session, showToast }) {
       />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1C1917]">Users & Roles</h2>
+          <h2 className="text-lg font-bold text-[#1B2A4A]">Users & Roles</h2>
           <p className="text-stone-400 text-xs mt-0.5">{localUsers.length} users · {localUsers.filter(u=>u.role==="admin").length} admins</p>
         </div>
         <div className="relative">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search users…"
-            className="bg-white border border-stone-200 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1C1917] transition w-56"/>
+            className="bg-white border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition w-56"/>
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 border-b border-stone-100">
@@ -1947,8 +1947,8 @@ function UsersTab({ users, orders, session, showToast }) {
                       <div className="flex items-center gap-3">
                         <Avatar name={`${u.first_name} ${u.last_name}`} email={u.email}/>
                         <div>
-                          <p className="text-xs font-semibold text-[#1C1917]">{u.first_name||""} {u.last_name||""}
-                            {isYou&&<span className="text-[10px] text-[#991B1B] ml-1">(you)</span>}
+                          <p className="text-xs font-semibold text-[#1B2A4A]">{u.first_name||""} {u.last_name||""}
+                            {isYou&&<span className="text-[10px] text-[#B5532F] ml-1">(you)</span>}
                           </p>
                         </div>
                       </div>
@@ -1956,13 +1956,13 @@ function UsersTab({ users, orders, session, showToast }) {
                     <td className="px-4 py-3 text-xs text-stone-600">{u.email||"—"}</td>
                     <td className="px-4 py-3 text-xs text-stone-500">{u.phone||"—"}</td>
                     <td className="px-4 py-3"><Badge status={u.role||"customer"}/></td>
-                    <td className="px-4 py-3 text-xs font-bold text-[#1C1917]">{userOrders.length}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-[#1B2A4A]">{userOrders.length}</td>
                     <td className="px-4 py-3 text-xs font-bold text-green-600">{spent>0?`KSh ${spent.toLocaleString()}`:"—"}</td>
                     <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
                     <td className="px-4 py-3">
                       {!isYou&&(
                         <button onClick={()=>setRoleConfirm({ id:u.id, role:u.role, label: `${u.first_name||""} ${u.last_name||""}`.trim() || u.email || "This user" })} disabled={updating===u.id}
-                          className={`text-xs font-semibold transition disabled:opacity-50 ${u.role==="admin"?"text-purple-600 hover:text-red-600":"text-stone-400 hover:text-[#991B1B]"}`}>
+                          className={`text-xs font-semibold transition disabled:opacity-50 ${u.role==="admin"?"text-purple-600 hover:text-red-600":"text-stone-400 hover:text-[#B5532F]"}`}>
                           {updating===u.id?"…":u.role==="admin"?"Remove admin":"Make admin"}
                         </button>
                       )}
@@ -2013,13 +2013,13 @@ function ActivityLogTab() {
   return (
     <div>
       <div className="mb-5">
-        <h2 className="text-lg font-bold text-[#1C1917]">Activity Log</h2>
+        <h2 className="text-lg font-bold text-[#1B2A4A]">Activity Log</h2>
         <p className="text-stone-400 text-xs mt-0.5">Every admin change — books, stock, and order status — recorded automatically</p>
       </div>
       {loading ? (
         <div className="space-y-2">{[...Array(5)].map((_,i)=><Skeleton key={i} className="h-12"/>)}</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
@@ -2031,7 +2031,7 @@ function ActivityLogTab() {
                 {log.map(entry=>(
                   <tr key={entry.id} className="hover:bg-stone-50/50 transition-colors">
                     <td className="px-4 py-3 text-xs text-stone-600 whitespace-nowrap">{entry.admin_email}</td>
-                    <td className="px-4 py-3 text-xs font-medium text-[#1C1917]">{describeActivity(entry)}</td>
+                    <td className="px-4 py-3 text-xs font-medium text-[#1B2A4A]">{describeActivity(entry)}</td>
                     <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{new Date(entry.created_at).toLocaleString("en-KE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</td>
                   </tr>
                 ))}
@@ -2052,7 +2052,7 @@ function PlaceholderTab({ icon, title, description }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <div className="text-6xl mb-4">{icon}</div>
-      <h2 className="text-xl font-bold text-[#1C1917] mb-2">{title}</h2>
+      <h2 className="text-xl font-bold text-[#1B2A4A] mb-2">{title}</h2>
       <p className="text-stone-400 text-sm max-w-sm">{description}</p>
     </div>
   );
@@ -2128,7 +2128,7 @@ function NotificationsTab({ showToast }) {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1C1917]">Customer emails</h2>
+          <h2 className="text-lg font-bold text-[#1B2A4A]">Customer emails</h2>
           <p className="text-stone-400 text-xs mt-0.5">
             Queued in the same transaction as the order, so nothing is lost if the mail provider is down.
           </p>
@@ -2136,7 +2136,7 @@ function NotificationsTab({ showToast }) {
         <button
           onClick={dispatch}
           disabled={busy}
-          className="bg-[#1C1917] hover:bg-[#991B1B] disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold transition"
+          className="bg-[#1B2A4A] hover:bg-[#B5532F] disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold transition"
         >
           {busy ? "Sending…" : "Retry pending"}
         </button>
@@ -2154,14 +2154,14 @@ function NotificationsTab({ showToast }) {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {["queued", "sent", "failed", "skipped"].map((k) => (
-              <div key={k} className="bg-white border border-stone-200 rounded-2xl p-4">
+              <div key={k} className="bg-white border border-[#E3DCCB] rounded-2xl p-4">
                 <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{k}</p>
                 <p className={`text-2xl font-black ${tone[k]}`}>{data?.summary?.[k] ?? 0}</p>
               </div>
             ))}
           </div>
 
-          <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+          <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-stone-50 border-b border-stone-100">
@@ -2406,7 +2406,7 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   if (!verified) return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center">
       <div className="text-center space-y-4">
-        <div className="w-12 h-12 border-4 border-stone-200 border-t-[#1C1917] rounded-full animate-spin mx-auto"/>
+        <div className="w-12 h-12 border-4 border-[#E3DCCB] border-t-[#1B2A4A] rounded-full animate-spin mx-auto"/>
         <p className="text-stone-400 text-sm">Verifying access…</p>
       </div>
     </div>

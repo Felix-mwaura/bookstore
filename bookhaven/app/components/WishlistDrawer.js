@@ -1,160 +1,117 @@
 "use client";
 
-import { BookCover } from "./BookCard";
+import Link from "next/link";
+import { useCallback } from "react";
 
-export default function WishlistDrawer({ wishlist, isOpen, onClose, onRemove, onAddToCart, onViewDetail }) {
+import { BookCover } from "./BookCover";
+import { useDialog } from "../lib/useDialog";
+import { bookPath } from "../lib/book-url";
+import { formatKsh } from "../lib/site";
+
+export default function WishlistDrawer({ wishlist, isOpen, onClose, onRemove, onAddToCart }) {
+  const close = useCallback(() => onClose(), [onClose]);
+  const panelRef = useDialog(isOpen, close);
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-[60]">
+      <div className="absolute inset-0 bg-navy/50" onClick={close} aria-hidden="true" />
+
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in"
-        onClick={onClose}
-      />
-
-      {/* Panel — slides in from LEFT to distinguish from cart */}
-      <div className="absolute left-0 top-0 h-full w-full max-w-md bg-white shadow-2xl animate-slide-in-left flex flex-col">
-
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-stone-200">
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="wishlist-title"
+        tabIndex={-1}
+        className="absolute left-0 top-0 h-[100dvh] w-full max-w-md bg-cream shadow-pop flex flex-col animate-slide-in-left"
+      >
+        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-line">
           <div>
-            <h2 className="text-2xl font-bold text-[#1C1917]">My Wishlist</h2>
-            <p className="text-sm text-stone-500 mt-1">
-              {wishlist.length === 0
-                ? "No saved books yet"
-                : `${wishlist.length} book${wishlist.length > 1 ? "s" : ""} saved`}
+            <h2 id="wishlist-title" className="text-lg font-bold text-navy">Saved books</h2>
+            <p className="text-xs text-muted mt-0.5">
+              {wishlist.length === 0 ? "Nothing saved yet" : `${wishlist.length} saved`}
             </p>
           </div>
           <button
-            onClick={onClose}
-            className="p-2 hover:bg-stone-100 rounded-full transition"
+            type="button"
+            onClick={close}
+            aria-label="Close saved books"
+            className="w-11 h-11 -mr-2 flex items-center justify-center rounded-lg hover:bg-subtle"
           >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
 
-        {/* Items */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto px-4 py-4">
           {wishlist.length === 0 ? (
-            <div className="text-center py-20">
-              {/* Animated empty heart */}
-              <div className="flex justify-center mb-5">
-                <svg
-                  className="w-20 h-20 text-stone-200"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-bold text-[#1C1917] mb-2">Nothing saved yet</h3>
-              <p className="text-stone-500 text-sm max-w-xs mx-auto leading-relaxed">
-                Tap the ♡ on any book to save it here for later.
+            <div className="px-2 py-16 text-center">
+              <svg className="mx-auto h-12 w-12 text-line" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+              </svg>
+              <h3 className="mt-4 text-base font-semibold text-navy">Nothing saved yet</h3>
+              <p className="mt-1 text-sm text-muted">
+                Use the heart on a book to keep it here for later. Saved books stay on this device.
               </p>
-              <button
-                onClick={onClose}
-                className="mt-6 text-[#991B1B] font-semibold hover:underline text-sm"
-              >
-                Browse books →
-              </button>
+              <Link href="/books" onClick={close} className="btn-primary mt-5 text-sm">Browse books</Link>
             </div>
           ) : (
-            <div className="space-y-4">
+            <ul role="list" className="divide-y divide-line">
               {wishlist.map((book) => (
-                <div
-                  key={book.id}
-                  className="group flex gap-4 p-3 rounded-xl hover:bg-stone-50 transition-colors duration-200"
-                >
-                  {/* Mini CSS cover — clickable */}
-                  <button
-                    onClick={() => { onViewDetail(book); onClose(); }}
-                    className="flex-shrink-0 w-16 rounded-r-sm overflow-hidden transition-transform duration-300 group-hover:scale-105"
-                    style={{
-                      aspectRatio: "2/3",
-                      boxShadow: "-1px 0 3px rgba(0,0,0,0.1), 3px 6px 14px rgba(0,0,0,0.14)",
-                    }}
-                  >
-                    <BookCover book={book} className="w-full h-full" />
-                  </button>
+                <li key={book.id} className="flex gap-3 py-3">
+                  <Link href={bookPath(book)} onClick={close} className="w-14 shrink-0 rounded-r-sm overflow-hidden book-shadow">
+                    <BookCover book={book} className="w-full" sizes="56px" />
+                  </Link>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                    <div>
-                      <p className="text-[10px] font-bold text-[#991B1B] uppercase tracking-wider mb-0.5">
-                        {book.category}
-                      </p>
-                      <h4
-                        className="font-bold text-[#1C1917] text-sm leading-snug line-clamp-2 cursor-pointer hover:text-[#991B1B] transition"
-                        onClick={() => { onViewDetail(book); onClose(); }}
-                      >
-                        {book.title}
-                      </h4>
-                      <p className="text-xs text-stone-500 mt-0.5">{book.author}</p>
-                    </div>
-
-                    <div className="flex items-center justify-between mt-3">
-                      <div>
-                        <p className="text-base font-bold text-[#1C1917]">
-                          KSh {book.price.toLocaleString()}
-                        </p>
-                        {book.originalPrice && (
-                          <p className="text-xs text-stone-400 line-through">
-                            KSh {book.originalPrice.toLocaleString()}
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Link href={bookPath(book)} onClick={close} className="block text-sm font-semibold text-navy line-clamp-2 hover:text-sienna">
+                      {book.title}
+                    </Link>
+                    <p className="mt-0.5 text-xs text-muted truncate">{book.author}</p>
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold text-navy">{formatKsh(book.price)}</p>
+                      <div className="flex items-center gap-1">
                         <button
-                          onClick={() => onRemove(book.id)}
-                          className="p-1.5 text-stone-300 hover:text-red-500 transition rounded-lg hover:bg-red-50"
-                          title="Remove from wishlist"
+                          type="button"
+                          onClick={() => onAddToCart(book)}
+                          className="min-h-11 rounded-control bg-navy px-3 text-xs font-semibold text-white hover:bg-sienna"
                         >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                          </svg>
+                          Add to basket
                         </button>
                         <button
-                          onClick={() => onAddToCart(book)}
-                          className="flex items-center gap-1.5 bg-[#1C1917] hover:bg-[#991B1B] text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 active:scale-95"
+                          type="button"
+                          onClick={() => onRemove(book.id)}
+                          aria-label={`Remove ${book.title} from saved books`}
+                          className="w-11 h-11 flex items-center justify-center rounded-control text-muted hover:text-error hover:bg-error/5"
                         >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
-                          Add to Basket
                         </button>
                       </div>
                     </div>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
 
-        {/* Footer — only shown when there are items */}
         {wishlist.length > 0 && (
-          <div className="border-t border-stone-200 p-6 bg-stone-50/80">
-            {/* Add all to cart */}
+          <div className="border-t border-line p-4">
             <button
+              type="button"
               onClick={() => {
                 wishlist.forEach((book) => onAddToCart(book));
-                onClose();
+                close();
               }}
-              className="w-full bg-[#1C1917] hover:bg-[#991B1B] text-white py-3.5 rounded-xl font-bold text-sm transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2"
+              className="btn-primary w-full text-sm"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-              Add All to Basket ({wishlist.length})
+              Add all {wishlist.length} to basket
             </button>
-            <p className="text-center text-xs text-stone-400 mt-3">
-              Your wishlist is saved across sessions
-            </p>
+            <p className="mt-2 text-center text-xs text-muted">Saved on this device.</p>
           </div>
         )}
       </div>

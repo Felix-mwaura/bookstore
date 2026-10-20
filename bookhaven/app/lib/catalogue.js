@@ -117,3 +117,109 @@ export async function getCatalogueStats() {
     inStock: rows.filter((r) => (r.stock_quantity ?? 0) > 0).length,
   };
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Catalogue queries for the storefront grid
+   Everything is filtered in the database, not in the browser, so
+   the HTML a crawler receives already matches the URL.
+   ───────────────────────────────────────────────────────────── */
+
+export const CATALOGUE_PAGE_SIZE = 12;
+
+export const SORT_OPTIONS = [
+  { value: "newest", label: "Newest first" },
+  { value: "title", label: "Title A–Z" },
+  { value: "price-asc", label: "Price: low to high" },
+  { value: "price-desc", label: "Price: high to low" },
+];
+
+export const PRICE_BANDS = [
+  { value: "under-1000", label: "Under KSh 1,000", min: 0, max: 999 },
+  { value: "1000-2000", label: "KSh 1,000 – 2,000", min: 1000, max: 2000 },
+  { value: "2000-3500", label: "KSh 2,000 – 3,500", min: 2001, max: 3500 },
+  { value: "over-3500", label: "Over KSh 3,500", min: 3501, max: null },
+];
+
+export function isSort(value) {
+  return SORT_OPTIONS.some((option) => option.value === value);
+}
+
+export function priceBand(value) {
+  return PRICE_BANDS.find((band) => band.value === value) || null;
+}
+
+/**
+ * @param {object} options
+ * @param {string} [options.q]         free-text search across title and author
+ * @param {string} [options.category]  exact category name
+ * @param {string} [options.sort]      one of SORT_OPTIONS
+ * @param {string} [options.price]     one of PRICE_BANDS
+ * @param {string} [options.availability] "in-stock" to hide sold-out titles
+ * @param {number} [options.page]      1-based page number
+ */
+export async function queryCatalogue({
+  q = "",
+  category = "",
+  sort = "newest",
+  price = "",
+  availability = "",
+  page = 1,
+  pageSize = CATALOGUE_PAGE_SIZE,
+} = {}) {
+  const supabase = catalogueClient();
+  const currentPage = Math.max(1, Number(page) || 1);
+  const from = (currentPage - 1) * pageSize;
+
+  let query = supabase
+    .from("books")
+    .select("*", { count: "exact" })
+    .eq("is_archived", false);
+
+  const term = String(q || "").trim().replace(/[,%()]/g, " ").trim();
+  if (term) {
+    query = query.or(`title.ilike.%${term}%,author.ilike.%${term}%`);
+  }
+  if (category) query = query.eq("category", category);
+  if (availability === "in-stock") query = query.gt("stock_quantity", 0);
+
+  const band = priceBand(price);
+  if (band) {
+    query = query.gte("price", band.min);
+    if (band.max !== null) query = query.lte("price", band.max);
+  }
+
+  if (sort === "price-asc") query = query.order("price", { ascending: true });
+  else if (sort === "price-desc") query = query.order("price", { ascending: false });
+  else if (sort === "title") query = query.order("title", { ascending: true });
+  else query = query.order("id", { ascending: false });
+
+  const { data, error, count } = await query.range(from, from + pageSize - 1);
+
+  if (error) {
+    return { books: [], total: 0, pages: 0, page: 1, error: true };
+  }
+
+  const total = count ?? (data || []).length;
+  return {
+    books: (data || []).map(toPublicBook),
+    total,
+    pages: Math.max(1, Math.ceil(total / pageSize)),
+    page: currentPage,
+    error: false,
+  };
+}
+
+/** Live category counts for the filter panel. */
+export async function getCategoryCounts() {
+  const supabase = catalogueClient();
+  const { data } = await supabase
+    .from("books")
+    .select("category")
+    .eq("is_archived", false);
+
+  const counts = new Map();
+  for (const row of data || []) {
+    counts.set(row.category, (counts.get(row.category) || 0) + 1);
+  }
+  return counts;
+}

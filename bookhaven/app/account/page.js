@@ -7,7 +7,7 @@ import { supabase } from "../lib/supabase";
 import { FULFILMENT_META, PAYMENT_META, orderReference, toneClass } from "../lib/orders";
 
 const BookLoader = () => (
-  <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+  <div className="min-h-screen bg-[#FAF6EE] flex items-center justify-center">
     <div className="flex flex-col items-center justify-center space-y-8">
       <style dangerouslySetInnerHTML={{ __html: `
         .bh-book-scene {
@@ -48,8 +48,8 @@ const BookLoader = () => (
           top: 0;
           width: 50%;
           height: 100%;
-          background-color: #991B1B;
-          border: 3px solid #1C1917;
+          background-color: #B5532F;
+          border: 3px solid #1B2A4A;
           z-index: 2;
         }
         .bh-cover-left {
@@ -71,7 +71,7 @@ const BookLoader = () => (
           top: 3px;
           bottom: 3px;
           width: 6px;
-          background: #1C1917;
+          background: #1B2A4A;
           transform: translateX(-50%);
           border-radius: 3px;
           z-index: 3;
@@ -85,7 +85,7 @@ const BookLoader = () => (
           width: calc(50% - 2px);
           height: calc(100% - 10px);
           background-color: #fff;
-          border: 2px solid #1C1917;
+          border: 2px solid #1B2A4A;
           border-radius: 0 5px 5px 0;
           transform-origin: left center;
           transform-style: preserve-3d;
@@ -293,24 +293,24 @@ function AccountInner() {
   const deliveredOrders = orders.filter(o => o.status === "Delivered").length;
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5]">
+    <div className="min-h-screen bg-[#FAF6EE]">
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-6 right-6 z-[100] px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 ${toast.type === "error" ? "bg-red-600" : "bg-[#1C1917]"} text-white`}>
+        <div className={`fixed top-6 right-6 z-[100] px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 ${toast.type === "error" ? "bg-red-600" : "bg-[#1B2A4A]"} text-white`}>
           <span>{toast.type === "error" ? "⚠️" : "✓"}</span>
           <span className="text-sm font-medium">{toast.msg}</span>
         </div>
       )}
 
       {/* Header */}
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
+      <header className="bg-white border-b border-[#E3DCCB] sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <span className="text-xl">📚</span>
-            <span className="font-bold text-[#1C1917] text-sm sm:text-base">Book Haven</span>
+            <span className="font-bold text-[#1B2A4A] text-sm sm:text-base">Book Haven</span>
           </Link>
           <div className="flex items-center gap-3">
-            <Link href="/" className="text-xs text-stone-500 hover:text-[#991B1B] transition hidden sm:block">Continue Shopping</Link>
+            <Link href="/" className="text-xs text-stone-500 hover:text-[#B5532F] transition hidden sm:block">Continue Shopping</Link>
             <button onClick={handleLogout} className="text-xs font-semibold text-stone-500 hover:text-red-600 transition">
               Sign Out
             </button>
@@ -320,7 +320,7 @@ function AccountInner() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
         {/* Welcome Banner */}
-        <div className="bg-gradient-to-r from-[#1C1917] to-[#3a3530] rounded-2xl p-6 sm:p-8 mb-8 text-white relative overflow-hidden">
+        <div className="bg-gradient-to-r from-[#1B2A4A] to-[#3a3530] rounded-2xl p-6 sm:p-8 mb-8 text-white relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full -translate-y-1/2 translate-x-1/2" />
           <div className="relative z-10">
             <p className="text-amber-400 text-xs font-bold uppercase tracking-widest mb-2">My Account</p>
@@ -333,16 +333,16 @@ function AccountInner() {
 
         {/* Stats Row */}
         <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-xl border border-stone-200 p-4 text-center">
-            <p className="text-2xl font-black text-[#1C1917]">{totalOrders}</p>
+          <div className="bg-white rounded-xl border border-[#E3DCCB] p-4 text-center">
+            <p className="text-2xl font-black text-[#1B2A4A]">{totalOrders}</p>
             <p className="text-xs text-stone-500 font-medium uppercase tracking-wider">Orders</p>
           </div>
-          <div className="bg-white rounded-xl border border-stone-200 p-4 text-center">
-            <p className="text-2xl font-black text-[#1C1917]">KSh {totalSpent.toLocaleString()}</p>
+          <div className="bg-white rounded-xl border border-[#E3DCCB] p-4 text-center">
+            <p className="text-2xl font-black text-[#1B2A4A]">KSh {totalSpent.toLocaleString()}</p>
             <p className="text-xs text-stone-500 font-medium uppercase tracking-wider">Total Spent</p>
           </div>
-          <div className="bg-white rounded-xl border border-stone-200 p-4 text-center">
-            <p className="text-2xl font-black text-[#1C1917]">{deliveredOrders}</p>
+          <div className="bg-white rounded-xl border border-[#E3DCCB] p-4 text-center">
+            <p className="text-2xl font-black text-[#1B2A4A]">{deliveredOrders}</p>
             <p className="text-xs text-stone-500 font-medium uppercase tracking-wider">Delivered</p>
           </div>
         </div>
@@ -359,7 +359,7 @@ function AccountInner() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
                 activeTab === tab.id
-                  ? "bg-white text-[#1C1917] shadow-sm"
+                  ? "bg-white text-[#1B2A4A] shadow-sm"
                   : "text-stone-500 hover:text-stone-700"
               }`}
             >
@@ -372,17 +372,17 @@ function AccountInner() {
         {activeTab === "orders" && (
           <div className="space-y-4">
             {orders.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-stone-200 p-12 text-center">
+              <div className="bg-white rounded-2xl border border-[#E3DCCB] p-12 text-center">
                 <div className="text-5xl mb-4">📭</div>
-                <h3 className="font-bold text-[#1C1917] text-lg mb-2">No orders yet</h3>
+                <h3 className="font-bold text-[#1B2A4A] text-lg mb-2">No orders yet</h3>
                 <p className="text-stone-500 text-sm mb-4">Start exploring our collection and place your first order.</p>
-                <Link href="/" className="inline-block bg-[#1C1917] hover:bg-[#991B1B] text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition">
+                <Link href="/" className="inline-block bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition">
                   Browse Books
                 </Link>
               </div>
             ) : (
               orders.map(order => (
-                <div key={order.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+                <div key={order.id} className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
                   <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between flex-wrap gap-2">
                     <div>
                       <p className="text-xs text-stone-400 font-mono">{orderReference(order.id)}</p>
@@ -401,12 +401,12 @@ function AccountInner() {
                     <div className="space-y-2 mb-4">
                       {(order.items || []).map((item, i) => (
                         <div key={i} className="flex items-center gap-3">
-                          <div className="w-10 h-14 bg-stone-100 rounded border border-stone-200 flex-shrink-0" />
+                          <div className="w-10 h-14 bg-stone-100 rounded border border-[#E3DCCB] flex-shrink-0" />
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-[#1C1917] truncate">{item.title}</p>
+                            <p className="text-sm font-semibold text-[#1B2A4A] truncate">{item.title}</p>
                             <p className="text-xs text-stone-500">{item.author}</p>
                           </div>
-                          <p className="text-sm font-bold text-[#1C1917]">KSh {item.price?.toLocaleString()}</p>
+                          <p className="text-sm font-bold text-[#1B2A4A]">KSh {item.price?.toLocaleString()}</p>
                         </div>
                       ))}
                     </div>
@@ -414,11 +414,11 @@ function AccountInner() {
                       <div>
                         <p className="text-xs text-stone-400">Payment: <span className="text-stone-600 font-medium">{order.payment_method === "cod" ? "Cash on delivery" : order.payment_method}</span></p>
                         <p className="text-xs text-stone-400">Delivery: <span className="text-stone-600 font-medium">{order.delivery_details?.city}</span></p>
-                        <Link href={`/orders/${order.id}`} className="inline-block text-xs font-bold text-[#991B1B] hover:underline mt-2">
+                        <Link href={`/orders/${order.id}`} className="inline-block text-xs font-bold text-[#B5532F] hover:underline mt-2">
                           View order details →
                         </Link>
                       </div>
-                      <p className="text-lg font-black text-[#1C1917]">KSh {(order.total || 0).toLocaleString()}</p>
+                      <p className="text-lg font-black text-[#1B2A4A]">KSh {(order.total || 0).toLocaleString()}</p>
                     </div>
                   </div>
                 </div>
@@ -429,11 +429,11 @@ function AccountInner() {
 
         {/* Profile Tab */}
         {activeTab === "profile" && (
-          <div className="bg-white rounded-2xl border border-stone-200 p-6 sm:p-8">
+          <div className="bg-white rounded-2xl border border-[#E3DCCB] p-6 sm:p-8">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-[#1C1917]">Personal Information</h2>
+              <h2 className="text-xl font-bold text-[#1B2A4A]">Personal Information</h2>
               {!editMode && (
-                <button onClick={() => setEditMode(true)} className="text-sm text-[#991B1B] font-semibold hover:underline">
+                <button onClick={() => setEditMode(true)} className="text-sm text-[#B5532F] font-semibold hover:underline">
                   Edit Profile
                 </button>
               )}
@@ -447,7 +447,7 @@ function AccountInner() {
                     type="text"
                     value={formData.firstName}
                     onChange={e => setFormData(p => ({ ...p, firstName: e.target.value }))}
-                    className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#991B1B] transition"
+                    className="w-full bg-white border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#B5532F] transition"
                   />
                 </div>
                 <div>
@@ -456,7 +456,7 @@ function AccountInner() {
                     type="text"
                     value={formData.lastName}
                     onChange={e => setFormData(p => ({ ...p, lastName: e.target.value }))}
-                    className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#991B1B] transition"
+                    className="w-full bg-white border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#B5532F] transition"
                   />
                 </div>
                 <div>
@@ -465,20 +465,20 @@ function AccountInner() {
                     type="tel"
                     value={formData.phone}
                     onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))}
-                    className="w-full bg-white border border-stone-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-[#991B1B] transition"
+                    className="w-full bg-white border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#B5532F] transition"
                   />
                 </div>
                 <div className="flex gap-3 pt-2">
                   <button
                     onClick={saveProfile}
                     disabled={saving}
-                    className="bg-[#1C1917] hover:bg-[#991B1B] disabled:bg-stone-200 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition"
+                    className="bg-[#1B2A4A] hover:bg-[#B5532F] disabled:bg-stone-200 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition"
                   >
                     {saving ? "Saving..." : "Save Changes"}
                   </button>
                   <button
                     onClick={() => { setEditMode(false); setFormData({ firstName: profile?.first_name || "", lastName: profile?.last_name || "", phone: profile?.phone || "" }); }}
-                    className="border border-stone-200 text-stone-600 px-6 py-2.5 rounded-xl font-semibold text-sm"
+                    className="border border-[#E3DCCB] text-stone-600 px-6 py-2.5 rounded-xl font-semibold text-sm"
                   >
                     Cancel
                   </button>
@@ -487,22 +487,22 @@ function AccountInner() {
             ) : (
               <div className="space-y-4 max-w-md">
                 <div className="flex items-center gap-4 pb-4 border-b border-stone-100">
-                  <div className="w-16 h-16 rounded-full bg-[#991B1B]/10 flex items-center justify-center text-[#991B1B] font-black text-2xl">
+                  <div className="w-16 h-16 rounded-full bg-[#B5532F]/10 flex items-center justify-center text-[#B5532F] font-black text-2xl">
                     {(profile?.first_name || user?.email || "?").charAt(0).toUpperCase()}
                   </div>
                   <div>
-                    <p className="font-bold text-[#1C1917] text-lg">{profile?.first_name} {profile?.last_name}</p>
+                    <p className="font-bold text-[#1B2A4A] text-lg">{profile?.first_name} {profile?.last_name}</p>
                     <p className="text-stone-500 text-sm">{user?.email}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs text-stone-400 uppercase tracking-wider font-bold mb-1">Phone</p>
-                    <p className="text-sm text-[#1C1917] font-medium">{profile?.phone || <span className="text-stone-300 italic">Not set</span>}</p>
+                    <p className="text-sm text-[#1B2A4A] font-medium">{profile?.phone || <span className="text-stone-300 italic">Not set</span>}</p>
                   </div>
                   <div>
                     <p className="text-xs text-stone-400 uppercase tracking-wider font-bold mb-1">Member Since</p>
-                    <p className="text-sm text-[#1C1917] font-medium">{new Date(user?.created_at).toLocaleDateString("en-KE", { month: "long", year: "numeric" })}</p>
+                    <p className="text-sm text-[#1B2A4A] font-medium">{new Date(user?.created_at).toLocaleDateString("en-KE", { month: "long", year: "numeric" })}</p>
                   </div>
                 </div>
               </div>
@@ -512,21 +512,21 @@ function AccountInner() {
 
         {/* Settings Tab */}
         {activeTab === "settings" && (
-          <div className="bg-white rounded-2xl border border-stone-200 p-6 sm:p-8">
-            <h2 className="text-xl font-bold text-[#1C1917] mb-6">Account Settings</h2>
+          <div className="bg-white rounded-2xl border border-[#E3DCCB] p-6 sm:p-8">
+            <h2 className="text-xl font-bold text-[#1B2A4A] mb-6">Account Settings</h2>
             <div className="space-y-4 max-w-md">
               <div className="flex items-center justify-between py-3 border-b border-stone-100">
                 <div>
-                  <p className="text-sm font-semibold text-[#1C1917]">Email Notifications</p>
+                  <p className="text-sm font-semibold text-[#1B2A4A]">Email Notifications</p>
                   <p className="text-xs text-stone-500">Receive order updates and promotions</p>
                 </div>
-                <div className="w-11 h-6 bg-[#991B1B] rounded-full relative cursor-pointer">
+                <div className="w-11 h-6 bg-[#B5532F] rounded-full relative cursor-pointer">
                   <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
                 </div>
               </div>
               <div className="flex items-center justify-between py-3 border-b border-stone-100">
                 <div>
-                  <p className="text-sm font-semibold text-[#1C1917]">SMS Notifications</p>
+                  <p className="text-sm font-semibold text-[#1B2A4A]">SMS Notifications</p>
                   <p className="text-xs text-stone-500">Get delivery alerts via SMS</p>
                 </div>
                 <div className="w-11 h-6 bg-stone-200 rounded-full relative cursor-pointer">

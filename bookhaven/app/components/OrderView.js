@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookCover } from "./BookCard";
+import { BookCover } from "./BookCover";
 import {
   FULFILMENT_STEPS,
   FULFILMENT_META,
@@ -36,20 +36,20 @@ function Timeline({ status }) {
             <div className="flex flex-col items-center">
               <span
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0 ${
-                  done ? "bg-[#991B1B] border-[#991B1B] text-white" : "bg-white border-stone-300 text-stone-400"
+                  done ? "bg-[#B5532F] border-[#B5532F] text-white" : "bg-white border-stone-300 text-stone-400"
                 }`}
                 aria-hidden="true"
               >
                 {done ? "✓" : index + 1}
               </span>
               {index < FULFILMENT_STEPS.length - 1 && (
-                <span className={`w-0.5 flex-1 mt-1 ${index < current ? "bg-[#991B1B]" : "bg-stone-200"}`} aria-hidden="true" />
+                <span className={`w-0.5 flex-1 mt-1 ${index < current ? "bg-[#B5532F]" : "bg-stone-200"}`} aria-hidden="true" />
               )}
             </div>
             <div className="pt-1 pb-1">
-              <p className={`text-sm font-bold ${active ? "text-[#991B1B]" : done ? "text-[#1C1917]" : "text-stone-400"}`}>
+              <p className={`text-sm font-bold ${active ? "text-[#B5532F]" : done ? "text-[#1B2A4A]" : "text-stone-400"}`}>
                 {step.label}
-                {active && <span className="ml-2 text-[10px] uppercase tracking-wider text-[#991B1B]">Current</span>}
+                {active && <span className="ml-2 text-[10px] uppercase tracking-wider text-[#B5532F]">Current</span>}
               </p>
               <p className="text-xs text-stone-500 mt-0.5">{step.hint}</p>
             </div>
@@ -70,11 +70,11 @@ export default function OrderView({ order }) {
   return (
     <>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <Link href="/account" className="text-sm text-stone-500 hover:text-[#991B1B]">← Back to my account</Link>
+        <Link href="/account" className="text-sm text-stone-500 hover:text-[#B5532F]">← Back to my account</Link>
 
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-[#1C1917]">Order {orderReference(order.id)}</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-[#1B2A4A]">Order {orderReference(order.id)}</h1>
             <p className="text-sm text-stone-500 mt-1">Placed {formatDate(order.created_at, true)}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -108,8 +108,8 @@ export default function OrderView({ order }) {
 
         <div className="mt-8 grid lg:grid-cols-[1fr_320px] gap-6">
           <div className="space-y-6">
-            <section className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-6">
-              <h2 className="font-bold text-[#1C1917] mb-4">Items</h2>
+            <section className="bg-white border border-[#E3DCCB] rounded-2xl p-5 sm:p-6">
+              <h2 className="font-bold text-[#1B2A4A] mb-4">Items</h2>
               <ul className="space-y-3">
                 {items.map((item, index) => (
                   <li key={`${item.id ?? "item"}-${index}`} className="flex gap-3 items-center">
@@ -117,7 +117,7 @@ export default function OrderView({ order }) {
                       <BookCover book={item} className="w-full h-full" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-[#1C1917] truncate">{item.title}</p>
+                      <p className="text-sm font-semibold text-[#1B2A4A] truncate">{item.title}</p>
                       <p className="text-xs text-stone-500">
                         {item.author} · Qty {item.quantity || 1} × {formatKsh(item.price)}
                       </p>
@@ -151,9 +151,9 @@ export default function OrderView({ order }) {
               </div>
             </section>
 
-            <section className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-6">
-              <h2 className="font-bold text-[#1C1917] mb-4">Delivery</h2>
-              <p className="text-sm font-semibold text-[#1C1917]">{details.firstName} {details.lastName}</p>
+            <section className="bg-white border border-[#E3DCCB] rounded-2xl p-5 sm:p-6">
+              <h2 className="font-bold text-[#1B2A4A] mb-4">Delivery</h2>
+              <p className="text-sm font-semibold text-[#1B2A4A]">{details.firstName} {details.lastName}</p>
               <p className="text-sm text-stone-600 mt-1">{details.address}</p>
               <p className="text-sm text-stone-600">{details.city}</p>
               <p className="text-sm text-stone-600 mt-1">{details.phone}</p>
@@ -173,8 +173,8 @@ export default function OrderView({ order }) {
             </section>
           </div>
 
-          <aside className="bg-white border border-stone-200 rounded-2xl p-5 sm:p-6 h-fit">
-            <h2 className="font-bold text-[#1C1917] mb-4">Progress</h2>
+          <aside className="bg-white border border-[#E3DCCB] rounded-2xl p-5 sm:p-6 h-fit">
+            <h2 className="font-bold text-[#1B2A4A] mb-4">Progress</h2>
             {cancelled ? (
               <p className="text-sm text-stone-500">This order was cancelled and will not progress further.</p>
             ) : (

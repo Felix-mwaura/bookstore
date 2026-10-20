@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-import { BookCover } from "../components/BookCard";
+import { BookCover } from "../components/BookCover";
 import { supabase } from "../lib/supabase";
 import { orderReference } from "../lib/orders";
 import { FREE_DELIVERY_THRESHOLD, STANDARD_DELIVERY_FEE } from "../lib/site";
@@ -25,12 +25,12 @@ function StepBar({ step }) {
         return (
           <div key={label} className="flex items-center">
             <div className="flex flex-col items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all duration-300 ${done ? "bg-[#991B1B] border-[#991B1B] text-white" : active ? "bg-white border-[#991B1B] text-[#991B1B]" : "bg-white border-stone-300 text-stone-400"}`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all duration-300 ${done ? "bg-[#B5532F] border-[#B5532F] text-white" : active ? "bg-white border-[#B5532F] text-[#B5532F]" : "bg-white border-stone-300 text-stone-400"}`}>
                 {done ? (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>) : idx}
               </div>
-              <span className={`text-xs font-semibold mt-1.5 whitespace-nowrap ${active ? "text-[#991B1B]" : done ? "text-stone-500" : "text-stone-400"}`}>{label}</span>
+              <span className={`text-xs font-semibold mt-1.5 whitespace-nowrap ${active ? "text-[#B5532F]" : done ? "text-stone-500" : "text-stone-400"}`}>{label}</span>
             </div>
-            {i < steps.length - 1 && <div className={`w-20 sm:w-32 h-0.5 mx-2 mb-5 transition-all duration-500 ${done ? "bg-[#991B1B]" : "bg-stone-200"}`} />}
+            {i < steps.length - 1 && <div className={`w-20 sm:w-32 h-0.5 mx-2 mb-5 transition-all duration-500 ${done ? "bg-[#B5532F]" : "bg-stone-200"}`} />}
           </div>
         );
       })}
@@ -44,8 +44,8 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
   const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
   const grand = total + delivery;
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-6 sticky top-24">
-      <h3 className="font-bold text-[#1C1917] text-lg mb-5">Order Summary</h3>
+    <div className="bg-white rounded-2xl border border-[#E3DCCB] p-6 sticky top-24">
+      <h3 className="font-bold text-[#1B2A4A] text-lg mb-5">Order Summary</h3>
       <div className="space-y-4 max-h-56 overflow-y-auto pr-1">
         {cart.map((item) => (
           <div key={item.id} className="flex gap-3 items-start">
@@ -53,7 +53,7 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
               <BookCover book={item} className="w-full h-full" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#1C1917] line-clamp-1">{item.title}</p>
+              <p className="text-sm font-semibold text-[#1B2A4A] line-clamp-1">{item.title}</p>
               <p className="text-xs text-stone-400">{item.author}</p>
               <div className="flex justify-between items-center mt-1">
                 {onChangeQty ? (
@@ -67,7 +67,7 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
                 ) : (
                   <span className="text-xs text-stone-400">Qty: {item.quantity}</span>
                 )}
-                <span className="text-sm font-bold text-[#1C1917]">KSh {(item.price * item.quantity).toLocaleString()}</span>
+                <span className="text-sm font-bold text-[#1B2A4A]">KSh {(item.price * item.quantity).toLocaleString()}</span>
               </div>
               {onRemove && (
                 <button type="button" onClick={() => onRemove(item.id)} className="text-[11px] text-stone-400 hover:text-red-600 underline mt-1">
@@ -82,7 +82,7 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
         <div className="flex justify-between text-sm"><span className="text-stone-500">Subtotal</span><span className="font-semibold">KSh {total.toLocaleString()}</span></div>
         <div className="flex justify-between text-sm"><span className="text-stone-500">Delivery</span>{delivery === 0 ? <span className="font-semibold text-green-600">Free 🎉</span> : <span className="font-semibold">KSh {delivery.toLocaleString()}</span>}</div>
         {delivery > 0 && <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-1.5">Add KSh {(FREE_DELIVERY_THRESHOLD - total).toLocaleString()} more for free delivery</p>}
-        <div className="flex justify-between text-lg font-black text-[#1C1917] border-t border-stone-200 pt-3"><span>Total</span><span>KSh {grand.toLocaleString()}</span></div>
+        <div className="flex justify-between text-lg font-black text-[#1B2A4A] border-t border-[#E3DCCB] pt-3"><span>Total</span><span>KSh {grand.toLocaleString()}</span></div>
       </div>
       <div className="mt-5 pt-4 border-t border-stone-100 space-y-2">
         {["🔒 Secure & encrypted checkout", "🔄 30-day hassle-free returns", "📦 Nationwide delivery"].map((t) => <p key={t} className="text-xs text-stone-400">{t}</p>)}
@@ -101,7 +101,7 @@ function Field({ label, name, type = "text", placeholder, span2, value, onChange
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(name, e.target.value)}
-        className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:ring-2 focus:ring-[#991B1B]/20 ${error ? "border-red-400 bg-red-50/50" : "border-stone-200 focus:border-[#991B1B]"}`}
+        className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:ring-2 focus:ring-[#B5532F]/20 ${error ? "border-red-400 bg-red-50/50" : "border-[#E3DCCB] focus:border-[#B5532F]"}`}
       />
       {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
     </div>
@@ -131,7 +131,7 @@ function StepDetails({ data, onChange, onNext }) {
 
   return (
     <div>
-      <h2 className="text-xl sm:text-2xl font-bold text-[#1C1917] mb-1">Delivery Details</h2>
+      <h2 className="text-xl sm:text-2xl font-bold text-[#1B2A4A] mb-1">Delivery Details</h2>
       <p className="text-stone-500 text-sm mb-5 sm:mb-7">Where should we send your books?</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Field label="First Name" name="firstName" placeholder="Grace" value={data.firstName} onChange={handleChange} error={errors.firstName} />
@@ -142,7 +142,7 @@ function StepDetails({ data, onChange, onNext }) {
         <div>
           <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">City / Town</label>
           <select value={data.city} onChange={(e) => { onChange("city", e.target.value); setErrors((p) => ({ ...p, city: "" })); }}
-            className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#991B1B] ${errors.city ? "border-red-400" : "border-stone-200"}`}>
+            className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#B5532F] ${errors.city ? "border-red-400" : "border-[#E3DCCB]"}`}>
             <option value="">Select city</option>
             {["Nairobi","Mombasa","Kisumu","Nakuru","Eldoret","Thika","Nyeri","Machakos","Meru","Garissa","Kakamega","Malindi","Kisii","Kericho","Naivasha"].map((c) => <option key={c}>{c}</option>)}
           </select>
@@ -151,10 +151,10 @@ function StepDetails({ data, onChange, onNext }) {
         <div>
           <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">Notes <span className="text-stone-300 normal-case font-normal">(optional)</span></label>
           <input type="text" value={data.notes} placeholder="Landmark, nearest stage..." onChange={(e) => onChange("notes", e.target.value)}
-            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#991B1B]" />
+            className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#B5532F]" />
         </div>
       </div>
-      <button onClick={handleNext} className="w-full mt-8 bg-[#1C1917] hover:bg-[#991B1B] text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95 flex items-center justify-center gap-2">
+      <button onClick={handleNext} className="w-full mt-8 bg-[#1B2A4A] hover:bg-[#B5532F] text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95 flex items-center justify-center gap-2">
         Continue to Payment
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
       </button>
@@ -300,14 +300,14 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
         <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">Safaricom Number</label>
         <input type="tel" value={mpesaPhone} onChange={(e) => { setMpesaPhone(e.target.value); setPhoneError(""); }}
           placeholder="0712 345 678"
-          className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-green-200 transition ${phoneError ? "border-red-400 bg-red-50/50" : "border-stone-200 focus:border-green-500"}`} />
+          className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-green-200 transition ${phoneError ? "border-red-400 bg-red-50/50" : "border-[#E3DCCB] focus:border-green-500"}`} />
         {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
         <p className="text-xs text-stone-400 mt-1.5">Safaricom lines only (07XX / 01XX)</p>
       </div>
 
       <div className="bg-stone-50 rounded-xl p-4 flex justify-between items-center">
         <span className="text-stone-500 text-sm">Amount to pay</span>
-        <span className="text-2xl font-black text-[#1C1917]">KSh {chargedAmount.toLocaleString()}</span>
+        <span className="text-2xl font-black text-[#1B2A4A]">KSh {chargedAmount.toLocaleString()}</span>
       </div>
 
       <button onClick={sendSTK}
@@ -326,7 +326,7 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
       <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto animate-pulse">
         <span className="text-green-600 font-black text-3xl">M</span>
       </div>
-      <p className="font-bold text-[#1C1917] text-lg">Connecting to Safaricom…</p>
+      <p className="font-bold text-[#1B2A4A] text-lg">Connecting to Safaricom…</p>
       <p className="text-stone-500 text-sm">Sending payment request to {mpesaPhone}</p>
       <div className="flex justify-center gap-1.5 pt-2">
         {[0,1,2].map(i => <div key={i} className="w-2.5 h-2.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
@@ -383,7 +383,7 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
           ↻ Check Now
         </button>
         <button onClick={reset}
-          className="flex-1 border border-stone-200 text-stone-500 hover:bg-stone-50 py-3 rounded-xl font-semibold text-sm transition">
+          className="flex-1 border border-[#E3DCCB] text-stone-500 hover:bg-stone-50 py-3 rounded-xl font-semibold text-sm transition">
           ← Change Number
         </button>
       </div>
@@ -398,7 +398,7 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
         </svg>
       </div>
-      <p className="font-bold text-[#1C1917] text-lg">Payment Confirmed! 🎉</p>
+      <p className="font-bold text-[#1B2A4A] text-lg">Payment Confirmed! 🎉</p>
       <p className="text-stone-500 text-sm">Your M-Pesa payment was successful</p>
     </div>
   );
@@ -411,9 +411,9 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </div>
-      <p className="font-bold text-[#1C1917]">Payment Cancelled</p>
+      <p className="font-bold text-[#1B2A4A]">Payment Cancelled</p>
       <p className="text-stone-500 text-sm">You cancelled the M-Pesa request or it timed out.</p>
-      <button onClick={reset} className="bg-[#1C1917] hover:bg-[#991B1B] text-white px-6 py-3 rounded-xl font-bold text-sm transition-all active:scale-95">
+      <button onClick={reset} className="bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-6 py-3 rounded-xl font-bold text-sm transition-all active:scale-95">
         Try Again
       </button>
     </div>
@@ -435,15 +435,15 @@ function CodFlow({ total, onSuccess }) {
         </ul>
       </div>
       <div className="bg-stone-50 rounded-xl p-4 text-sm">
-        <div className="flex justify-between font-bold text-[#1C1917]"><span>Pay on delivery</span><span>KSh {total.toLocaleString()}</span></div>
+        <div className="flex justify-between font-bold text-[#1B2A4A]"><span>Pay on delivery</span><span>KSh {total.toLocaleString()}</span></div>
       </div>
       <label className="flex items-start gap-3 cursor-pointer group">
-        <div onClick={() => setAgreed(!agreed)} className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition ${agreed ? "bg-[#1C1917] border-[#1C1917]" : "border-stone-300 group-hover:border-stone-400"}`}>
+        <div onClick={() => setAgreed(!agreed)} className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition ${agreed ? "bg-[#1B2A4A] border-[#1B2A4A]" : "border-stone-300 group-hover:border-stone-400"}`}>
           {agreed && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
         </div>
-        <span className="text-sm text-stone-600 leading-relaxed">I understand I must pay <strong className="text-[#1C1917]">KSh {total.toLocaleString()}</strong> in cash to the delivery rider.</span>
+        <span className="text-sm text-stone-600 leading-relaxed">I understand I must pay <strong className="text-[#1B2A4A]">KSh {total.toLocaleString()}</strong> in cash to the delivery rider.</span>
       </label>
-      <button onClick={() => agreed && onSuccess("cod")} disabled={!agreed} className="w-full bg-[#1C1917] hover:bg-[#991B1B] disabled:bg-stone-200 disabled:text-stone-400 text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95">Place Order — Pay on Delivery</button>
+      <button onClick={() => agreed && onSuccess("cod")} disabled={!agreed} className="w-full bg-[#1B2A4A] hover:bg-[#B5532F] disabled:bg-stone-200 disabled:text-stone-400 text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95">Place Order — Pay on Delivery</button>
     </div>
   );
 }
@@ -462,7 +462,7 @@ function StepPayment({ details, total, items, reference, canPay, onSuccess, onBa
   if (!canPay) {
     return (
       <div className="space-y-5">
-        <h2 className="text-2xl font-bold text-[#1C1917] mb-1">Sign in to complete your order</h2>
+        <h2 className="text-2xl font-bold text-[#1B2A4A] mb-1">Sign in to complete your order</h2>
         <p className="text-stone-500 text-sm">
           Orders are linked to your BookHaven account so you can track them and we can reach
           you about delivery.
@@ -470,7 +470,7 @@ function StepPayment({ details, total, items, reference, canPay, onSuccess, onBa
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
           Your basket is saved. Sign in or create an account and you will return straight to checkout.
         </div>
-        <Link href="/login?next=/checkout" className="block text-center bg-[#1C1917] hover:bg-[#991B1B] text-white py-4 rounded-xl font-bold transition">
+        <Link href="/login?next=/checkout" className="block text-center bg-[#1B2A4A] hover:bg-[#B5532F] text-white py-4 rounded-xl font-bold transition">
           Sign in to continue
         </Link>
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-600 transition">
@@ -483,13 +483,13 @@ function StepPayment({ details, total, items, reference, canPay, onSuccess, onBa
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#1C1917] mb-1">Payment</h2>
-      <p className="text-stone-500 text-sm mb-7">Delivering to <span className="font-semibold text-[#1C1917]">{details.firstName} {details.lastName}</span> · {details.city}</p>
+      <h2 className="text-2xl font-bold text-[#1B2A4A] mb-1">Payment</h2>
+      <p className="text-stone-500 text-sm mb-7">Delivering to <span className="font-semibold text-[#1B2A4A]">{details.firstName} {details.lastName}</span> · {details.city}</p>
       <div className="grid grid-cols-2 gap-3 mb-7">
         {methods.map((m) => (
-          <button key={m.id} onClick={() => setMethod(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-[#991B1B] bg-[#991B1B]/5" : "border-stone-200 hover:border-stone-300 bg-white"}`}>
+          <button key={m.id} onClick={() => setMethod(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-[#B5532F] bg-[#B5532F]/5" : "border-[#E3DCCB] hover:border-stone-300 bg-white"}`}>
             <div className={`w-9 h-9 ${m.color} rounded-lg flex items-center justify-center mx-auto mb-2`}><span className="text-white font-black text-sm">{m.icon}</span></div>
-            <p className={`text-xs font-bold leading-tight ${method === m.id ? "text-[#991B1B]" : "text-stone-700"}`}>{m.label}</p>
+            <p className={`text-xs font-bold leading-tight ${method === m.id ? "text-[#B5532F]" : "text-stone-700"}`}>{m.label}</p>
             <p className="text-[10px] text-stone-400 mt-0.5">{m.sub}</p>
           </button>
         ))}
@@ -529,7 +529,7 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
         </div>
       </div>
 
-      <h2 className="text-3xl font-black text-[#1C1917]">{order ? "Order Confirmed! 🎉" : "Your order could not be saved"}</h2>
+      <h2 className="text-3xl font-black text-[#1B2A4A]">{order ? "Order Confirmed! 🎉" : "Your order could not be saved"}</h2>
       <p className="text-stone-500 mt-2 mb-8">
         {order ? `Thank you ${details.firstName}! Your books are on their way.` : `Thank you ${details.firstName}. We need to sort one thing out before this order is complete.`}
       </p>
@@ -549,7 +549,7 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
               ? <>Your M-Pesa payment went through but the order was not recorded. Save this reference and contact support — do <strong>not</strong> pay again.</>
               : <>Nothing has been charged. You can safely try again.</>}
           </p>
-          <button onClick={onRetry} disabled={saving} className="w-full bg-[#1C1917] hover:bg-[#991B1B] disabled:opacity-60 text-white py-3 rounded-xl font-bold text-sm transition">
+          <button onClick={onRetry} disabled={saving} className="w-full bg-[#1B2A4A] hover:bg-[#B5532F] disabled:opacity-60 text-white py-3 rounded-xl font-bold text-sm transition">
             {saving ? "Saving…" : "Try saving the order again"}
           </button>
         </div>
@@ -566,7 +566,7 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
         ].map(({ label, value, mono }) => (
           <div key={label} className="flex justify-between text-sm gap-4">
             <span className="text-stone-500 flex-shrink-0">{label}</span>
-            <span className={`font-semibold text-[#1C1917] text-right ${mono ? "font-mono" : ""}`}>{value}</span>
+            <span className={`font-semibold text-[#1B2A4A] text-right ${mono ? "font-mono" : ""}`}>{value}</span>
           </div>
         ))}
       </div>
@@ -587,8 +587,8 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Link href="/account" className="bg-[#1C1917] hover:bg-[#991B1B] text-white px-8 py-3.5 rounded-xl font-bold transition-all active:scale-95">View my orders</Link>
-        <Link href="/books" className="border-2 border-stone-200 hover:border-stone-300 text-stone-600 px-8 py-3.5 rounded-xl font-bold transition-all">Continue shopping</Link>
+        <Link href="/account" className="bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-8 py-3.5 rounded-xl font-bold transition-all active:scale-95">View my orders</Link>
+        <Link href="/books" className="border-2 border-[#E3DCCB] hover:border-stone-300 text-stone-600 px-8 py-3.5 rounded-xl font-bold transition-all">Continue shopping</Link>
       </div>
     </div>
   );
@@ -772,10 +772,10 @@ export default function CheckoutPage() {
   // take money for an order we cannot create. Ask first, and say why.
   if (signedIn === false && step < 3) {
     return (
-      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center p-6">
-        <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-7 text-center">
+      <div className="min-h-screen bg-[#FAF6EE] flex items-center justify-center p-6">
+        <div className="bg-white border border-[#E3DCCB] rounded-2xl max-w-md w-full p-7 text-center">
           <div className="text-5xl mb-4" aria-hidden="true">🔐</div>
-          <h1 className="text-xl font-bold text-[#1C1917]">Sign in to finish your order</h1>
+          <h1 className="text-xl font-bold text-[#1B2A4A]">Sign in to finish your order</h1>
           <p className="text-sm text-stone-500 mt-2">
             Orders are tied to your account so you can track delivery and keep a record of every purchase.
           </p>
@@ -787,18 +787,18 @@ export default function CheckoutPage() {
           <div className="mt-6 space-y-2">
             <Link
               href="/login?next=%2Fcheckout"
-              className="block w-full bg-[#991B1B] hover:bg-[#7F1D1D] text-white py-3 rounded-xl font-bold transition"
+              className="block w-full bg-[#B5532F] hover:bg-[#96431F] text-white py-3 rounded-xl font-bold transition"
             >
               Sign in
             </Link>
             <Link
               href="/login?tab=register&next=%2Fcheckout"
-              className="block w-full border-2 border-stone-200 hover:border-[#991B1B] text-stone-700 py-3 rounded-xl font-bold transition"
+              className="block w-full border-2 border-[#E3DCCB] hover:border-[#B5532F] text-stone-700 py-3 rounded-xl font-bold transition"
             >
               Create an account
             </Link>
           </div>
-          <Link href="/books" className="inline-block mt-5 text-xs text-stone-400 hover:text-[#991B1B]">
+          <Link href="/books" className="inline-block mt-5 text-xs text-stone-400 hover:text-[#B5532F]">
             ← Continue browsing
           </Link>
         </div>
@@ -808,29 +808,29 @@ export default function CheckoutPage() {
 
   if (signedIn === null && step < 3) {
     return (
-      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+      <div className="min-h-screen bg-[#FAF6EE] flex items-center justify-center">
         <p className="text-sm text-stone-500" role="status">Checking your session…</p>
       </div>
     );
   }
 
   if (cart.length === 0 && step < 3) return (
-    <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-6 gap-6">
+    <div className="min-h-screen bg-[#FAF6EE] flex flex-col items-center justify-center p-6 gap-6">
       <div className="text-7xl">📚</div>
-      <h2 className="text-2xl font-bold text-[#1C1917]">Your basket is empty</h2>
+      <h2 className="text-2xl font-bold text-[#1B2A4A]">Your basket is empty</h2>
       <p className="text-stone-500">Add some books before checking out.</p>
-      <Link href="/books" className="bg-[#1C1917] hover:bg-[#991B1B] text-white px-8 py-3 rounded-xl font-bold transition">Browse Books</Link>
+      <Link href="/books" className="bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-8 py-3 rounded-xl font-bold transition">Browse Books</Link>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-[#FAF8F5]">
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
+    <div className="min-h-screen bg-[#FAF6EE]">
+      <header className="bg-white border-b border-[#E3DCCB] sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 group">
             <span className="text-xl sm:text-2xl">📚</span>
             <div>
-              <p className="text-base sm:text-lg font-black text-[#1C1917] leading-none group-hover:text-[#991B1B] transition">Book Haven</p>
+              <p className="text-base sm:text-lg font-black text-[#1B2A4A] leading-none group-hover:text-[#B5532F] transition">Book Haven</p>
               <p className="text-[9px] uppercase tracking-widest text-stone-400 font-semibold hidden sm:block">Kenya</p>
             </div>
           </Link>
@@ -844,10 +844,10 @@ export default function CheckoutPage() {
       </header>
 
       {step < 3 && (
-        <div className="lg:hidden bg-white border-b border-stone-200 px-4 py-3 flex items-center justify-between">
+        <div className="lg:hidden bg-white border-b border-[#E3DCCB] px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-stone-600">Order total</span>
-            <span className="text-sm font-black text-[#1C1917]">KSh {(total + (total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE)).toLocaleString()}</span>
+            <span className="text-sm font-black text-[#1B2A4A]">KSh {(total + (total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE)).toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-1.5">
             {cart.slice(0, 3).map((item, i) => (
@@ -863,7 +863,7 @@ export default function CheckoutPage() {
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <StepBar step={step} />
         <div className="grid lg:grid-cols-[1fr_360px] gap-6 lg:gap-8 items-start">
-          <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 lg:p-8">
+          <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 sm:p-6 lg:p-8">
             {basketNotice && step < 3 && (
               <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800" role="status">
                 {basketNotice}

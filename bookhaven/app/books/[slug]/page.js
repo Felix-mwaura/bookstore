@@ -1,9 +1,13 @@
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
-import { BookCover } from "../../components/BookCard";
+
+import { BookCover } from "../../components/BookCover";
+import BookDescription from "../../components/BookDescription";
 import BuyBar from "../../components/BuyBar";
+import ProductCard, { stockState } from "../../components/ProductCard";
 import StoreLayout from "../../components/StoreLayout";
 import { getBookById, getRelatedBooks, bookPath, bookSlug, parseBookSlug } from "../../lib/catalogue";
+import { categorySlug } from "../../lib/categories";
 import { SITE_NAME, SITE_URL, formatKsh, absoluteUrl } from "../../lib/site";
 
 // Rendered per request rather than cached.
@@ -43,19 +47,6 @@ export async function generateMetadata({ params }) {
   };
 }
 
-function Stars({ rating }) {
-  const value = Number(rating) || 0;
-  return (
-    <div className="flex items-center gap-1" aria-label={`Rated ${value} out of 5`}>
-      {[1, 2, 3, 4, 5].map((n) => (
-        <svg key={n} className="w-4 h-4" viewBox="0 0 20 20" fill={n <= Math.round(value) ? "#f59e0b" : "#d6d3d1"} aria-hidden="true">
-          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-        </svg>
-      ))}
-    </div>
-  );
-}
-
 export default async function BookPage({ params }) {
   const { slug } = await params;
   const id = parseBookSlug(slug);
@@ -68,8 +59,8 @@ export default async function BookPage({ params }) {
   if (canonicalSlug !== slug) permanentRedirect(`/books/${canonicalSlug}`);
 
   const related = await getRelatedBooks(book);
-  const inStock = Number(book.stock_quantity) > 0;
-  const lowStock = inStock && Number(book.stock_quantity) <= 3;
+  const state = stockState(book);
+  const inStock = state.canBuy;
   const discount = book.original_price && book.original_price > book.price
     ? Math.round((1 - book.price / book.original_price) * 100)
     : null;
@@ -104,140 +95,134 @@ export default async function BookPage({ params }) {
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: SITE_URL },
       { "@type": "ListItem", position: 2, name: "Books", item: `${SITE_URL}/books` },
-      {
-        "@type": "ListItem",
-        position: 3,
-        name: book.title,
-        item: absoluteUrl(bookPath(book)),
-      },
+      { "@type": "ListItem", position: 3, name: book.title, item: absoluteUrl(bookPath(book)) },
     ],
   };
 
+  const details = [
+    { label: "Format", value: book.format },
+    { label: "Pages", value: book.pages },
+    { label: "Publisher", value: book.publisher },
+    { label: "Year", value: book.year },
+  ].filter((item) => item.value);
+
   return (
     <StoreLayout>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
-      />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <nav aria-label="Breadcrumb" className="text-sm text-stone-500 mb-6 flex flex-wrap items-center gap-1.5">
-          <Link href="/" className="hover:text-[#991B1B]">Home</Link>
-          <span aria-hidden="true">/</span>
-          <Link href="/books" className="hover:text-[#991B1B]">Books</Link>
-          <span aria-hidden="true">/</span>
-          <Link href={`/category/${book.category.toLowerCase().replace(/\s+/g, "-")}`} className="hover:text-[#991B1B]">
-            {book.category}
-          </Link>
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10 pb-28 lg:pb-10">
+        <nav aria-label="Breadcrumb" className="mb-6 text-xs text-muted">
+          <ol className="flex flex-wrap items-center gap-2">
+            <li><Link href="/" className="hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
+            <li aria-hidden="true">/</li>
+            <li><Link href="/books" className="hover:text-navy underline-offset-2 hover:underline">Books</Link></li>
+            <li aria-hidden="true">/</li>
+            <li>
+              <Link href={`/category/${categorySlug(book.category)}`} className="hover:text-navy underline-offset-2 hover:underline">
+                {book.category}
+              </Link>
+            </li>
+            <li aria-hidden="true">/</li>
+            <li className="text-ink font-medium truncate max-w-[16rem]" aria-current="page">{book.title}</li>
+          </ol>
         </nav>
 
-        <div className="grid md:grid-cols-[280px_1fr] gap-8 lg:gap-12">
-          <div>
-            <div
-              className="rounded-r-lg overflow-hidden mx-auto md:mx-0 w-full max-w-[260px]"
-              style={{ aspectRatio: "2/3", boxShadow: "-4px 0 8px rgba(0,0,0,0.12), 10px 20px 40px rgba(0,0,0,0.18)" }}
-            >
-              <BookCover book={book} className="w-full h-full" />
+        <div className="grid gap-8 md:grid-cols-[300px_minmax(0,1fr)] lg:gap-14">
+          {/* Cover — pinned on desktop so it stays beside the details. */}
+          <div className="md:sticky md:top-24 md:self-start">
+            <div className="mx-auto md:mx-0 w-full max-w-[240px] sm:max-w-[300px] rounded-r-md overflow-hidden book-shadow">
+              <BookCover book={book} className="w-full" sizes="(min-width: 768px) 300px, 60vw" priority />
             </div>
+            <p className="mt-3 text-center md:text-left text-xs text-muted">
+              {book.format || "Paperback"}
+              {book.pages ? ` · ${book.pages} pages` : ""}
+            </p>
           </div>
 
           <div>
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-              <span className="text-xs font-bold text-[#991B1B] uppercase tracking-wider">{book.category}</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={`/category/${categorySlug(book.category)}`}
+                className="text-[11px] font-bold uppercase tracking-widest text-sienna hover:underline underline-offset-2"
+              >
+                {book.category}
+              </Link>
               {book.badge && (
-                <span className="px-2.5 py-0.5 bg-[#991B1B] text-white text-[10px] font-bold uppercase rounded-md">{book.badge}</span>
+                <span className="rounded-full bg-navy px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                  {book.badge}
+                </span>
               )}
               {discount && (
-                <span className="px-2.5 py-0.5 bg-green-600 text-white text-[10px] font-bold uppercase rounded-md">{discount}% off</span>
+                <span className="rounded-full bg-sienna px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                  −{discount}%
+                </span>
               )}
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-bold text-[#1C1917] leading-tight">{book.title}</h1>
-            <p className="text-lg text-stone-500 mt-1">by {book.author}</p>
+            <h1 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight text-navy">{book.title}</h1>
+            <p className="mt-1.5 text-base text-muted">by {book.author}</p>
 
-            {book.rating ? (
-              <div className="flex items-center gap-2 mt-4">
-                <Stars rating={book.rating} />
-                <span className="font-bold text-[#1C1917]">{book.rating}</span>
-                {book.reviews > 0 && <span className="text-sm text-stone-400">({book.reviews.toLocaleString()} reviews)</span>}
-              </div>
-            ) : null}
-
-            <div className="flex items-baseline gap-3 mt-5">
-              <span className="text-4xl font-black text-[#1C1917]">{formatKsh(book.price)}</span>
+            <div className="mt-5 flex flex-wrap items-baseline gap-3">
+              <span className="text-3xl font-bold text-navy">{formatKsh(book.price)}</span>
               {book.original_price && book.original_price > book.price && (
-                <span className="text-xl text-stone-400 line-through">{formatKsh(book.original_price)}</span>
+                <span className="text-base text-muted line-through">{formatKsh(book.original_price)}</span>
               )}
             </div>
 
-            <p className={`mt-3 inline-flex items-center gap-1.5 text-sm font-semibold ${inStock ? (lowStock ? "text-amber-600" : "text-green-700") : "text-red-600"}`}>
-              <span className={`w-2 h-2 rounded-full ${inStock ? (lowStock ? "bg-amber-500" : "bg-green-600") : "bg-red-500"}`} aria-hidden="true" />
-              {inStock
-                ? lowStock ? `Only ${book.stock_quantity} left in stock` : "In stock — ready to ship"
-                : "Out of stock"}
+            <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${state.className}`}>
+              <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+              {state.key === "in" ? "In stock — ready to ship" : state.key === "low" ? `Only ${book.stock_quantity} left` : "Out of stock"}
             </p>
 
             <div className="mt-6">
               <BuyBar book={book} />
             </div>
 
-            <p className="text-xs text-stone-500 mt-2">
-              Free delivery on orders over KSh 3,000 · KSh 300 flat rate below that, nationwide
+            <p className="mt-3 text-xs text-muted leading-relaxed">
+              Free delivery above KSh 3,000, otherwise a flat KSh 300. The delivery total is shown
+              on the checkout page before you confirm.
             </p>
 
-            {book.description ? (
-              <p className="mt-7 text-stone-600 leading-relaxed">{book.description}</p>
-            ) : (
-              <p className="mt-7 text-stone-400 text-sm italic">
-                A full description for this title has not been added yet.
-              </p>
+            <BookDescription text={book.description} />
+
+            {details.length > 0 && (
+              <dl className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {details.map((item) => (
+                  <div key={item.label} className="rounded-card border border-line bg-white p-3">
+                    <dt className="text-[10px] font-bold uppercase tracking-wider text-muted">{item.label}</dt>
+                    <dd className="mt-0.5 text-sm font-semibold text-navy">{item.value}</dd>
+                  </div>
+                ))}
+              </dl>
             )}
 
-            <dl className="mt-7 grid grid-cols-2 sm:grid-cols-4 gap-3">
-              {[
-                { label: "Format", value: book.format },
-                { label: "Pages", value: book.pages },
-                { label: "Publisher", value: book.publisher },
-                { label: "Year", value: book.year },
-              ].filter((item) => item.value).map((item) => (
-                <div key={item.label} className="bg-white border border-stone-200 rounded-xl p-3">
-                  <dt className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{item.label}</dt>
-                  <dd className="text-sm font-semibold text-[#1C1917] mt-0.5">{item.value}</dd>
-                </div>
-              ))}
-            </dl>
-
-            {book.isbn && (
-              <p className="text-xs text-stone-400 mt-4">ISBN {book.isbn}</p>
-            )}
+            {book.isbn && <p className="mt-4 text-xs text-muted">ISBN {book.isbn}</p>}
           </div>
         </div>
 
         {related.length > 0 && (
-          <section className="mt-14 border-t border-stone-200 pt-8">
+          <section className="mt-14 border-t border-line pt-8">
             {/* The fallback tops the list up with popular titles from other
                 categories, so only claim "More in X" when every book is in X. */}
-            <h2 className="text-xl font-bold text-[#1C1917] mb-5">
-              {related.every((item) => item.category === book.category)
-                ? `More in ${book.category}`
-                : "You might also like"}
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {related.map((item) => (
-                <Link key={item.id} href={bookPath(item)} className="group bg-white border border-stone-200 rounded-xl p-4 hover:shadow-lg transition">
-                  <div className="w-24 mx-auto rounded-r-md overflow-hidden" style={{ aspectRatio: "2/3" }}>
-                    <BookCover book={item} className="w-full h-full" />
-                  </div>
-                  <p className="mt-3 text-sm font-bold text-[#1C1917] line-clamp-2 group-hover:text-[#991B1B]">{item.title}</p>
-                  <p className="text-xs text-stone-500">{item.author}</p>
-                  <p className="text-sm font-bold mt-1">{formatKsh(item.price)}</p>
-                </Link>
-              ))}
+            <div className="flex items-end justify-between gap-4 mb-5">
+              <h2 className="text-xl font-bold text-navy">
+                {related.every((item) => item.category === book.category)
+                  ? `More in ${book.category}`
+                  : "You might also like"}
+              </h2>
+              <Link href="/books" className="text-sm font-semibold text-sienna underline-offset-2 hover:underline whitespace-nowrap">
+                All books →
+              </Link>
             </div>
+
+            <ul role="list" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              {related.map((item) => (
+                <li key={item.id} className="min-w-0">
+                  <ProductCard book={item} />
+                </li>
+              ))}
+            </ul>
           </section>
         )}
       </div>

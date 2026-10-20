@@ -37,7 +37,7 @@ const TONE_CLASSES = {
   blue: "bg-blue-50 text-blue-800 border-blue-200",
   green: "bg-green-50 text-green-800 border-green-200",
   red: "bg-red-50 text-red-800 border-red-200",
-  stone: "bg-stone-100 text-stone-600 border-stone-200",
+  stone: "bg-stone-100 text-stone-600 border-[#E3DCCB]",
 };
 
 export function toneClass(tone) {
