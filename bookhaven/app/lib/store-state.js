@@ -115,6 +115,18 @@ export function useStoreState() {
    * page's quantity stepper passes the number picked. Pass { silent: true }
    * when the caller shows its own confirmation next to the button.
    */
+  // Write through immediately as well as through the effect below.
+  // The book page's "Buy now" adds to the basket and navigates in the same
+  // click; the checkout page reads bh_cart when it mounts, and React runs a
+  // child's mount effect before the provider's, so waiting for the effect
+  // would let checkout read the previous basket. Actions only ever run after
+  // hydration, so this cannot overwrite the saved basket with an empty one.
+  const persistCart = useCallback((next) => {
+    try {
+      localStorage.setItem("bh_cart", JSON.stringify(next));
+    } catch {}
+  }, []);
+
   const addToCart = useCallback(
     (book, quantity = 1, { silent = false } = {}) => {
       const wanted = Math.max(1, Math.floor(Number(quantity) || 1));
@@ -133,6 +145,7 @@ export function useStoreState() {
       }
 
       cartRef.current = next;
+      persistCart(next);
       setCart(next);
 
       // The message comes from the same rules that produced the cart, so it
@@ -144,15 +157,19 @@ export function useStoreState() {
       else showToast(`“${book.title}” added to basket`);
       return { added, blocked };
     },
-    [showToast]
+    [persistCart, showToast]
   );
 
   // Every write goes through the same ref mirror, otherwise a fast
   // remove-then-add works from a basket that no longer exists.
-  const commit = useCallback((next) => {
-    cartRef.current = next;
-    setCart(next);
-  }, []);
+  const commit = useCallback(
+    (next) => {
+      cartRef.current = next;
+      persistCart(next);
+      setCart(next);
+    },
+    [persistCart]
+  );
 
   const removeFromCart = useCallback(
     (id) => commit(removeItem(cartRef.current, id)),
