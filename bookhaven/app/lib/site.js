@@ -43,18 +43,25 @@ export function formatKsh(value) {
 /**
  * The number alone, shortened once a price gets long.
  *
- * Product cards at 320px are about 145px wide and also carry a sold-out
- * badge and an add button, so five-digit prices used to wrap or squeeze the
- * layout. Under 10,000 the grouped number is short enough and is shown in
- * full ("1,500"); above that one decimal keeps it honest and compact
- * ("12.5K", "1.2M"). The card renders "KSh" as a small label beside this, and
- * the full value goes in the price's accessible name.
+ * Product cards at 320px are about 140px wide and also carry a stock badge
+ * and an add button, so five-digit prices used to wrap or squeeze the layout.
+ * Under 10,000 the grouped number is short enough and is shown in full
+ * ("1,500"). Above that it becomes "12.5K" or "1.2M", but only when that form
+ * is exact: a rounding that changed the price on screen would be a lie, so an
+ * awkward amount such as 12,345 stays grouped. The card draws "KSh" as a
+ * small label beside this, and the full value is the price's accessible name.
  */
 export function compactKshNumber(value) {
-  const n = Math.max(0, Number(value) || 0);
+  const n = Math.max(0, Math.round(Number(value) || 0));
   const trim = (num) => num.toFixed(1).replace(/\.0$/, "");
-  if (n >= 1_000_000) return `${trim(n / 1_000_000)}M`;
-  if (n >= 10_000) return `${trim(n / 1000)}K`;
+
+  const shorten = (unit, suffix) => {
+    const scaled = Math.round((n / unit) * 10) / 10;
+    return scaled * unit === n ? `${trim(scaled)}${suffix}` : null;
+  };
+
+  if (n >= 1_000_000) return shorten(1_000_000, "M") || n.toLocaleString("en-KE");
+  if (n >= 10_000) return shorten(1000, "K") || n.toLocaleString("en-KE");
   return n.toLocaleString("en-KE");
 }
 

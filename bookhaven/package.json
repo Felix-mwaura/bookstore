@@ -10,8 +10,9 @@
     "agent:smoke": "node scripts/agent-smoke.mjs",
     "smoke": "node scripts/smoke.mjs",
     "cart:smoke": "node scripts/cart-smoke.mjs",
-    "test": "node scripts/cart-smoke.mjs && node scripts/store-wiring.mjs && node scripts/agent-smoke.mjs && node scripts/smoke.mjs",
-    "store:wiring": "node scripts/store-wiring.mjs"
+    "test": "node scripts/cart-smoke.mjs && node scripts/price-smoke.mjs && node scripts/store-wiring.mjs && node scripts/agent-smoke.mjs && node scripts/smoke.mjs",
+    "store:wiring": "node scripts/store-wiring.mjs",
+    "price:smoke": "node scripts/price-smoke.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
