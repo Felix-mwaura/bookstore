@@ -216,7 +216,13 @@ export default async function BookPage({ params }) {
 
         {related.length > 0 && (
           <section className="mt-14 border-t border-stone-200 pt-8">
-            <h2 className="text-xl font-bold text-[#1C1917] mb-5">More in {book.category}</h2>
+            {/* The fallback tops the list up with popular titles from other
+                categories, so only claim "More in X" when every book is in X. */}
+            <h2 className="text-xl font-bold text-[#1C1917] mb-5">
+              {related.every((item) => item.category === book.category)
+                ? `More in ${book.category}`
+                : "You might also like"}
+            </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {related.map((item) => (
                 <Link key={item.id} href={bookPath(item)} className="group bg-white border border-stone-200 rounded-xl p-4 hover:shadow-lg transition">
