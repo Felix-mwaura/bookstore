@@ -66,28 +66,53 @@ function Toast({ toasts, onRemove }) {
   );
 }
 
-function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger, loading, confirmLabel="Confirm", loadingLabel="Working…" }) {
+/**
+ * Every overlay goes through this wrapper so they all behave the same way:
+ * a real role="dialog", a focus trap, Escape to close, and a panel that can
+ * never grow taller than the viewport.
+ */
+function Modal({ open, onClose, labelledBy, className = "", children }) {
+  const panelRef = useDialog(open, onClose);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={loading?undefined:onCancel}/>
-      <div className="relative bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full border border-[#E3DCCB]">
+    <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center sm:p-4">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        tabIndex={-1}
+        className={`relative w-full max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-[#E3DCCB] outline-none ${className}`}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger, loading, confirmLabel="Confirm", loadingLabel="Working…" }) {
+  const close = useCallback(() => { if (!loading) onCancel?.(); }, [loading, onCancel]);
+  if (!open) return null;
+  return (
+    <Modal open={open} onClose={close} labelledBy="confirm-title" className="p-6 max-w-sm">
+      <div className="w-full">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${danger?"bg-red-50":"bg-amber-50"}`}>
           <svg className={`w-6 h-6 ${danger?"text-red-500":"text-amber-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
           </svg>
         </div>
-        <h3 className="text-lg font-bold text-[#1B2A4A] mb-2">{title}</h3>
+        <h3 id="confirm-title" className="text-lg font-bold text-[#1B2A4A] mb-2 pr-6">{title}</h3>
         <p className="text-stone-500 text-sm mb-6">{message}</p>
         <div className="flex gap-3">
-          <button onClick={onConfirm} disabled={loading} className={`flex-1 py-2.5 rounded-xl font-bold text-sm text-white transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 ${danger?"bg-red-600 hover:bg-red-700":"bg-[#1B2A4A] hover:bg-[#B5532F]"}`}>
+          <button onClick={onConfirm} disabled={loading} data-autofocus className={`flex-1 min-h-11 py-2.5 rounded-xl font-bold text-sm text-white transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 ${danger?"bg-red-600 hover:bg-red-700":"bg-[#1B2A4A] hover:bg-[#B5532F]"}`}>
             {loading && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>}
             {loading?loadingLabel:confirmLabel}
           </button>
-          <button onClick={onCancel} disabled={loading} className="flex-1 py-2.5 rounded-xl font-bold text-sm border border-[#E3DCCB] text-stone-600 hover:bg-stone-50 transition disabled:opacity-40">Cancel</button>
+          <button onClick={onCancel} disabled={loading} className="flex-1 min-h-11 py-2.5 rounded-xl font-bold text-sm border border-[#E3DCCB] text-stone-600 hover:bg-stone-50 transition disabled:opacity-40">Cancel</button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -1416,7 +1441,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
               <h3 className="font-bold text-[#1B2A4A]">{editBook?`Editing: ${editBook.title}`:"Add new book"}</h3>
               <p className="text-xs text-stone-400 mt-0.5">{editBook?"Update the book details below":"Fill in the details for the new title"}</p>
             </div>
-            <button onClick={()=>setShowForm(false)} className="p-2 hover:bg-stone-100 rounded-full transition text-stone-400">
+            <button onClick={()=>setShowForm(false)} aria-label="Close the book form" className="p-2 hover:bg-stone-100 rounded-full transition text-stone-400">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
@@ -1515,9 +1540,15 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
-                <tr>{["Title","Category","Price","Stock","Featured","Rating","Actions"].map(h=>(
-                  <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                ))}</tr>
+                <tr>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Title</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">Category</th>
+                  <th className="hidden sm:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Price</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Stock</th>
+                  <th className="hidden lg:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Featured</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Rating</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Actions</th>
+                </tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
                 {filtered.map(book=>(
@@ -1528,29 +1559,30 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                         <div>
                           <p className="text-sm font-semibold text-[#1B2A4A]">{book.title} {book.is_archived && <span className="text-[10px] text-stone-400 font-normal">(archived)</span>}</p>
                           <p className="text-xs text-stone-400">{book.author}</p>
+                          <p className="sm:hidden mt-0.5 text-xs font-bold text-[#1B2A4A]">KSh {book.price.toLocaleString()}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3"><Badge status={book.category}/></td>
-                    <td className="px-4 py-3">
+                    <td className="hidden md:table-cell px-4 py-3"><Badge status={book.category}/></td>
+                    <td className="hidden sm:table-cell px-4 py-3">
                       <p className="text-xs font-bold text-[#1B2A4A]">KSh {book.price.toLocaleString()}</p>
                       {book.original_price&&<p className="text-[10px] text-stone-400 line-through">KSh {book.original_price.toLocaleString()}</p>}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <span className="text-xs font-semibold" style={{color:book.stock_quantity<=0?"#dc2626":book.stock_quantity<=(book.low_stock_threshold||5)?"#d97706":"#16a34a"}}>
                         {book.stock} · {book.stock_quantity ?? 0} units
                       </span>
                     </td>
-                    <td className="px-4 py-3">{book.is_featured?<span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-md">★ Featured</span>:<span className="text-stone-300 text-xs">—</span>}</td>
-                    <td className="px-4 py-3">
+                    <td className="hidden lg:table-cell px-4 py-3">{book.is_featured?<span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-md">★ Featured</span>:<span className="text-stone-300 text-xs">—</span>}</td>
+                    <td className="hidden md:table-cell px-4 py-3">
                       <div className="flex items-center gap-1">
                         <span className="text-amber-400 text-xs">★</span>
                         <span className="text-xs font-semibold text-stone-600">{book.rating}</span>
                         <span className="text-[10px] text-stone-400">({book.reviews||0})</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
                         <button onClick={()=>openEdit(book)} className="text-xs text-[#B5532F] font-semibold hover:underline">Edit</button>
                         <button onClick={()=>setDeleteConfirm(book.id)} className="text-xs text-stone-400 hover:text-red-600 font-semibold">Delete</button>
                       </div>
@@ -1760,9 +1792,14 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
                 <tr>
-                  {["Book", "Category", "In stock", "Threshold", "Status", "Last updated", "Adjust", ""].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                  ))}
+                  <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Book</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">Category</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">In stock</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Threshold</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Status</th>
+                  <th className="hidden lg:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">Last updated</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Adjust</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider sr-only">History</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
@@ -1775,25 +1812,25 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                         <p className="text-sm font-semibold text-[#1B2A4A]">{book.title}</p>
                         <p className="text-xs text-stone-400">{book.author}</p>
                       </td>
-                      <td className="px-4 py-3 text-xs text-stone-500">{book.category}</td>
-                      <td className="px-4 py-3 font-bold text-[#1B2A4A] text-sm">{book.stock_quantity ?? 0}</td>
-                      <td className="px-4 py-3 text-xs text-stone-500">{book.low_stock_threshold ?? 5}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-500">{book.category}</td>
+                      <td className="px-4 py-3 font-bold text-[#1B2A4A] text-sm whitespace-nowrap">{book.stock_quantity ?? 0}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-500">{book.low_stock_threshold ?? 5}</td>
                       <td className="px-4 py-3"><span className={`text-xs font-semibold ${statusColor}`}>{status}</span></td>
-                      <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">
+                      <td className="hidden lg:table-cell px-4 py-3 text-xs text-stone-400 whitespace-nowrap">
                         {book.updated_at ? new Date(book.updated_at).toLocaleDateString("en-KE", { day: "numeric", month: "short" }) : "—"}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => openAdjust(book)}
-                          className="text-xs font-semibold border border-[#E3DCCB] rounded-lg px-3 py-1.5 hover:border-stone-300 hover:bg-stone-50 transition"
+                          className="min-h-9 text-xs font-semibold border border-[#E3DCCB] rounded-lg px-3 py-1.5 hover:border-stone-300 hover:bg-stone-50 transition"
                         >
                           Adjust
                         </button>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => openHistory(book)}
-                          className="text-xs font-semibold text-[#B5532F] hover:underline whitespace-nowrap"
+                          className="min-h-9 text-xs font-semibold text-[#B5532F] hover:underline whitespace-nowrap"
                         >
                           History
                         </button>
@@ -1816,10 +1853,10 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
       )}
 
       {/* Adjust modal */}
-      {modal && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6">
-            <h3 className="font-black text-[#1B2A4A]">Adjust stock</h3>
+      <Modal open={Boolean(modal)} onClose={() => setModal(null)} labelledBy="adjust-title" className="max-w-md p-6">
+        {modal && (
+          <div>
+            <h3 id="adjust-title" className="font-black text-[#1B2A4A]">Adjust stock</h3>
             <p className="text-xs text-stone-400 mt-0.5 mb-4">{modal.book.title}</p>
 
             <label className="block text-xs font-semibold text-stone-600 mb-1" htmlFor="inv-qty">
@@ -1866,22 +1903,22 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
 
       {/* Movement history */}
-      {history && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 max-h-[85vh] flex flex-col">
+      <Modal open={Boolean(history)} onClose={() => setHistory(null)} labelledBy="history-title" className="max-w-2xl p-6">
+        {history && (
+          <div className="flex max-h-[80dvh] flex-col">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 className="font-black text-[#1B2A4A]">Stock history</h3>
+                <h3 id="history-title" className="font-black text-[#1B2A4A]">Stock history</h3>
                 <p className="text-xs text-stone-400 mt-0.5">{history.book.title}</p>
               </div>
               <button onClick={() => setHistory(null)} className="text-stone-400 hover:text-[#1B2A4A] text-xl leading-none" aria-label="Close">×</button>
             </div>
 
-            <div className="overflow-y-auto -mx-2 px-2">
+            <div className="overflow-y-auto overflow-x-auto -mx-2 px-2">
               {history.loading ? (
                 <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
               ) : history.error ? (
@@ -1924,8 +1961,8 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
               )}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

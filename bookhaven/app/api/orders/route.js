@@ -141,6 +141,23 @@ export async function POST(request) {
     );
   }
 
+  // Cheap per-account throttle: a real customer does not place eight orders
+  // in ten minutes, but a script that has stolen a session would. This runs
+  // against the database so it holds across serverless instances.
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const { count: recentOrders } = await serverClient
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .gte("created_at", tenMinutesAgo);
+
+  if ((recentOrders || 0) >= 8) {
+    return NextResponse.json(
+      { error: "That is a lot of orders in a short time. Please wait a few minutes or contact us." },
+      { status: 429 }
+    );
+  }
+
   const { data, error } = await serverClient.rpc("place_order", {
     p_user_id: user.id,
     p_items: cleanItemList,
