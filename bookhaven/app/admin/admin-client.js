@@ -313,7 +313,7 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-[#1B2A4A]">Dashboard</h2>
+          <h1 className="text-lg font-bold text-navy">Dashboard</h1>
           <p className="text-stone-400 text-xs mt-0.5">
             Every figure below is computed in the database for the selected period.
           </p>
@@ -756,7 +756,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1B2A4A]">Orders</h2>
+          <h1 className="text-lg font-bold text-navy">Orders</h1>
           <p className="text-stone-400 text-xs mt-0.5">
             {orders.length} total · {orders.filter((o) => o.status === "Delivered").length} delivered ·{" "}
             {orders.filter((o) => o.status !== "Cancelled").reduce((s, o) => s + (o.total || 0), 0).toLocaleString()} KSh ordered
@@ -1263,7 +1263,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1B2A4A]">Products</h2>
+          <h1 className="text-lg font-bold text-navy">Products</h1>
           <p className="text-stone-400 text-xs mt-0.5">{books.filter(b=>!b.is_archived).length} active · {books.filter(b=>b.is_archived).length} archived</p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95">
@@ -1567,7 +1567,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1B2A4A]">Inventory</h2>
+          <h1 className="text-lg font-bold text-navy">Inventory</h1>
           <p className="text-stone-400 text-xs mt-0.5">{active.length} active titles · every change is recorded</p>
         </div>
       </div>
@@ -1805,7 +1805,7 @@ function CustomersTab({ users, orders }) {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1B2A4A]">Customers</h2>
+          <h1 className="text-lg font-bold text-navy">Customers</h1>
           <p className="text-stone-400 text-xs mt-0.5">{users.length} registered users</p>
         </div>
         <div className="relative">

@@ -587,9 +587,11 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
         </div>
       </div>
 
-      <h2 className="text-3xl font-black text-[#1B2A4A]">{order ? "Order Confirmed! 🎉" : "Your order could not be saved"}</h2>
+      <h1 className="text-2xl sm:text-3xl font-bold text-navy">{order ? "Order received" : "Your order could not be saved"}</h1>
       <p className="text-stone-500 mt-2 mb-8">
-        {order ? `Thank you ${details.firstName}! Your books are on their way.` : `Thank you ${details.firstName}. We need to sort one thing out before this order is complete.`}
+        {order
+          ? `Thank you ${details.firstName}. We have your order and will be in touch about delivery.`
+          : `Thank you ${details.firstName}. We need to sort one thing out before this order is complete.`}
       </p>
 
       {stockError && (
@@ -916,6 +918,10 @@ export default function CheckoutPage() {
       )}
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
+        <div className="mb-6 text-center">
+          <h1 className="text-xl sm:text-2xl font-bold text-navy">Checkout</h1>
+          <p className="mt-1 text-sm text-muted">Delivery and payment on one page.</p>
+        </div>
         <StepBar step={step === 3 ? 3 : detailsValid ? 2 : 1} />
         <div className="grid lg:grid-cols-[1fr_360px] gap-6 lg:gap-8 items-start">
           <div className="bg-white rounded-card border border-line p-4 sm:p-6 lg:p-8">
