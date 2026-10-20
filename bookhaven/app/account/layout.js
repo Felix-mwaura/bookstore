@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Your account",
+  title: "Your account · Book Haven",
   robots: { index: false, follow: false },
 };
 
