@@ -142,6 +142,7 @@ const NAV = [
   { section:"System" },
   { id:"users", label:"Users & Roles", icon:"🛡️" },
   { id:"activity", label:"Activity Logs", icon:"📋" },
+  { id:"notifications", label:"Emails", icon:"✉️" },
   { id:"settings", label:"Settings", icon:"⚙️" },
 ];
 
@@ -250,194 +251,302 @@ function Topbar({ activeTab, sessionUser, onLogout }) {
 // ─────────────────────────────────────────────────────────
 // OVERVIEW TAB
 // ─────────────────────────────────────────────────────────
-function OverviewTab({ orders, users, books, loading, onNavigate }) {
-  // Revenue must reflect actual sales, not every row — a cancelled order
-  // was never fulfilled and was previously counted here by mistake.
-  const validOrders = orders.filter(o => o.status !== "Cancelled");
-  const totalRevenue = validOrders.reduce((s,o)=>s+(o.total||0),0);
-  const avgOrderValue = validOrders.length ? Math.round(totalRevenue / validOrders.length) : 0;
+function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavigate }) {
+  const RANGES = [
+    { id: "today", label: "Today" },
+    { id: "7d", label: "7 days" },
+    { id: "30d", label: "30 days" },
+    { id: "90d", label: "90 days" },
+  ];
 
-  const startOfToday = new Date(); startOfToday.setHours(0,0,0,0);
-  const startOfWeek = new Date(startOfToday); startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+  const counts = metrics?.counts || {};
+  const money = metrics?.money || {};
+  const inventory = metrics?.inventory || {};
+  const bestSellers = metrics?.best_sellers || [];
+  const recent = metrics?.recent_orders || [];
+  const daily = metrics?.daily || [];
 
-  const todayRevenue = validOrders.filter(o=>new Date(o.created_at)>=startOfToday).reduce((s,o)=>s+(o.total||0),0);
-  const weekRevenue = validOrders.filter(o=>new Date(o.created_at)>=startOfWeek).reduce((s,o)=>s+(o.total||0),0);
-  const todayOrders = orders.filter(o=>new Date(o.created_at).toDateString()===new Date().toDateString()).length;
+  const fmt = (n) => `KSh ${Number(n || 0).toLocaleString("en-KE")}`;
+  const dailyValues = daily.map((d) => Number(d.revenue) || 0);
+  const busiest = dailyValues.reduce((m, v) => Math.max(m, v), 0);
 
-  const processing = orders.filter(o=>o.status==="Processing").length;
-  const delivered = orders.filter(o=>o.status==="Delivered").length;
-  const cancelled = orders.filter(o=>o.status==="Cancelled").length;
-  const shipped = orders.filter(o=>o.status==="Shipped").length;
+  const payLabel = {
+    pending: "Unpaid",
+    paid: "Paid",
+    failed: "Failed",
+    refund_pending: "Refund pending",
+    refunded: "Refunded",
+  };
 
-  const activeBooks = books.filter(b=>!b.is_archived);
-  const outOfStock = activeBooks.filter(b=>(b.stock_quantity??0)<=0);
-  const lowStock = activeBooks.filter(b=>(b.stock_quantity??0)>0 && b.stock_quantity<=(b.low_stock_threshold||5));
-  const newCustomersThisWeek = users.filter(u=>u.created_at && new Date(u.created_at)>=startOfWeek).length;
+  if (loading && !metrics) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+        </div>
+      </div>
+    );
+  }
 
-  const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-  const now = new Date();
-  const monthlyRevenue = [...Array(6)].map((_,i)=>{
-    const d = new Date(now.getFullYear(),now.getMonth()-5+i,1);
-    return validOrders.filter(o=>{ const od=new Date(o.created_at); return od.getMonth()===d.getMonth()&&od.getFullYear()===d.getFullYear(); }).reduce((s,o)=>s+(o.total||0),0);
-  });
-  const monthLabels = [...Array(6)].map((_,i)=>{ const d=new Date(now.getFullYear(),now.getMonth()-5+i,1); return months[d.getMonth()]; });
-  const thisMonth = monthlyRevenue[5]||0;
-  const lastMonth = monthlyRevenue[4]||0;
-  const revenueChange = lastMonth>0?Math.round(((thisMonth-lastMonth)/lastMonth)*100):0;
-
-  // Best-selling books, computed from real order line items (not a guess)
-  const salesByBook = {};
-  validOrders.forEach(o => (o.items||[]).forEach(item => {
-    salesByBook[item.id] = (salesByBook[item.id]||0) + (item.quantity||1);
-  }));
-  const bestSellers = Object.entries(salesByBook)
-    .sort((a,b)=>b[1]-a[1]).slice(0,4)
-    .map(([id, qty]) => ({ book: books.find(b=>String(b.id)===String(id)), qty }))
-    .filter(x=>x.book);
-
-  const recent = [...orders].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,6);
-  const mostRecentOrder = recent[0];
-
-  if (loading) return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[...Array(8)].map((_,i)=><Skeleton key={i} className="h-28"/>)}</div>
-    </div>
-  );
+  if (error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
+        <div className="text-3xl mb-2">⚠️</div>
+        <p className="text-red-800 font-semibold text-sm mb-1">Could not load dashboard metrics</p>
+        <p className="text-red-600 text-xs mb-4">{error}</p>
+        <button onClick={onRetry} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition">
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* KPI row */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-        <StatCard icon="💰" label="Total Revenue" value={`KSh ${totalRevenue.toLocaleString()}`} delta={lastMonth>0?`${revenueChange>=0?"+":""}${revenueChange}% vs last month`:""} deltaUp={revenueChange>=0} sub="Excludes cancelled orders" accent/>
-        <StatCard icon="📅" label="Revenue Today" value={`KSh ${todayRevenue.toLocaleString()}`} sub={`${todayOrders} order${todayOrders!==1?"s":""} today`}/>
-        <StatCard icon="🗓️" label="Revenue This Week" value={`KSh ${weekRevenue.toLocaleString()}`}/>
-        <StatCard icon="🧾" label="Avg. Order Value" value={`KSh ${avgOrderValue.toLocaleString()}`} sub={`${validOrders.length} valid orders`}/>
-        <StatCard icon="⏳" label="Pending" value={processing} sub="Processing" deltaUp={false}/>
-        <StatCard icon="🚚" label="Shipped" value={shipped} sub="In transit"/>
-        <StatCard icon="✅" label="Delivered" value={delivered} delta={`${orders.length?Math.round((delivered/orders.length)*100):0}% success rate`} deltaUp/>
-        <StatCard icon="❌" label="Cancelled" value={cancelled}/>
-        <StatCard icon="👥" label="Customers" value={users.length} delta={newCustomersThisWeek>0?`+${newCustomersThisWeek} this week`:""} deltaUp/>
-        <StatCard icon="📚" label="Books" value={activeBooks.length} sub="In catalogue"/>
-        <StatCard icon="⚠️" label="Low Stock" value={lowStock.length} deltaUp={false}/>
-        <StatCard icon="🚫" label="Out of Stock" value={outOfStock.length} deltaUp={false}/>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-[#1C1917]">Dashboard</h2>
+          <p className="text-stone-400 text-xs mt-0.5">
+            Every figure below is computed in the database for the selected period.
+          </p>
+        </div>
+        <div className="flex gap-1.5">
+          {RANGES.map((r) => (
+            <button
+              key={r.id}
+              onClick={() => setRange(r.id)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                range === r.id
+                  ? "bg-[#1C1917] text-white"
+                  : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Revenue highlight */}
-      <div className="bg-gradient-to-r from-[#1C1917] to-[#2d1a10] rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">This Month</p>
-          <p className="text-3xl font-black text-amber-400">KSh {thisMonth.toLocaleString()}</p>
-          <p className="text-stone-500 text-sm mt-1">{validOrders.filter(o=>{ const d=new Date(o.created_at); const n=new Date(); return d.getMonth()===n.getMonth()&&d.getFullYear()===n.getFullYear(); }).length} valid orders this month</p>
-        </div>
-        <div className="sm:w-48">
-          <MiniChart data={monthlyRevenue} color="#c9a84c"/>
-          <div className="flex justify-between mt-1">
-            {monthLabels.map((l,i)=><span key={i} className="text-[9px] text-stone-500">{l}</span>)}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+        <StatCard
+          icon="💰"
+          label="Net revenue"
+          value={fmt(money.net_revenue)}
+          sub="Paid orders, cancellations excluded"
+          accent
+        />
+        <StatCard
+          icon="🧾"
+          label="Gross order value"
+          value={fmt(money.gross_order_value)}
+          sub="All non-cancelled orders, paid or not"
+        />
+        <StatCard
+          icon="⏳"
+          label="Awaiting processing"
+          value={counts.awaiting_processing ?? 0}
+          sub="Pending or processing"
+          deltaUp={false}
+        />
+        <StatCard
+          icon="🚚"
+          label="Awaiting dispatch"
+          value={counts.awaiting_dispatch ?? 0}
+          sub="Not yet shipped"
+        />
+        <StatCard icon="📦" label="Shipped" value={counts.shipped ?? 0} sub="In transit" />
+        <StatCard
+          icon="✅"
+          label="Delivered"
+          value={counts.delivered ?? 0}
+          delta={
+            counts.total_orders
+              ? `${Math.round((counts.delivered / counts.total_orders) * 100)}% of orders`
+              : ""
+          }
+          deltaUp
+        />
+        <StatCard
+          icon="❌"
+          label="Cancelled"
+          value={counts.cancelled ?? 0}
+          sub="Never counted as sales"
+        />
+        <StatCard
+          icon="💸"
+          label="Awaiting payment"
+          value={fmt(money.pending_value)}
+          sub="COD or unpaid orders"
+        />
+        <StatCard icon="📚" label="Titles" value={inventory.titles ?? 0} sub="Active catalogue" />
+        <StatCard
+          icon="⚠️"
+          label="Low stock"
+          value={inventory.low_stock ?? 0}
+          deltaUp={false}
+        />
+        <StatCard
+          icon="🚫"
+          label="Out of stock"
+          value={inventory.out_of_stock ?? 0}
+          deltaUp={false}
+        />
+        <StatCard
+          icon="🔄"
+          label="Refunded"
+          value={fmt(money.refunded_value)}
+          sub="Refund pending or refunded"
+        />
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-[#1C1917] text-sm">Net revenue by day</h3>
+            <span className="text-xs text-stone-400">
+              {daily.length ? `${daily.length} trading day${daily.length !== 1 ? "s" : ""}` : "No activity"}
+            </span>
           </div>
+          {dailyValues.length ? (
+            <>
+              <MiniChart data={dailyValues} color="#991B1B" />
+              <div className="flex justify-between mt-2 text-[10px] text-stone-400">
+                <span>{daily[0]?.date}</span>
+                <span>{daily[daily.length - 1]?.date}</span>
+              </div>
+              <p className="text-[10px] text-stone-400 mt-2">
+                Peak day: {fmt(busiest)} · only paid, non-cancelled orders count.
+              </p>
+            </>
+          ) : (
+            <p className="text-xs text-stone-400 py-8 text-center">
+              No orders in this period.
+            </p>
+          )}
+        </div>
+
+        <div className="bg-white rounded-2xl border border-stone-200 p-5">
+          <h3 className="font-bold text-[#1C1917] text-sm mb-4">Best-selling books</h3>
+          <div className="space-y-3">
+            {bestSellers.map((b, i) => (
+              <div key={b.book_id} className="flex items-center gap-3">
+                <span className="text-xs text-stone-400 w-4">{i + 1}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-[#1C1917] truncate">{b.title}</p>
+                  <p className="text-[10px] text-stone-400">{fmt(b.revenue)}</p>
+                </div>
+                <span className="text-xs font-bold text-[#1C1917]">{b.units} sold</span>
+              </div>
+            ))}
+            {bestSellers.length === 0 && (
+              <p className="text-xs text-stone-400 text-center py-4">
+                Nothing delivered in this period yet.
+              </p>
+            )}
+          </div>
+          <p className="text-[10px] text-stone-400 mt-4 pt-3 border-t border-stone-100">
+            Counted from delivered orders only, so an unfulfilled order cannot inflate this list.
+          </p>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">
-        {/* Order status breakdown */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-5">
-          <h3 className="font-bold text-[#1C1917] text-sm mb-4">Order breakdown</h3>
-          <div className="space-y-3">
-            {[
-              { label:"Processing", count:processing, color:"bg-amber-400", pct:orders.length?(processing/orders.length)*100:0 },
-              { label:"Shipped", count:shipped, color:"bg-blue-400", pct:orders.length?(shipped/orders.length)*100:0 },
-              { label:"Delivered", count:delivered, color:"bg-green-500", pct:orders.length?(delivered/orders.length)*100:0 },
-              { label:"Cancelled", count:cancelled, color:"bg-red-400", pct:orders.length?(cancelled/orders.length)*100:0 },
-            ].map(({label,count,color,pct})=>(
-              <div key={label}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-stone-600 font-medium">{label}</span>
-                  <span className="font-bold text-[#1C1917]">{count} <span className="text-stone-400 font-normal">({Math.round(pct)}%)</span></span>
-                </div>
-                <div className="h-1.5 bg-stone-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${color} rounded-full transition-all duration-700`} style={{width:`${pct}%`}}/>
-                </div>
-              </div>
-            ))}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-stone-200 overflow-hidden">
+          <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+            <h3 className="font-bold text-[#1C1917] text-sm">Recent orders</h3>
+            <button onClick={() => onNavigate?.("orders")} className="text-xs font-semibold text-[#991B1B] hover:underline">
+              View all
+            </button>
           </div>
-        </div>
-
-        {/* Best sellers — real, computed from order line items */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-5">
-          <h3 className="font-bold text-[#1C1917] text-sm mb-4">Best-selling books</h3>
-          <div className="space-y-3">
-            {bestSellers.map(({book,qty},i)=>(
-              <div key={book.id} className="flex items-center gap-3">
-                <span className="text-xs text-stone-400 w-4">{i+1}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-[#1C1917] truncate">{book.title}</p>
-                  <p className="text-[10px] text-stone-400">{book.author}</p>
-                </div>
-                <span className="text-xs font-bold text-[#1C1917]">{qty} sold</span>
-              </div>
-            ))}
-            {bestSellers.length===0&&<p className="text-xs text-stone-400 text-center py-4">No sales yet</p>}
-          </div>
-        </div>
-
-        {/* Alerts — every line here is derived from real data */}
-        <div className="bg-white rounded-2xl border border-stone-200 p-5">
-          <h3 className="font-bold text-[#1C1917] text-sm mb-4">Alerts</h3>
-          <div className="space-y-3">
-            {processing>0&&<div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl"><span className="text-base">⏳</span><div><p className="text-xs font-bold text-amber-800">{processing} order{processing!==1?"s":""} pending</p><p className="text-[10px] text-amber-600 mt-0.5">Need to be shipped</p></div></div>}
-            {lowStock.length>0&&(
-              <button onClick={()=>onNavigate?.("inventory")} className="w-full text-left flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition">
-                <span className="text-base">📉</span><div><p className="text-xs font-bold text-amber-800">{lowStock.length} book{lowStock.length!==1?"s":""} running low on stock</p><p className="text-[10px] text-amber-600 mt-0.5">Click to view them</p></div>
-              </button>
-            )}
-            {outOfStock.length>0&&(
-              <button onClick={()=>onNavigate?.("inventory")} className="w-full text-left flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition">
-                <span className="text-base">🚫</span><div><p className="text-xs font-bold text-red-800">{outOfStock.length} book{outOfStock.length!==1?"s":""} out of stock</p><p className="text-[10px] text-red-600 mt-0.5">Click to view them</p></div>
-              </button>
-            )}
-            {newCustomersThisWeek>0&&<div className="flex items-start gap-3 p-3 bg-green-50 border border-green-100 rounded-xl"><span className="text-base">👤</span><div><p className="text-xs font-bold text-green-800">{newCustomersThisWeek} new customer{newCustomersThisWeek!==1?"s":""} this week</p></div></div>}
-            {mostRecentOrder&&<div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl"><span className="text-base">📦</span><div><p className="text-xs font-bold text-blue-800">Most recent order: KSh {(mostRecentOrder.total||0).toLocaleString()}</p><p className="text-[10px] text-blue-600 mt-0.5">{new Date(mostRecentOrder.created_at).toLocaleString("en-KE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</p></div></div>}
-            {processing===0&&lowStock.length===0&&outOfStock.length===0&&newCustomersThisWeek===0&&!mostRecentOrder&&<p className="text-xs text-stone-400 text-center py-4">Nothing needs attention right now</p>}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent orders */}
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-        <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
-          <h3 className="font-bold text-[#1C1917] text-sm">Recent orders</h3>
-          <span className="text-xs text-stone-400">{orders.length} total</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-stone-50 border-b border-stone-100">
-              <tr>{["Order ID","Customer","City","Items","Total","Payment","Status","Date"].map(h=>(
-                <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody className="divide-y divide-stone-50">
-              {recent.map(o=>(
-                <tr key={o.id} className="hover:bg-stone-50/50 transition-colors">
-                  <td className="px-4 py-3 font-mono text-xs text-[#991B1B]">{o.id.slice(0,8).toUpperCase()}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <Avatar name={`${o.delivery_details?.firstName||""} ${o.delivery_details?.lastName||""}`} email="" size="sm"/>
-                      <div>
-                        <p className="text-xs font-semibold text-[#1C1917]">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
-                        <p className="text-[10px] text-stone-400">{o.delivery_details?.phone}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-stone-500">{o.delivery_details?.city}</td>
-                  <td className="px-4 py-3 text-xs text-stone-500">{(o.items||[]).length}</td>
-                  <td className="px-4 py-3 text-xs font-bold text-[#1C1917]">KSh {(o.total||0).toLocaleString()}</td>
-                  <td className="px-4 py-3 text-xs text-stone-500">{o.payment_method}</td>
-                  <td className="px-4 py-3"><Badge status={o.status}/></td>
-                  <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short"})}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-stone-50 border-b border-stone-100">
+                <tr>
+                  {["Order", "Customer", "Total", "Payment", "Fulfilment", "Date"].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-              {recent.length===0&&<tr><td colSpan={8} className="px-4 py-10 text-center text-stone-400 text-sm">No orders yet</td></tr>}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-stone-50">
+                {recent.map((o) => (
+                  <tr key={o.id} className="hover:bg-stone-50/50 transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs text-[#991B1B]">
+                      {String(o.id).slice(0, 8).toUpperCase()}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-[#1C1917]">
+                      {o.first_name} {o.last_name}
+                    </td>
+                    <td className="px-4 py-3 text-xs font-bold text-[#1C1917]">
+                      {fmt(o.total)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] font-semibold ${o.payment_status === "paid" ? "text-green-600" : o.payment_status === "failed" ? "text-red-600" : "text-amber-600"}`}>
+                        {payLabel[o.payment_status] || o.payment_status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3"><Badge status={o.status} /></td>
+                    <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">
+                      {new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}
+                    </td>
+                  </tr>
+                ))}
+                {recent.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-10 text-center text-stone-400 text-sm">
+                      No orders in this period
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-stone-200 p-5">
+          <h3 className="font-bold text-[#1C1917] text-sm mb-4">Needs attention</h3>
+          <div className="space-y-3">
+            {(counts.awaiting_dispatch ?? 0) > 0 && (
+              <button onClick={() => onNavigate?.("orders")} className="w-full text-left flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition">
+                <span className="text-base">🚚</span>
+                <div>
+                  <p className="text-xs font-bold text-amber-800">{counts.awaiting_dispatch} order{counts.awaiting_dispatch !== 1 ? "s" : ""} waiting to ship</p>
+                  <p className="text-[10px] text-amber-600 mt-0.5">Pack and dispatch them</p>
+                </div>
+              </button>
+            )}
+            {(inventory.low_stock ?? 0) > 0 && (
+              <button onClick={() => onNavigate?.("inventory")} className="w-full text-left flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition">
+                <span className="text-base">📉</span>
+                <div>
+                  <p className="text-xs font-bold text-amber-800">{inventory.low_stock} title{inventory.low_stock !== 1 ? "s" : ""} low on stock</p>
+                  <p className="text-[10px] text-amber-600 mt-0.5">Review the inventory tab</p>
+                </div>
+              </button>
+            )}
+            {(inventory.out_of_stock ?? 0) > 0 && (
+              <button onClick={() => onNavigate?.("inventory")} className="w-full text-left flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition">
+                <span className="text-base">🚫</span>
+                <div>
+                  <p className="text-xs font-bold text-red-800">{inventory.out_of_stock} title{inventory.out_of_stock !== 1 ? "s" : ""} out of stock</p>
+                  <p className="text-[10px] text-red-600 mt-0.5">Customers cannot buy these</p>
+                </div>
+              </button>
+            )}
+            {(counts.awaiting_dispatch ?? 0) === 0 && (inventory.low_stock ?? 0) === 0 && (inventory.out_of_stock ?? 0) === 0 && (
+              <p className="text-xs text-stone-400 text-center py-4">Nothing needs attention right now</p>
+            )}
+          </div>
+
+          <div className="mt-5 pt-4 border-t border-stone-100">
+            <h4 className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">How these are counted</h4>
+            <ul className="text-[10px] text-stone-500 space-y-1 list-disc pl-4">
+              <li>Net revenue: paid orders only, cancellations and refunds excluded.</li>
+              <li>Gross order value: every non-cancelled order, paid or not.</li>
+              <li>Delivered and cancelled are final states.</li>
+            </ul>
+          </div>
         </div>
       </div>
     </div>
@@ -447,63 +556,180 @@ function OverviewTab({ orders, users, books, loading, onNavigate }) {
 // ─────────────────────────────────────────────────────────
 // ORDERS TAB
 // ─────────────────────────────────────────────────────────
-function OrdersTab({ orders, onUpdateStatus, showToast }) {
+function OrdersTab({ orders, books, onReload, showToast }) {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [updating, setUpdating] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const [page, setPage] = useState(1);
   const [confirm, setConfirm] = useState(null);
+  const [selected, setSelected] = useState([]);
+  const [bulkStatus, setBulkStatus] = useState("");
+  const [courier, setCourier] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResult, setBulkResult] = useState(null);
   const perPage = 8;
 
-  const filtered = orders.filter(o=>{
-    const q=search.toLowerCase();
-    const name=`${o.delivery_details?.firstName||""} ${o.delivery_details?.lastName||""}`.toLowerCase();
-    const ms=statusFilter==="All"||o.status===statusFilter;
-    const mq=!search||o.id.toLowerCase().includes(q)||name.includes(q)||(o.delivery_details?.city||"").toLowerCase().includes(q)||(o.delivery_details?.phone||"").includes(q);
-    return ms&&mq;
+  // Transitions, mirroring set_order_status() in Postgres exactly. The UI
+  // never offers a move the database would reject.
+  const STATUS_FLOW = {
+    Pending: ["Processing", "Cancelled"],
+    Processing: ["Packed", "Shipped", "Cancelled"],
+    Packed: ["Shipped", "Cancelled"],
+    Shipped: ["Delivered", "Cancelled"],
+    Delivered: [],
+    Cancelled: [],
+  };
+
+  // Payment is a separate machine: refunds are not fulfilment states.
+  const PAYMENT_FLOW = {
+    pending: ["paid", "failed"],
+    failed: ["paid", "pending"],
+    paid: ["refund_pending", "refunded"],
+    refund_pending: ["refunded", "paid"],
+    refunded: [],
+  };
+
+  const PAYMENT_LABEL = {
+    pending: "Unpaid",
+    paid: "Paid",
+    failed: "Payment failed",
+    refund_pending: "Refund pending",
+    refunded: "Refunded",
+  };
+
+  const bookById = new Map((books || []).map((b) => [String(b.id), b]));
+
+  const filtered = orders.filter((o) => {
+    const q = search.toLowerCase();
+    const name = `${o.delivery_details?.firstName || ""} ${o.delivery_details?.lastName || ""}`.toLowerCase();
+    const ms = statusFilter === "All" || o.status === statusFilter;
+    const mq =
+      !search ||
+      o.id.toLowerCase().includes(q) ||
+      name.includes(q) ||
+      (o.delivery_details?.city || "").toLowerCase().includes(q) ||
+      (o.delivery_details?.phone || "").includes(q);
+    return ms && mq;
   });
 
-  const totalPages = Math.ceil(filtered.length/perPage);
-  const paginated = filtered.slice((page-1)*perPage,page*perPage);
+  const totalPages = Math.ceil(filtered.length / perPage);
+  const paginated = filtered.slice((page - 1) * perPage, page * perPage);
 
-  const updateStatus = async (orderId, newStatus) => {
+  async function callAdmin(path, options) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Your session has expired — please sign in again.");
+    const res = await fetch(path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${session.access_token}`,
+        ...(options?.headers || {}),
+      },
+    });
+    let json;
+    try {
+      json = await res.json();
+    } catch {
+      throw new Error(`Server returned an unreadable response (${res.status})`);
+    }
+    if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+    return json;
+  }
+
+  const updateStatus = async (orderId, newStatus, extra = {}) => {
     setUpdating(orderId);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Your session has expired — please sign in again.");
-      const res = await fetch("/api/admin/orders", {
+      await callAdmin("/api/admin/orders", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ id: orderId, status: newStatus }),
+        body: JSON.stringify({ id: orderId, status: newStatus, ...extra }),
       });
-      let json;
-      try { json = await res.json(); } catch { throw new Error(`Server returned an unreadable response (${res.status})`); }
-      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
-
-      // Only reflected in the UI because the server just confirmed the
-      // database write succeeded — never before that.
-      onUpdateStatus(orderId, newStatus);
-      showToast(newStatus === "Cancelled" ? `Order ${orderId.slice(0,8).toUpperCase()} cancelled` : `Order updated to ${newStatus}`);
+      showToast(newStatus === "Cancelled" ? `Order ${orderId.slice(0, 8).toUpperCase()} cancelled` : `Order updated to ${newStatus}`);
+      await onReload?.();
     } catch (err) {
-      // Order status in the UI is left exactly as it was — no fake success.
       showToast("Failed to update order: " + err.message, "error");
     } finally {
       setUpdating(null);
     }
   };
 
-  const cancelOrder = (orderId) => {
-    setConfirm({ orderId, status:"Cancelled" });
+  const updatePayment = async (orderId, newStatus) => {
+    setUpdating(orderId);
+    try {
+      await callAdmin("/api/admin/orders/payment", {
+        method: "PATCH",
+        body: JSON.stringify({ id: orderId, status: newStatus }),
+      });
+      showToast(`Payment marked ${PAYMENT_LABEL[newStatus]?.toLowerCase() || newStatus}`);
+      await onReload?.();
+    } catch (err) {
+      showToast("Failed to update payment: " + err.message, "error");
+    } finally {
+      setUpdating(null);
+    }
   };
 
-  // Mirrors the transition rules enforced by set_order_status() in Postgres.
-  // Delivered and Cancelled are terminal — no moving back to an earlier state.
-  const nextStatuses = (status) => {
-    if (status === "Processing") return ["Processing", "Shipped", "Cancelled"];
-    if (status === "Shipped") return ["Shipped", "Delivered", "Cancelled"];
-    return [status];
+  const toggleSelected = (id) => {
+    setBulkResult(null);
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
+
+  const pageIds = paginated.map((o) => o.id);
+  const allOnPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
+
+  const toggleAllOnPage = () => {
+    setBulkResult(null);
+    setSelected((prev) =>
+      allOnPageSelected ? prev.filter((id) => !pageIds.includes(id)) : Array.from(new Set([...prev, ...pageIds]))
+    );
+  };
+
+  // A batch may only be sent to a status every selected order can reach.
+  const selectedOrders = orders.filter((o) => selected.includes(o.id));
+  const sharedTargets = selectedOrders.length
+    ? Object.keys(STATUS_FLOW).filter((target) =>
+        selectedOrders.every((o) => (STATUS_FLOW[o.status] || []).includes(target))
+      )
+    : [];
+
+  // Derived, not stored: when the selection changes the previously chosen
+  // target may no longer be valid, so fall back without an extra render pass.
+  const effectiveBulkStatus = sharedTargets.includes(bulkStatus)
+    ? bulkStatus
+    : sharedTargets.length === 1
+    ? sharedTargets[0]
+    : "";
+
+  const runBulk = async () => {
+    if (!effectiveBulkStatus || selected.length === 0) return;
+    setBulkBusy(true);
+    setBulkResult(null);
+    try {
+      const json = await callAdmin("/api/admin/orders/bulk", {
+        method: "POST",
+        body: JSON.stringify({
+          ids: selected,
+          status: effectiveBulkStatus,
+          courier: effectiveBulkStatus === "Shipped" ? courier || null : null,
+        }),
+      });
+      setBulkResult(json);
+      const okCount = json.succeeded?.length || 0;
+      const failCount = json.failed?.length || 0;
+      if (failCount === 0) {
+        showToast(`${okCount} order${okCount !== 1 ? "s" : ""} updated to ${effectiveBulkStatus}`);
+        setSelected([]);
+      } else {
+        showToast(`${okCount} updated, ${failCount} failed — see the details below`, "error");
+      }
+      await onReload?.();
+    } catch (err) {
+      showToast("Batch failed: " + err.message, "error");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
   const isTerminal = (status) => status === "Delivered" || status === "Cancelled";
 
   return (
@@ -513,121 +739,323 @@ function OrdersTab({ orders, onUpdateStatus, showToast }) {
         title="Cancel order?"
         message="This will mark the order as cancelled and return the books to stock. Cancelling is final — the order cannot be reopened."
         danger
-        loading={!!confirm && updating===confirm.orderId}
+        loading={!!confirm && updating === confirm.orderId}
         confirmLabel="Cancel Order"
         loadingLabel="Cancelling…"
-        onConfirm={async ()=>{ await updateStatus(confirm.orderId,confirm.status); setConfirm(null); }}
-        onCancel={()=>setConfirm(null)}
+        onConfirm={async () => { await updateStatus(confirm.orderId, "Cancelled"); setConfirm(null); }}
+        onCancel={() => setConfirm(null)}
       />
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <h2 className="text-lg font-bold text-[#1C1917]">Orders</h2>
-          <p className="text-stone-400 text-xs mt-0.5">{orders.length} total · KSh {orders.reduce((s,o)=>s+(o.total||0),0).toLocaleString()} revenue</p>
+          <p className="text-stone-400 text-xs mt-0.5">
+            {orders.length} total · {orders.filter((o) => o.status === "Delivered").length} delivered ·{" "}
+            {orders.filter((o) => o.status !== "Cancelled").reduce((s, o) => s + (o.total || 0), 0).toLocaleString()} KSh ordered
+          </p>
         </div>
         <div className="flex gap-2">
           <div className="relative">
-            <input type="text" value={search} onChange={e=>{setSearch(e.target.value);setPage(1);}} placeholder="Search orders…"
-              className="bg-white border border-stone-200 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1C1917] transition w-56"/>
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              placeholder="Search orders…"
+              className="bg-white border border-stone-200 rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1C1917] transition w-56"
+            />
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
           </div>
         </div>
       </div>
 
-      {/* Status filters */}
       <div className="flex gap-2 flex-wrap mb-4">
-        {["All","Processing","Shipped","Delivered","Cancelled"].map(s=>(
-          <button key={s} onClick={()=>{setStatusFilter(s);setPage(1);}}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${statusFilter===s?"bg-[#1C1917] text-white":"bg-white border border-stone-200 text-stone-600 hover:border-stone-300"}`}>
-            {s} <span className="opacity-60 ml-0.5">({s==="All"?orders.length:orders.filter(o=>o.status===s).length})</span>
+        {["All", "Pending", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"].map((s) => (
+          <button
+            key={s}
+            onClick={() => { setStatusFilter(s); setPage(1); }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+              statusFilter === s ? "bg-[#1C1917] text-white" : "bg-white border border-stone-200 text-stone-600 hover:border-stone-300"
+            }`}
+          >
+            {s} <span className="opacity-60 ml-0.5">({s === "All" ? orders.length : orders.filter((o) => o.status === s).length})</span>
           </button>
         ))}
       </div>
+
+      {selected.length > 0 && (
+        <div className="mb-4 bg-[#1C1917] text-white rounded-2xl p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-sm font-bold">{selected.length} selected</p>
+
+            {sharedTargets.length === 0 ? (
+              <p className="text-xs text-amber-300">
+                These orders have no common next step — narrow the selection.
+              </p>
+            ) : (
+              <>
+                <select
+                  value={effectiveBulkStatus}
+                  onChange={(e) => setBulkStatus(e.target.value)}
+                  className="text-xs bg-white/10 border border-white/20 rounded-lg px-3 py-2 outline-none"
+                >
+                  <option value="" className="text-black">Choose status…</option>
+                  {sharedTargets.map((s) => (
+                    <option key={s} value={s} className="text-black">{s}</option>
+                  ))}
+                </select>
+
+                {effectiveBulkStatus === "Shipped" && (
+                  <input
+                    value={courier}
+                    onChange={(e) => setCourier(e.target.value)}
+                    placeholder="Courier (optional)"
+                    maxLength={80}
+                    className="text-xs bg-white/10 border border-white/20 rounded-lg px-3 py-2 outline-none placeholder:text-white/40 w-40"
+                  />
+                )}
+
+                <button
+                  onClick={runBulk}
+                  disabled={bulkBusy || !effectiveBulkStatus}
+                  className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-[#1C1917] text-xs font-bold px-4 py-2 rounded-lg transition"
+                >
+                  {bulkBusy ? "Applying…" : `Apply to ${selected.length}`}
+                </button>
+              </>
+            )}
+
+            <button
+              onClick={() => { setSelected([]); setBulkResult(null); }}
+              className="text-xs text-white/60 hover:text-white underline ml-auto"
+            >
+              Clear
+            </button>
+          </div>
+
+          {bulkResult && (
+            <div className="mt-3 text-xs space-y-1">
+              <p className="text-green-300">
+                {bulkResult.succeeded?.length || 0} of {bulkResult.requested} updated.
+              </p>
+              {(bulkResult.failed || []).map((f) => (
+                <p key={f.id} className="text-red-300">
+                  {String(f.id).slice(0, 8).toUpperCase()} — {f.reason}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 border-b border-stone-100">
-              <tr>{["","Order ID","Customer","Address","Books","Total","Payment","Status","Date","Actions"].map(h=>(
-                <th key={h} className="text-left px-3 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
-              ))}</tr>
+              <tr>
+                <th className="px-3 py-3 w-8">
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onChange={toggleAllOnPage}
+                    aria-label="Select all orders on this page"
+                    className="rounded border-stone-300"
+                  />
+                </th>
+                {["", "Order ID", "Customer", "Address", "Books", "Total", "Payment", "Fulfilment", "Date", "Actions"].map((h) => (
+                  <th key={h} className="text-left px-3 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
             </thead>
             <tbody className="divide-y divide-stone-50">
-              {paginated.map(o=>(
-                <Fragment key={o.id}>
-                  <tr className="hover:bg-stone-50/50 transition-colors">
-                    <td className="px-3 py-3">
-                      <button onClick={()=>setExpanded(expanded===o.id?null:o.id)} className="text-stone-400 hover:text-[#1C1917] transition">
-                        <svg className={`w-4 h-4 transition-transform ${expanded===o.id?"rotate-90":""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
-                      </button>
-                    </td>
-                    <td className="px-3 py-3 font-mono text-xs text-[#991B1B]">{o.id.slice(0,8).toUpperCase()}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-2">
-                        <Avatar name={`${o.delivery_details?.firstName||""} ${o.delivery_details?.lastName||""}`} email="" size="sm"/>
-                        <div>
-                          <p className="text-xs font-semibold text-[#1C1917]">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
-                          <p className="text-[10px] text-stone-400">{o.delivery_details?.phone}</p>
-                          <p className="text-[10px] text-stone-400">{o.delivery_details?.email}</p>
+              {paginated.map((o) => {
+                const payFlow = PAYMENT_FLOW[o.payment_status] || [];
+                return (
+                  <Fragment key={o.id}>
+                    <tr className={`transition-colors ${selected.includes(o.id) ? "bg-amber-50/50" : "hover:bg-stone-50/50"}`}>
+                      <td className="px-3 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selected.includes(o.id)}
+                          onChange={() => toggleSelected(o.id)}
+                          aria-label={`Select order ${o.id.slice(0, 8)}`}
+                          className="rounded border-stone-300"
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <button onClick={() => setExpanded(expanded === o.id ? null : o.id)} className="text-stone-400 hover:text-[#1C1917] transition" aria-label="Toggle order details">
+                          <svg className={`w-4 h-4 transition-transform ${expanded === o.id ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </td>
+                      <td className="px-3 py-3 font-mono text-xs text-[#991B1B]">{o.id.slice(0, 8).toUpperCase()}</td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-2">
+                          <Avatar name={`${o.delivery_details?.firstName || ""} ${o.delivery_details?.lastName || ""}`} email="" size="sm" />
+                          <div>
+                            <p className="text-xs font-semibold text-[#1C1917]">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
+                            <p className="text-[10px] text-stone-400">{o.delivery_details?.phone}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-3 py-3">
-                      <p className="text-xs text-stone-600 max-w-[120px] truncate">{o.delivery_details?.address}</p>
-                      <p className="text-[10px] text-stone-400">{o.delivery_details?.city}</p>
-                    </td>
-                    <td className="px-3 py-3 text-xs text-stone-500">{(o.items||[]).length} book{(o.items||[]).length!==1?"s":""}</td>
-                    <td className="px-3 py-3 text-xs font-bold text-[#1C1917]">KSh {(o.total||0).toLocaleString()}</td>
-                    <td className="px-3 py-3 text-xs text-stone-500">{o.payment_method}</td>
-                    <td className="px-3 py-3"><Badge status={o.status}/></td>
-                    <td className="px-3 py-3 text-[10px] text-stone-400 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex items-center gap-1">
-                        <select value={o.status} onChange={e=>updateStatus(o.id,e.target.value)} disabled={updating===o.id || isTerminal(o.status)}
-                          title={isTerminal(o.status) ? "Delivered and cancelled orders are final" : "Change order status"}
-                          className="text-xs bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 outline-none focus:border-[#991B1B] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
-                          {nextStatuses(o.status).map(s=><option key={s}>{s}</option>)}
-                        </select>
-                        {!isTerminal(o.status) && <button onClick={()=>cancelOrder(o.id)} className="p-1 text-stone-400 hover:text-red-600 transition" title="Cancel order">
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
-                        </button>}
-                      </div>
-                    </td>
-                  </tr>
-                  {expanded===o.id&&(
-                    <tr key={`${o.id}-exp`}>
-                      <td colSpan={10} className="px-5 py-4 bg-stone-50 border-t border-stone-100">
-                        <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-3">Order items</p>
-                        <div className="grid sm:grid-cols-2 gap-2">
-                          {(o.items||[]).map((item,i)=>(
-                            <div key={i} className="bg-white rounded-xl border border-stone-100 px-4 py-3 flex items-center justify-between">
-                              <div>
-                                <p className="text-xs font-semibold text-[#1C1917]">{item.title}</p>
-                                <p className="text-[10px] text-stone-400">{item.author} · Qty {item.quantity||1}</p>
-                              </div>
-                              <p className="text-xs font-bold text-[#1C1917]">KSh {(item.price*(item.quantity||1)).toLocaleString()}</p>
-                            </div>
-                          ))}
+                      </td>
+                      <td className="px-3 py-3">
+                        <p className="text-xs text-stone-600 max-w-[120px] truncate">{o.delivery_details?.address}</p>
+                        <p className="text-[10px] text-stone-400">{o.delivery_details?.city}</p>
+                      </td>
+                      <td className="px-3 py-3 text-xs text-stone-500">{(o.items || []).length} book{(o.items || []).length !== 1 ? "s" : ""}</td>
+                      <td className="px-3 py-3 text-xs font-bold text-[#1C1917]">KSh {(o.total || 0).toLocaleString()}</td>
+                      <td className="px-3 py-3">
+                        <p className={`text-[10px] font-semibold ${o.payment_status === "paid" ? "text-green-600" : o.payment_status === "failed" ? "text-red-600" : o.payment_status === "refunded" ? "text-purple-600" : "text-amber-600"}`}>
+                          {PAYMENT_LABEL[o.payment_status] || o.payment_status}
+                        </p>
+                        <p className="text-[10px] text-stone-400">{o.payment_method}</p>
+                      </td>
+                      <td className="px-3 py-3"><Badge status={o.status} /></td>
+                      <td className="px-3 py-3 text-[10px] text-stone-400 whitespace-nowrap">
+                        {new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "2-digit" })}
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex items-center gap-1">
+                          <select
+                            value={o.status}
+                            onChange={(e) => updateStatus(o.id, e.target.value, e.target.value === "Shipped" && courier ? { courier } : {})}
+                            disabled={updating === o.id || isTerminal(o.status)}
+                            title={isTerminal(o.status) ? "Delivered and cancelled orders are final" : "Change fulfilment status"}
+                            className="text-xs bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 outline-none focus:border-[#991B1B] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                          >
+                            <option value={o.status}>{o.status}</option>
+                            {(STATUS_FLOW[o.status] || []).map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
                         </div>
-                        {o.payment_ref&&<p className="text-[10px] text-stone-500 mt-3">M-Pesa receipt: <span className="font-mono font-bold">{o.payment_ref}</span></p>}
                       </td>
                     </tr>
-                  )}
-                </Fragment>
-              ))}
-              {paginated.length===0&&<tr><td colSpan={10} className="px-4 py-12 text-center"><div className="text-3xl mb-2">📦</div><p className="text-stone-400 text-sm">No orders found</p></td></tr>}
+
+                    {expanded === o.id && (
+                      <tr key={`${o.id}-exp`}>
+                        <td colSpan={11} className="px-5 py-5 bg-stone-50 border-t border-stone-100">
+                          <div className="grid lg:grid-cols-3 gap-5">
+                            <div className="lg:col-span-2">
+                              <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-3">Items</p>
+                              <div className="space-y-2">
+                                {(o.items || []).map((item, i) => {
+                                  const book = bookById.get(String(item.id));
+                                  return (
+                                    <div key={i} className="bg-white rounded-xl border border-stone-100 px-4 py-3 flex items-center gap-3">
+                                      <div className="w-10 h-14 rounded-md bg-stone-100 overflow-hidden flex-shrink-0">
+                                        {book?.cover_url && (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img src={book.cover_url} alt="" className="w-full h-full object-cover" />
+                                        )}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-semibold text-[#1C1917] truncate">{item.title}</p>
+                                        <p className="text-[10px] text-stone-400">
+                                          {item.author} · Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}
+                                        </p>
+                                      </div>
+                                      <p className="text-xs font-bold text-[#1C1917]">
+                                        KSh {((item.price || 0) * (item.quantity || 1)).toLocaleString()}
+                                      </p>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              <div className="mt-4 grid sm:grid-cols-2 gap-3 text-xs">
+                                <div className="bg-white rounded-xl border border-stone-100 p-4">
+                                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">Delivery</p>
+                                  <p className="text-stone-700 font-semibold">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
+                                  <p className="text-stone-500">{o.delivery_details?.phone}</p>
+                                  <p className="text-stone-500">{o.delivery_details?.address}</p>
+                                  <p className="text-stone-500">{o.delivery_details?.city}</p>
+                                  {(o.delivery_details?.instructions || o.delivery_details?.notes) && (
+                                    <p className="text-stone-500 mt-1 italic">
+                                      “{o.delivery_details.instructions || o.delivery_details.notes}”
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="bg-white rounded-xl border border-stone-100 p-4">
+                                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">Money & dispatch</p>
+                                  <p className="text-stone-500">Subtotal: <span className="font-semibold text-[#1C1917]">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
+                                  <p className="text-stone-500">Delivery: <span className="font-semibold text-[#1C1917]">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
+                                  <p className="text-stone-500">Total: <span className="font-bold text-[#1C1917]">KSh {(o.total ?? 0).toLocaleString()}</span></p>
+                                  {o.payment_ref && <p className="text-stone-500 mt-1">Receipt: <span className="font-mono font-bold">{o.payment_ref}</span></p>}
+                                  {o.courier && <p className="text-stone-500 mt-1">Courier: {o.courier}</p>}
+                                  {o.tracking_ref && <p className="text-stone-500">Tracking: <span className="font-mono">{o.tracking_ref}</span></p>}
+                                  {o.dispatched_at && <p className="text-stone-400 mt-1 text-[10px]">Dispatched {new Date(o.dispatched_at).toLocaleString("en-KE")}</p>}
+                                  {o.delivered_at && <p className="text-stone-400 text-[10px]">Delivered {new Date(o.delivered_at).toLocaleString("en-KE")}</p>}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div>
+                              <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-3">Payment</p>
+                              <div className="bg-white rounded-xl border border-stone-100 p-4">
+                                <p className="text-sm font-bold text-[#1C1917]">{PAYMENT_LABEL[o.payment_status] || o.payment_status}</p>
+                                <p className="text-[10px] text-stone-400 mt-0.5">via {o.payment_method}</p>
+
+                                {payFlow.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1.5 mt-3">
+                                    {payFlow.map((s) => (
+                                      <button
+                                        key={s}
+                                        disabled={updating === o.id}
+                                        onClick={() => updatePayment(o.id, s)}
+                                        className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-stone-200 hover:border-stone-300 hover:bg-stone-50 disabled:opacity-40 transition"
+                                      >
+                                        {s === "paid" ? "Mark paid" : s === "failed" ? "Mark failed" : s === "refund_pending" ? "Start refund" : s === "refunded" ? "Mark refunded" : "Reset to unpaid"}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <p className="text-[10px] text-stone-400 mt-3">No further payment changes.</p>
+                                )}
+                                <p className="text-[10px] text-stone-400 mt-3 pt-2 border-t border-stone-100">
+                                  A COD order stays unpaid until the courier collects the cash.
+                                </p>
+                              </div>
+
+                              {!isTerminal(o.status) && (
+                                <button
+                                  onClick={() => setConfirm({ orderId: o.id })}
+                                  className="w-full mt-3 text-xs font-bold text-red-600 border border-red-200 rounded-xl py-2 hover:bg-red-50 transition"
+                                >
+                                  Cancel this order
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+              {paginated.length === 0 && (
+                <tr>
+                  <td colSpan={11} className="px-4 py-12 text-center">
+                    <div className="text-3xl mb-2">📦</div>
+                    <p className="text-stone-400 text-sm">No orders found</p>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-        {totalPages>1&&(
+
+        {totalPages > 1 && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-stone-100">
-            <p className="text-xs text-stone-400">Showing {(page-1)*perPage+1}–{Math.min(page*perPage,filtered.length)} of {filtered.length}</p>
+            <p className="text-xs text-stone-400">
+              Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length}
+            </p>
             <div className="flex gap-1">
-              <button onClick={()=>setPage(p=>Math.max(1,p-1))} disabled={page===1} className="px-3 py-1.5 text-xs border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-50">Prev</button>
-              {[...Array(totalPages)].map((_,i)=>(
-                <button key={i} onClick={()=>setPage(i+1)} className={`w-7 h-7 text-xs rounded-lg border transition ${page===i+1?"bg-[#1C1917] text-white border-[#1C1917]":"border-stone-200 hover:bg-stone-50"}`}>{i+1}</button>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 text-xs border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-50">Prev</button>
+              {[...Array(totalPages)].map((_, i) => (
+                <button key={i} onClick={() => setPage(i + 1)} className={`w-7 h-7 text-xs rounded-lg border transition ${page === i + 1 ? "bg-[#1C1917] text-white border-[#1C1917]" : "border-stone-200 hover:bg-stone-50"}`}>{i + 1}</button>
               ))}
-              <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages} className="px-3 py-1.5 text-xs border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-50">Next</button>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 text-xs border border-stone-200 rounded-lg disabled:opacity-40 hover:bg-stone-50">Next</button>
             </div>
           </div>
         )}
@@ -996,65 +1424,134 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
 // ─────────────────────────────────────────────────────────
 // INVENTORY TAB — fast stock adjustments + low-stock triage
 // ─────────────────────────────────────────────────────────
-function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast, jumpToBook }) {
+function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [adjusting, setAdjusting] = useState(null);
-  const [exactInputs, setExactInputs] = useState({});
+  const [modal, setModal] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [history, setHistory] = useState(null);
 
-  const categories = ["All", ...Array.from(new Set(books.map(b=>b.category)))];
-  const active = books.filter(b=>!b.is_archived);
+  const categories = ["All", ...Array.from(new Set(books.map((b) => b.category)))];
+  const active = books.filter((b) => !b.is_archived);
 
-  const withStatus = (b) => b.stock_quantity<=0 ? "Out of Stock" : b.stock_quantity<=(b.low_stock_threshold||5) ? "Low Stock" : "In Stock";
+  const withStatus = (b) =>
+    (b.stock_quantity ?? 0) <= 0
+      ? "Out of Stock"
+      : (b.stock_quantity ?? 0) <= (b.low_stock_threshold || 5)
+      ? "Low Stock"
+      : "In Stock";
 
-  const filtered = active.filter(b=>{
-    const matchesSearch = !search || b.title.toLowerCase().includes(search.toLowerCase()) || b.author.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = categoryFilter==="All" || b.category===categoryFilter;
-    const matchesStatus = statusFilter==="All" || withStatus(b)===statusFilter;
+  const filtered = active.filter((b) => {
+    const matchesSearch =
+      !search ||
+      b.title.toLowerCase().includes(search.toLowerCase()) ||
+      b.author.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = categoryFilter === "All" || b.category === categoryFilter;
+    const matchesStatus = statusFilter === "All" || withStatus(b) === statusFilter;
     return matchesSearch && matchesCategory && matchesStatus;
   });
 
-  const outOfStock = active.filter(b=>b.stock_quantity<=0);
-  const lowStock = active.filter(b=>b.stock_quantity>0 && b.stock_quantity<=(b.low_stock_threshold||5));
+  const outOfStock = active.filter((b) => (b.stock_quantity ?? 0) <= 0);
+  const lowStock = active.filter(
+    (b) => (b.stock_quantity ?? 0) > 0 && (b.stock_quantity ?? 0) <= (b.low_stock_threshold || 5)
+  );
 
-  async function adjustStock(book, newQty) {
-    const safeQty = Math.max(0, Math.round(newQty));
-    setAdjusting(book.id);
+  async function callAdmin(path, options) {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("Your session has expired — please sign in again.");
+    const res = await fetch(path, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        authorization: `Bearer ${session.access_token}`,
+        ...(options?.headers || {}),
+      },
+    });
+    let json;
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error("Your session has expired — please sign in again.");
-      const res = await fetch("/api/admin/books", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json", authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ id: book.id, stock_quantity: safeQty }),
+      json = await res.json();
+    } catch {
+      throw new Error(`Server returned an unreadable response (${res.status})`);
+    }
+    if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+    return json;
+  }
+
+  const openAdjust = (book) => {
+    setModal({
+      book,
+      quantity: String(book.stock_quantity ?? 0),
+      reason: "restock",
+      note: "",
+    });
+  };
+
+  const submitAdjust = async () => {
+    if (!modal) return;
+    const qty = Number(modal.quantity);
+    if (!Number.isInteger(qty) || qty < 0) {
+      showToast("Quantity must be a whole number, 0 or more", "error");
+      return;
+    }
+    if (modal.note.trim().length < 3) {
+      showToast("Add a short note explaining the change", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      await callAdmin("/api/admin/inventory", {
+        method: "POST",
+        body: JSON.stringify({
+          book_id: modal.book.id,
+          quantity: qty,
+          reason: modal.reason,
+          note: modal.note.trim(),
+        }),
       });
-      let json;
-      try { json = await res.json(); } catch { throw new Error(`Server returned an unreadable response (${res.status})`); }
-      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
-      showToast(`${book.title}: stock set to ${safeQty}`);
+      showToast(`${modal.book.title}: stock set to ${qty}`);
+      setModal(null);
       await reloadBooks();
+      if (history?.book?.id === modal.book.id) openHistory(modal.book);
     } catch (err) {
-      showToast("Stock update failed: "+err.message, "error");
+      showToast("Stock update failed: " + err.message, "error");
     } finally {
-      setAdjusting(null);
+      setBusy(false);
+    }
+  };
+
+  async function openHistory(book) {
+    setHistory({ book, rows: [], loading: true });
+    try {
+      const json = await callAdmin(`/api/admin/inventory?book_id=${book.id}`, { method: "GET" });
+      setHistory({ book, rows: json.movements || [], loading: false });
+    } catch (err) {
+      setHistory({ book, rows: [], loading: false, error: err.message });
     }
   }
 
+  const REASONS = [
+    { id: "restock", label: "Restock — new copies received" },
+    { id: "correction", label: "Correction — stock count was wrong" },
+    { id: "damage", label: "Damage — copies written off" },
+    { id: "return", label: "Return — customer sent books back" },
+    { id: "manual_adjustment", label: "Other adjustment" },
+  ];
+
   return (
     <div>
-      {(outOfStock.length>0 || lowStock.length>0) && (
+      {(outOfStock.length > 0 || lowStock.length > 0) && (
         <div className="grid sm:grid-cols-2 gap-3 mb-5">
-          {lowStock.length>0 && (
-            <button onClick={()=>{ setStatusFilter("Low Stock"); }} className="text-left bg-amber-50 border border-amber-200 rounded-2xl p-4 hover:bg-amber-100 transition">
-              <p className="font-bold text-amber-800 text-sm">⚠️ {lowStock.length} book{lowStock.length!==1?"s":""} running low on stock</p>
+          {lowStock.length > 0 && (
+            <button onClick={() => setStatusFilter("Low Stock")} className="text-left bg-amber-50 border border-amber-200 rounded-2xl p-4 hover:bg-amber-100 transition">
+              <p className="font-bold text-amber-800 text-sm">⚠️ {lowStock.length} book{lowStock.length !== 1 ? "s" : ""} running low on stock</p>
               <p className="text-amber-600 text-xs mt-0.5">Click to view them</p>
             </button>
           )}
-          {outOfStock.length>0 && (
-            <button onClick={()=>{ setStatusFilter("Out of Stock"); }} className="text-left bg-red-50 border border-red-200 rounded-2xl p-4 hover:bg-red-100 transition">
-              <p className="font-bold text-red-800 text-sm">🚫 {outOfStock.length} book{outOfStock.length!==1?"s":""} out of stock</p>
-              <p className="text-red-600 text-xs mt-0.5">Click to view them</p>
+          {outOfStock.length > 0 && (
+            <button onClick={() => setStatusFilter("Out of Stock")} className="text-left bg-red-50 border border-red-200 rounded-2xl p-4 hover:bg-red-100 transition">
+              <p className="font-bold text-red-800 text-sm">🚫 {outOfStock.length} book{outOfStock.length !== 1 ? "s" : ""} out of stock</p>
+              <p className="text-red-600 text-xs mt-0.5">Customers cannot buy these</p>
             </button>
           )}
         </div>
@@ -1063,22 +1560,41 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast, 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <h2 className="text-lg font-bold text-[#1C1917]">Inventory</h2>
-          <p className="text-stone-400 text-xs mt-0.5">{active.length} active titles</p>
+          <p className="text-stone-400 text-xs mt-0.5">{active.length} active titles · every change is recorded</p>
         </div>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
-          <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search inventory…"
-            className="w-full bg-white border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#991B1B] transition"/>
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search inventory…"
+            className="w-full bg-white border border-stone-200 rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#991B1B] transition"
+          />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
         </div>
-        <select value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)} className="bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] transition">
-          {categories.map(c=><option key={c}>{c}</option>)}
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="bg-white border border-stone-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#991B1B] transition"
+        >
+          {categories.map((c) => <option key={c}>{c}</option>)}
         </select>
         <div className="flex gap-2">
-          {["All","In Stock","Low Stock","Out of Stock"].map(s=>(
-            <button key={s} onClick={()=>setStatusFilter(s)} className={`px-3 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap ${statusFilter===s?"bg-[#1C1917] text-white":"bg-white border border-stone-200 text-stone-600"}`}>{s}</button>
+          {["All", "In Stock", "Low Stock", "Out of Stock"].map((s) => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap ${
+                statusFilter === s ? "bg-[#1C1917] text-white" : "bg-white border border-stone-200 text-stone-600"
+              }`}
+            >
+              {s}
+            </button>
           ))}
         </div>
       </div>
@@ -1091,20 +1607,22 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast, 
           <button onClick={onRetry} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition">Retry</button>
         </div>
       ) : loading ? (
-        <div className="space-y-2">{[...Array(5)].map((_,i)=><Skeleton key={i} className="h-14"/>)}</div>
+        <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
       ) : (
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
-                <tr>{["Book","Category","In stock","Status","Last updated","Adjust"].map(h=>(
-                  <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                ))}</tr>
+                <tr>
+                  {["Book", "Category", "In stock", "Threshold", "Status", "Last updated", "Adjust", ""].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
-                {filtered.map(book=>{
+                {filtered.map((book) => {
                   const status = withStatus(book);
-                  const statusColor = status==="Out of Stock"?"text-red-600":status==="Low Stock"?"text-amber-600":"text-green-600";
+                  const statusColor = status === "Out of Stock" ? "text-red-600" : status === "Low Stock" ? "text-amber-600" : "text-green-600";
                   return (
                     <tr key={book.id} className="hover:bg-stone-50/50 transition-colors">
                       <td className="px-4 py-3">
@@ -1113,24 +1631,152 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast, 
                       </td>
                       <td className="px-4 py-3 text-xs text-stone-500">{book.category}</td>
                       <td className="px-4 py-3 font-bold text-[#1C1917] text-sm">{book.stock_quantity ?? 0}</td>
+                      <td className="px-4 py-3 text-xs text-stone-500">{book.low_stock_threshold ?? 5}</td>
                       <td className="px-4 py-3"><span className={`text-xs font-semibold ${statusColor}`}>{status}</span></td>
-                      <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{book.updated_at ? new Date(book.updated_at).toLocaleDateString("en-KE",{day:"numeric",month:"short"}) : "—"}</td>
+                      <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">
+                        {book.updated_at ? new Date(book.updated_at).toLocaleDateString("en-KE", { day: "numeric", month: "short" }) : "—"}
+                      </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
-                          <button disabled={adjusting===book.id || book.stock_quantity<=0} onClick={()=>adjustStock(book, book.stock_quantity-1)} className="w-7 h-7 rounded-lg border border-stone-200 hover:bg-stone-50 disabled:opacity-30 font-bold text-sm">−</button>
-                          <input type="number" defaultValue={book.stock_quantity ?? 0}
-                            onChange={e=>setExactInputs(p=>({...p,[book.id]:e.target.value}))}
-                            onBlur={()=>{ const v=exactInputs[book.id]; if(v!==undefined && Number(v)!==book.stock_quantity) adjustStock(book, Number(v)); }}
-                            className="w-14 text-center bg-stone-50 border border-stone-200 rounded-lg py-1 text-sm outline-none focus:border-[#991B1B]"/>
-                          <button disabled={adjusting===book.id} onClick={()=>adjustStock(book, book.stock_quantity+1)} className="w-7 h-7 rounded-lg border border-stone-200 hover:bg-stone-50 font-bold text-sm">+</button>
-                        </div>
+                        <button
+                          onClick={() => openAdjust(book)}
+                          className="text-xs font-semibold border border-stone-200 rounded-lg px-3 py-1.5 hover:border-stone-300 hover:bg-stone-50 transition"
+                        >
+                          Adjust
+                        </button>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          onClick={() => openHistory(book)}
+                          className="text-xs font-semibold text-[#991B1B] hover:underline whitespace-nowrap"
+                        >
+                          History
+                        </button>
                       </td>
                     </tr>
                   );
                 })}
-                {filtered.length===0&&<tr><td colSpan={6} className="px-4 py-12 text-center"><div className="text-3xl mb-2">🏪</div><p className="text-stone-400 text-sm">No books match these filters</p></td></tr>}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="px-4 py-12 text-center">
+                      <div className="text-3xl mb-2">🏪</div>
+                      <p className="text-stone-400 text-sm">No books match these filters</p>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Adjust modal */}
+      {modal && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6">
+            <h3 className="font-black text-[#1C1917]">Adjust stock</h3>
+            <p className="text-xs text-stone-400 mt-0.5 mb-4">{modal.book.title}</p>
+
+            <label className="block text-xs font-semibold text-stone-600 mb-1" htmlFor="inv-qty">
+              New stock level (currently {modal.book.stock_quantity ?? 0})
+            </label>
+            <input
+              id="inv-qty"
+              type="number"
+              min="0"
+              value={modal.quantity}
+              onChange={(e) => setModal({ ...modal, quantity: e.target.value })}
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#991B1B] mb-3"
+            />
+
+            <label className="block text-xs font-semibold text-stone-600 mb-1" htmlFor="inv-reason">Reason</label>
+            <select
+              id="inv-reason"
+              value={modal.reason}
+              onChange={(e) => setModal({ ...modal, reason: e.target.value })}
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#991B1B] mb-3"
+            >
+              {REASONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+            </select>
+
+            <label className="block text-xs font-semibold text-stone-600 mb-1" htmlFor="inv-note">
+              Note (required — visible in the history)
+            </label>
+            <textarea
+              id="inv-note"
+              rows={3}
+              maxLength={300}
+              value={modal.note}
+              onChange={(e) => setModal({ ...modal, note: e.target.value })}
+              placeholder="e.g. Received 20 copies from supplier, invoice #4471"
+              className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3 py-2 text-sm outline-none focus:border-[#991B1B] mb-4 resize-none"
+            />
+
+            <div className="flex gap-2">
+              <button onClick={() => setModal(null)} className="flex-1 border border-stone-200 rounded-xl py-2.5 text-sm font-bold text-stone-600 hover:bg-stone-50 transition">
+                Cancel
+              </button>
+              <button onClick={submitAdjust} disabled={busy} className="flex-1 bg-[#1C1917] hover:bg-[#991B1B] disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-bold transition">
+                {busy ? "Saving…" : "Save change"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Movement history */}
+      {history && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="bg-white rounded-2xl w-full max-w-2xl p-6 max-h-[85vh] flex flex-col">
+            <div className="flex items-start justify-between mb-3">
+              <div>
+                <h3 className="font-black text-[#1C1917]">Stock history</h3>
+                <p className="text-xs text-stone-400 mt-0.5">{history.book.title}</p>
+              </div>
+              <button onClick={() => setHistory(null)} className="text-stone-400 hover:text-[#1C1917] text-xl leading-none" aria-label="Close">×</button>
+            </div>
+
+            <div className="overflow-y-auto -mx-2 px-2">
+              {history.loading ? (
+                <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
+              ) : history.error ? (
+                <p className="text-xs text-red-600">{history.error}</p>
+              ) : history.rows.length === 0 ? (
+                <p className="text-xs text-stone-400 text-center py-8">
+                  No movements recorded yet. Changes made from now on will appear here.
+                </p>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-stone-400 text-[10px] uppercase tracking-wider">
+                      <th className="text-left py-2">When</th>
+                      <th className="text-left py-2">Change</th>
+                      <th className="text-left py-2">Result</th>
+                      <th className="text-left py-2">Reason</th>
+                      <th className="text-left py-2">Note / who</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100">
+                    {history.rows.map((m) => (
+                      <tr key={m.id}>
+                        <td className="py-2 text-stone-400 whitespace-nowrap">
+                          {new Date(m.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td className={`py-2 font-bold ${m.delta > 0 ? "text-green-600" : "text-red-600"}`}>
+                          {m.delta > 0 ? "+" : ""}{m.delta}
+                        </td>
+                        <td className="py-2 text-stone-600">{m.quantity_before} → {m.quantity_after}</td>
+                        <td className="py-2 text-stone-600 capitalize">{String(m.reason).replace(/_/g, " ")}</td>
+                        <td className="py-2 text-stone-500">
+                          {m.note || "—"}
+                          {m.admin_email && <span className="block text-[10px] text-stone-400">{m.admin_email}</span>}
+                          {m.order_id && <span className="block text-[10px] text-stone-400 font-mono">order {String(m.order_id).slice(0, 8)}</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -1415,6 +2061,161 @@ function PlaceholderTab({ icon, title, description }) {
 // ─────────────────────────────────────────────────────────
 // MAIN CLIENT COMPONENT
 // ─────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────
+// EMAIL / NOTIFICATIONS TAB
+// ─────────────────────────────────────────────────────────
+function NotificationsTab({ showToast }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+      const res = await fetch("/api/admin/emails", {
+        headers: { authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      let json;
+      try { json = await res.json(); } catch { throw new Error(`Server returned an unreadable response (${res.status})`); }
+      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+      setData(json);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load(); }, [load]);
+
+  const dispatch = async () => {
+    setBusy(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+      const res = await fetch("/api/admin/emails", {
+        method: "POST",
+        headers: { authorization: `Bearer ${session.access_token}` },
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Dispatch failed");
+      const r = json.result || {};
+      if (r.reason) showToast(r.reason, "error");
+      else showToast(`Checked ${r.checked ?? 0} · sent ${r.sent ?? 0} · failed ${r.failed ?? 0}`);
+      await load();
+    } catch (err) {
+      showToast("Dispatch failed: " + err.message, "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const tone = {
+    sent: "text-green-600",
+    queued: "text-amber-600",
+    failed: "text-red-600",
+    skipped: "text-stone-500",
+  };
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div>
+          <h2 className="text-lg font-bold text-[#1C1917]">Customer emails</h2>
+          <p className="text-stone-400 text-xs mt-0.5">
+            Queued in the same transaction as the order, so nothing is lost if the mail provider is down.
+          </p>
+        </div>
+        <button
+          onClick={dispatch}
+          disabled={busy}
+          className="bg-[#1C1917] hover:bg-[#991B1B] disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold transition"
+        >
+          {busy ? "Sending…" : "Retry pending"}
+        </button>
+      </div>
+
+      {loading && !data ? (
+        <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
+          <p className="text-red-800 text-sm font-semibold mb-1">Could not load the email queue</p>
+          <p className="text-red-600 text-xs mb-3">{error}</p>
+          <button onClick={load} className="bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold">Retry</button>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+            {["queued", "sent", "failed", "skipped"].map((k) => (
+              <div key={k} className="bg-white border border-stone-200 rounded-2xl p-4">
+                <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{k}</p>
+                <p className={`text-2xl font-black ${tone[k]}`}>{data?.summary?.[k] ?? 0}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-stone-50 border-b border-stone-100">
+                  <tr>
+                    {["Queued", "To", "Email", "Order", "Status", "Detail"].map((h) => (
+                      <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-stone-50">
+                  {(data?.emails || []).map((m) => (
+                    <tr key={m.id} className="hover:bg-stone-50/50">
+                      <td className="px-4 py-3 text-[10px] text-stone-400 whitespace-nowrap">
+                        {new Date(m.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-stone-600">{m.to_email || "—"}</td>
+                      <td className="px-4 py-3 text-xs text-stone-600">{String(m.template).replace(/_/g, " ")}</td>
+                      <td className="px-4 py-3 font-mono text-[10px] text-stone-400">{m.order_id ? String(m.order_id).slice(0, 8).toUpperCase() : "—"}</td>
+                      <td className={`px-4 py-3 text-xs font-semibold ${tone[m.status] || ""}`}>{m.status}</td>
+                      <td className="px-4 py-3 text-[10px] text-stone-500 max-w-[280px] truncate" title={m.last_error || ""}>
+                        {m.last_error || (m.attempts ? `${m.attempts} attempt${m.attempts !== 1 ? "s" : ""}` : "—")}
+                      </td>
+                    </tr>
+                  ))}
+                  {(data?.emails || []).length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-12 text-center">
+                        <div className="text-3xl mb-2">✉️</div>
+                        <p className="text-stone-400 text-sm">No emails queued yet</p>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// Rolling ranges for the dashboard. Recomputed on each fetch so "today"
+// really means today, not the moment the page was opened.
+function rangeBounds(range) {
+  const to = new Date();
+  const from = new Date(to);
+  if (range === "today") from.setHours(0, 0, 0, 0);
+  else if (range === "7d") from.setDate(from.getDate() - 7);
+  else if (range === "90d") from.setDate(from.getDate() - 90);
+  else from.setDate(from.getDate() - 30);
+  return { from, to };
+}
+
 export default function AdminClient({ initialOrders, initialUsers, initialBooksCount, sessionUser, canMutate = true }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
@@ -1431,6 +2232,10 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   // Server already verified admin access in page.js — start as true
   const [verified, setVerified] = useState(true);
   const [toasts, setToasts] = useState([]);
+  const [metrics, setMetrics] = useState(null);
+  const [metricsLoading, setMetricsLoading] = useState(true);
+  const [metricsError, setMetricsError] = useState(null);
+  const [range, setRange] = useState("30d");
 
   // Guards against an older, slower request overwriting a newer one's
   // result if the admin reloads quickly (e.g. Save → immediate manual
@@ -1477,6 +2282,75 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadBooks(); }, [loadBooks]);
 
+  const loadOrders = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const res = await fetch("/api/admin/orders", {
+        headers: { authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      if (!res.ok) return;
+      const json = await res.json();
+      if (Array.isArray(json.orders)) setOrders(json.orders);
+    } catch {
+      // Keep the orders already on screen — a failed refresh must not blank
+      // the table or pretend the orders disappeared.
+    }
+  }, []);
+
+  const loadMetrics = useCallback(async () => {
+    setMetricsLoading(true);
+    setMetricsError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+      const { from, to } = rangeBounds(range);
+      const res = await fetch(
+        `/api/admin/metrics?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`,
+        { headers: { authorization: `Bearer ${session.access_token}` }, cache: "no-store" }
+      );
+      let json;
+      try { json = await res.json(); } catch { throw new Error(`Server returned an unreadable response (${res.status})`); }
+      if (!res.ok) throw new Error(json?.error || `Failed to load metrics (${res.status})`);
+      setMetrics(json.metrics);
+    } catch (err) {
+      setMetricsError(err.message || "Failed to load metrics");
+    } finally {
+      setMetricsLoading(false);
+    }
+  }, [range]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadMetrics(); }, [loadMetrics]);
+
+  // Realtime: the dashboard follows the database instead of requiring a
+  // refresh. Events are coalesced because one order write can produce several
+  // (order row + stock rows), and the refetch is authoritative — the event
+  // payload is never used to patch state directly.
+  useEffect(() => {
+    let timer = null;
+    const refresh = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        loadOrders();
+        loadBooks();
+        loadMetrics();
+      }, 400);
+    };
+
+    const channel = supabase
+      .channel("admin-dashboard-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "books" }, refresh)
+      .subscribe();
+
+    return () => {
+      clearTimeout(timer);
+      supabase.removeChannel(channel);
+    };
+  }, [loadOrders, loadBooks, loadMetrics]);
+
   // The full user list (with real emails, via the Auth Admin API) is
   // expensive, so it's fetched once, lazily, the first time the admin
   // actually opens Users or Customers — not on every dashboard load.
@@ -1522,16 +2396,12 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
     }).catch(()=>{}); // Never block the UI on this
   },[router]);
 
-  const handleUpdateStatus = useCallback((orderId, newStatus)=>{
-    setOrders(prev=>prev.map(o=>o.id===orderId?{...o,status:newStatus}:o));
-  },[]);
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/");
   };
 
-  const processingCount = orders.filter(o=>o.status==="Processing").length;
+  const processingCount = orders.filter(o=>o.status==="Pending"||o.status==="Processing").length;
 
   if (!verified) return (
     <div className="min-h-screen bg-stone-50 flex items-center justify-center">
@@ -1565,13 +2435,14 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
               </div>
             </div>
           )}
-          {activeTab==="overview"&&<OverviewTab orders={orders} users={users} books={books} loading={booksLoading} onNavigate={setActiveTab}/>}
-          {activeTab==="orders"&&<OrdersTab orders={orders} onUpdateStatus={handleUpdateStatus} showToast={showToast}/>}
+          {activeTab==="overview"&&<OverviewTab metrics={metrics} loading={metricsLoading} error={metricsError} range={range} setRange={setRange} onRetry={loadMetrics} onNavigate={setActiveTab}/>}
+          {activeTab==="orders"&&<OrdersTab orders={orders} books={books} onReload={loadOrders} showToast={showToast}/>}
           {activeTab==="books"&&<BooksTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}
           {activeTab==="customers"&&<CustomersTab users={users} orders={orders}/>}
           {activeTab==="payments"&&<PlaceholderTab icon="💳" title="Payments" description="View M-Pesa transactions, card payments, refund history, and payout reports."/>}
           {activeTab==="reports"&&<PlaceholderTab icon="📈" title="Reports" description="Generate sales, inventory, customer, and revenue reports. Export as CSV or PDF."/>}
           {activeTab==="inventory"&&<InventoryTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}
+          {activeTab==="notifications"&&<NotificationsTab showToast={showToast}/>}
           {activeTab==="reviews"&&<PlaceholderTab icon="⭐" title="Reviews" description="Manage customer reviews and ratings for all books."/>}
           {activeTab==="coupons"&&<PlaceholderTab icon="🏷️" title="Coupons" description="Create and manage discount codes and promotional offers."/>}
           {activeTab==="users"&&<UsersTab users={users} orders={orders} session={sessionUser} showToast={showToast}/>}

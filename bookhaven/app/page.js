@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "./lib/supabase";
+import { useLiveBooks } from "./lib/useLiveBooks";
 import { BookCover } from "./components/BookCard";
 import BookDetailPage from "./components/BookCard";
 import { useStore, StoreHeader, StoreFooter, categoryIcons, categories, CartDrawer } from "./components/StoreShell";
@@ -342,11 +343,18 @@ export default function Home() {
   const [books, setBooks] = useState([]);
   const [booksLoading, setBooksLoading] = useState(true);
 
-  useEffect(() => {
-    supabase.from("books").select("*").eq("is_archived", false).order("id")
-      .then(({ data }) => { setBooks(data || []); setBooksLoading(false); })
-      .catch(() => setBooksLoading(false));
+  const loadBooks = useCallback(async () => {
+    try {
+      const { data } = await supabase.from("books").select("*").eq("is_archived", false).order("id");
+      setBooks(data || []);
+    } finally {
+      setBooksLoading(false);
+    }
   }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadBooks(); }, [loadBooks]);
+  useLiveBooks(loadBooks);
 
   return (
     <main className="min-h-screen bg-[#FAF8F5]">

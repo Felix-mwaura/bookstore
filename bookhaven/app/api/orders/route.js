@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { clientForToken, bearerToken, serviceClient } from "../../lib/server";
+import { queueEmailDispatch } from "../../lib/email-dispatch";
 
 // GET /api/orders — the signed-in customer's own orders (RLS-enforced)
 export async function GET(request) {
@@ -211,6 +212,10 @@ export async function POST(request) {
       { status: 500 }
     );
   }
+
+  // The confirmation email is already queued in the same transaction that
+  // created the order. This only starts delivery; it cannot fail the order.
+  queueEmailDispatch();
 
   return NextResponse.json({ order: data });
 }

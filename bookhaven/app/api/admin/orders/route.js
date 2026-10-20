@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
+import { queueEmailDispatch } from "../../../lib/email-dispatch";
 
-const ALLOWED_STATUSES = ["Processing", "Shipped", "Delivered", "Cancelled"];
+const ALLOWED_STATUSES = ["Pending", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"];
 
 // GET /api/admin/orders — fetch ALL orders (admin only)
 export async function GET(request) {
@@ -45,7 +46,7 @@ export async function PATCH(request) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { id, status } = body;
+  const { id, status, courier, tracking_ref: trackingRef } = body;
   if (!id || typeof id !== "string") {
     return NextResponse.json({ error: "Order id is required" }, { status: 400 });
   }
@@ -56,11 +57,20 @@ export async function PATCH(request) {
     );
   }
 
+  if (courier != null && (typeof courier !== "string" || courier.length > 80)) {
+    return NextResponse.json({ error: "Invalid courier name" }, { status: 400 });
+  }
+  if (trackingRef != null && (typeof trackingRef !== "string" || trackingRef.length > 120)) {
+    return NextResponse.json({ error: "Invalid tracking reference" }, { status: 400 });
+  }
+
   const { data, error } = await adminClient.rpc("set_order_status", {
     p_order_id: id,
     p_new_status: status,
     p_admin_id: user.id,
     p_admin_email: user.email,
+    p_courier: courier || null,
+    p_tracking_ref: trackingRef || null,
   });
 
   if (error) {
@@ -85,10 +95,34 @@ export async function PATCH(request) {
     if (msg.includes("INVALID_STATUS")) {
       return NextResponse.json({ error: "Invalid order status" }, { status: 400 });
     }
+    if (msg.startsWith("PAYMENT_NOT_CLEARED")) {
+      return NextResponse.json(
+        {
+          error:
+            "This order has not been paid for. Confirm the payment before dispatching it.",
+          code: "PAYMENT_NOT_CLEARED",
+        },
+        { status: 409 }
+      );
+    }
+    if (msg.includes("PAYMENT_FAILED")) {
+      return NextResponse.json(
+        {
+          error:
+            "The payment for this order failed. Resolve the payment before dispatching it.",
+          code: "PAYMENT_FAILED",
+        },
+        { status: 409 }
+      );
+    }
 
     console.error("PATCH /api/admin/orders:", msg);
     return NextResponse.json({ error: "Could not update the order" }, { status: 500 });
   }
+
+  // The confirmation email was queued inside the same transaction; this only
+  // nudges delivery along. A failure here leaves the row queued.
+  queueEmailDispatch();
 
   return NextResponse.json({ order: data });
 }

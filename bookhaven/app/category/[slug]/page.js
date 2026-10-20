@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { use } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { supabase } from "../../lib/supabase";
+import { useLiveBooks } from "../../lib/useLiveBooks";
 import { BookCover } from "../../components/BookCard";
 import BookDetailPage from "../../components/BookCard";
 import FilterPanel from "../../components/FilterPanel";
@@ -100,11 +101,18 @@ export default function CategoryPage({ params }) {
   // price/stock edits and cover images never appeared on category pages).
   const [books, setBooks] = useState([]);
   const [booksLoading, setBooksLoading] = useState(true);
-  useEffect(() => {
-    supabase.from("books").select("*").eq("is_archived", false).order("id")
-      .then(({ data }) => { setBooks(data || []); setBooksLoading(false); })
-      .catch(() => setBooksLoading(false));
+  const loadBooks = useCallback(async () => {
+    try {
+      const { data } = await supabase.from("books").select("*").eq("is_archived", false).order("id");
+      setBooks(data || []);
+    } finally {
+      setBooksLoading(false);
+    }
   }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadBooks(); }, [loadBooks]);
+  useLiveBooks(loadBooks);
   const colors = categoryColors[category] || { bg: "#1C1917", accent: "#991B1B" };
 
   const [sortBy, setSortBy] = useState("popular");

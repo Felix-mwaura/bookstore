@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect, Suspense } from "react";
+import { useState, useMemo, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "../lib/supabase";
+import { useLiveBooks } from "../lib/useLiveBooks";
 import { BookCover } from "../components/BookCard";
 import BookDetailPage from "../components/BookCard";
 import FilterPanel from "../components/FilterPanel";
@@ -80,12 +81,19 @@ function BooksInner() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [filters, setFilters] = useState({ priceMax: 2500, formats: [], minRating: null, onSaleOnly: false });
 
-  // Load books from Supabase
-  useEffect(() => {
-    supabase.from("books").select("*").order("id")
-      .then(({ data }) => { setBooks(data || []); setBooksLoading(false); })
-      .catch(() => setBooksLoading(false));
+  const loadBooks = useCallback(async () => {
+    try {
+      const { data } = await supabase.from("books").select("*").order("id");
+      setBooks(data || []);
+    } finally {
+      setBooksLoading(false);
+    }
   }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { loadBooks(); }, [loadBooks]);
+  // Admin edits (price, stock, new titles) appear without a refresh.
+  useLiveBooks(loadBooks);
 
   const updateFilter = (key, val) => setFilters((p) => ({ ...p, [key]: val }));
   const resetFilters = () => setFilters({ priceMax: 2500, formats: [], minRating: null, onSaleOnly: false });
