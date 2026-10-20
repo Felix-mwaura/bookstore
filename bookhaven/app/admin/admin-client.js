@@ -1991,7 +1991,7 @@ function CustomersTab({ users, orders }) {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-5">
+      <div className="grid gap-3 mb-5 sm:grid-cols-3 sm:gap-4">
         <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 text-center">
           <p className="text-2xl font-black text-[#1B2A4A]">{users.length}</p>
           <p className="text-xs text-stone-400 mt-0.5">Total users</p>
@@ -2621,9 +2621,12 @@ function NotificationsTab({ showToast }) {
               <table className="w-full text-sm">
                 <thead className="bg-stone-50 border-b border-stone-100">
                   <tr>
-                    {["Queued", "To", "Email", "Order", "Status", "Detail"].map((h) => (
-                      <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                    ))}
+                    <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">Queued</th>
+                    <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">To</th>
+                    <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Email</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Order</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Status</th>
+                    <th className="hidden sm:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Detail</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-50">
@@ -2632,11 +2635,11 @@ function NotificationsTab({ showToast }) {
                       <td className="px-4 py-3 text-[10px] text-stone-400 whitespace-nowrap">
                         {new Date(m.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </td>
-                      <td className="px-4 py-3 text-xs text-stone-600">{m.to_email || "—"}</td>
-                      <td className="px-4 py-3 text-xs text-stone-600">{String(m.template).replace(/_/g, " ")}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-600">{m.to_email || "—"}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-600">{String(m.template).replace(/_/g, " ")}</td>
                       <td className="px-4 py-3 font-mono text-[10px] text-stone-400">{m.order_id ? String(m.order_id).slice(0, 8).toUpperCase() : "—"}</td>
                       <td className={`px-4 py-3 text-xs font-semibold ${tone[m.status] || ""}`}>{m.status}</td>
-                      <td className="px-4 py-3 text-[10px] text-stone-500 max-w-[280px] truncate" title={m.last_error || ""}>
+                      <td className="hidden sm:table-cell px-4 py-3 text-[10px] text-stone-500 max-w-[280px] truncate" title={m.last_error || ""}>
                         {m.last_error || (m.attempts ? `${m.attempts} attempt${m.attempts !== 1 ? "s" : ""}` : "—")}
                       </td>
                     </tr>

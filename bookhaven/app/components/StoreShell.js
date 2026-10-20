@@ -168,8 +168,7 @@ export function StoreFooter() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2">
-              <span className="text-xl" aria-hidden="true">📚</span>
+            <Link href="/" className="inline-flex items-center">
               <span className="font-playfair text-lg font-bold text-white">Book Haven</span>
             </Link>
             <p className="mt-3 text-sm leading-relaxed text-cream/70">
