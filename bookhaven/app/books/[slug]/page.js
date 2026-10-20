@@ -132,8 +132,10 @@ export default async function BookPage({ params }) {
         <div className="grid gap-8 md:grid-cols-[300px_minmax(0,1fr)] lg:gap-14">
           {/* Cover — pinned on desktop so it stays beside the details. */}
           <div className="md:sticky md:top-24 md:self-start">
-            <div className="mx-auto md:mx-0 w-full max-w-[240px] sm:max-w-[300px] rounded-r-md overflow-hidden book-shadow">
-              <BookCover book={book} className="w-full" sizes="(min-width: 768px) 300px, 60vw" priority />
+            <div className="scene mx-auto md:mx-0 w-full max-w-[240px] sm:max-w-[300px]">
+              <div className="book-3d hover-3d overflow-hidden rounded-r-md book-shadow">
+                <BookCover book={book} className="w-full" sizes="(min-width: 768px) 300px, 60vw" priority />
+              </div>
             </div>
             <p className="mt-3 text-center md:text-left text-xs text-muted">
               {book.format || "Paperback"}

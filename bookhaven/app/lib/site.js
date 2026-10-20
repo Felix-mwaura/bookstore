@@ -39,3 +39,26 @@ export function absoluteUrl(path = "/") {
 export function formatKsh(value) {
   return `KSh ${Number(value || 0).toLocaleString("en-KE")}`;
 }
+
+/**
+ * The number alone, shortened once a price gets long.
+ *
+ * Product cards at 320px are about 145px wide and also carry a sold-out
+ * badge and an add button, so five-digit prices used to wrap or squeeze the
+ * layout. Under 10,000 the grouped number is short enough and is shown in
+ * full ("1,500"); above that one decimal keeps it honest and compact
+ * ("12.5K", "1.2M"). The card renders "KSh" as a small label beside this, and
+ * the full value goes in the price's accessible name.
+ */
+export function compactKshNumber(value) {
+  const n = Math.max(0, Number(value) || 0);
+  const trim = (num) => num.toFixed(1).replace(/\.0$/, "");
+  if (n >= 1_000_000) return `${trim(n / 1_000_000)}M`;
+  if (n >= 10_000) return `${trim(n / 1000)}K`;
+  return n.toLocaleString("en-KE");
+}
+
+/** Compact price for tight spaces; still a complete sentence for assistive tech. */
+export function formatKshCompact(value) {
+  return `KSh ${compactKshNumber(value)}`;
+}

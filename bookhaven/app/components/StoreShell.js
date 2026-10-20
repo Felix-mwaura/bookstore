@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import Link from "next/link";
 
 import { BookCover } from "./BookCover";
@@ -8,6 +8,7 @@ import { bookPath } from "../lib/book-url";
 import { FREE_DELIVERY_THRESHOLD, formatKsh } from "../lib/site";
 import { useDialog } from "../lib/useDialog";
 import { STORE_CONTACT } from "../lib/site";
+import { StoreContext, useStore, useStoreState } from "../lib/store-state";
 
 // The header and the category list live in their own modules now. These
 // re-exports keep the existing page imports working unchanged.
@@ -216,109 +217,15 @@ export function StoreFooter() {
   );
 }
 
-// ── useStore hook ───────────────────────────────────────
-export function useStore() {
-  const [cart, setCart] = useState([]);
-  const [wishlist, setWishlist] = useState([]);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isWishlistOpen, setIsWishlistOpen] = useState(false);
-  const [toast, setToast] = useState(null);
-
-  useEffect(() => {
-    try {
-      const c = localStorage.getItem("bh_cart");
-      const w = localStorage.getItem("bh_wishlist");
-      // Browser-only state restored after mount so the server-rendered
-      // HTML and the first client render stay identical.
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only state restored after mount
-      if (c) setCart(JSON.parse(c));
-      if (w) setWishlist(JSON.parse(w));
-    } catch {}
-  }, []);
-
-  useEffect(() => { localStorage.setItem("bh_cart", JSON.stringify(cart)); }, [cart]);
-  useEffect(() => { localStorage.setItem("bh_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
-
-  // Keeps every mounted copy of the cart in step. The server-rendered book
-  // page writes to the same localStorage key from a separate client island,
-  // so a cart change there has to reach the header badge and drawer here.
-  useEffect(() => {
-    const reload = (e) => {
-      if (e && e.detail && e.detail.source === "self") return;
-      try {
-        const c = localStorage.getItem("bh_cart");
-        const w = localStorage.getItem("bh_wishlist");
-        if (c) setCart(JSON.parse(c));
-        if (w) setWishlist(JSON.parse(w));
-      } catch {}
-    };
-    window.addEventListener("bh:cart-changed", reload);
-    return () => window.removeEventListener("bh:cart-changed", reload);
-  }, []);
-
-  const capFor = (book) => {
-    // stock_quantity is the real number; fall back to +Infinity for older
-    // cart rows saved before the field existed so nothing is silently zeroed.
-    const q = Number(book?.stock_quantity);
-    return Number.isFinite(q) && q >= 0 ? q : Infinity;
-  };
-
-  const addToCart = (book) => {
-    const cap = capFor(book);
-    if (cap <= 0) {
-      showToast(`"${book.title}" is out of stock`);
-      return;
-    }
-    let capped = false;
-    setCart((prev) => {
-      const exists = prev.find((i) => i.id === book.id);
-      if (exists) {
-        if (exists.quantity >= cap) { capped = true; return prev; }
-        return prev.map((i) => i.id === book.id ? { ...i, quantity: i.quantity + 1, stock_quantity: book.stock_quantity } : i);
-      }
-      return [...prev, { ...book, quantity: 1 }];
-    });
-    showToast(capped ? `Only ${cap} of "${book.title}" in stock` : `"${book.title}" added to basket`);
-  };
-
-  const removeFromCart = (id) => setCart((prev) => prev.filter((i) => i.id !== id));
-
-  const updateQty = (id, delta) => setCart((prev) => prev.map((i) => {
-    if (i.id !== id) return i;
-    const cap = capFor(i);
-    const next = Math.min(cap, Math.max(0, i.quantity + delta));
-    return { ...i, quantity: next };
-  }).filter((i) => i.quantity > 0));
-
-  // Absolute quantity, used by the checkout review where a customer types it.
-  const setQty = (id, value) => setCart((prev) => prev.map((i) => {
-    if (i.id !== id) return i;
-    const cap = capFor(i);
-    const next = Math.min(cap, Math.max(0, Math.floor(Number(value) || 0)));
-    return { ...i, quantity: next };
-  }).filter((i) => i.quantity > 0));
-
-  const toggleWishlist = (book) => {
-    setWishlist((prev) => {
-      const exists = prev.some((b) => b.id === book.id);
-      showToast(exists ? "Removed from wishlist" : "Added to wishlist ♡");
-      return exists ? prev.filter((b) => b.id !== book.id) : [...prev, book];
-    });
-  };
-
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
-  const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
-
-  // Anything that removes every line item has effectively emptied the basket;
-  // the checkout page relies on this to stop showing a stale review.
-  return {
-    cart, wishlist, isCartOpen, isWishlistOpen, toast,
-    setIsCartOpen, setIsWishlistOpen,
-    addToCart, removeFromCart, updateQty, setQty, toggleWishlist, cartTotal, cartCount,
-  };
+// ── the basket, shared by every island on the page ─────
+//
+// The state itself lives in app/lib/store-state.js (no JSX, so it can be
+// tested directly). This component is the one place it is mounted.
+export function StoreProvider({ children }) {
+  const store = useStoreState();
+  return <StoreContext.Provider value={store}>{children}</StoreContext.Provider>;
 }
+
+// Re-exported so the existing `import { useStore } from "./StoreShell"`
+// call sites keep working.
+export { useStore };

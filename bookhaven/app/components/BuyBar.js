@@ -3,51 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useStore } from "./StoreShell";
+import { capFor, quantityOf } from "../lib/cart";
 import { formatKsh } from "../lib/site";
 import { stockState } from "../lib/stock";
 
 // Cart controls for the server-rendered book page.
 //
 // The page itself is a server component (so it can be crawled and linked),
-// but the basket lives in localStorage. This island writes the same
-// `bh_cart` key the rest of the store uses and broadcasts a change event so
-// the header badge and drawer update immediately instead of after a reload.
-function readCart() {
-  try {
-    const raw = localStorage.getItem("bh_cart");
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeCart(cart) {
-  try {
-    localStorage.setItem("bh_cart", JSON.stringify(cart));
-    window.dispatchEvent(new CustomEvent("bh:cart-changed", { detail: { source: "book-page" } }));
-  } catch {}
-}
-
-function readWishlist() {
-  try {
-    const raw = localStorage.getItem("bh_wishlist");
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
+// but the basket lives in the StoreProvider mounted in app/layout.js. This
+// island used to write `bh_cart` itself, which meant its own copy of the
+// stock rules and no toast or drawer update when it added something. It now
+// goes through the same store as every card on the site.
 
 export default function BuyBar({ book }) {
   const router = useRouter();
   const [quantity, setQuantity] = useState(1);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const [wishlisted, setWishlisted] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return readWishlist().some((item) => item.id === book.id);
-  });
+  const store = useStore();
+  const wishlisted = store.wishlist.some((item) => item.id === book.id);
 
-  const stock = Number(book.stock_quantity ?? 0);
+  const stock = capFor(book);
   const outOfStock = stock <= 0;
   const capped = quantity >= stock;
   const label = stockState(book).label;
@@ -67,43 +44,38 @@ export default function BuyBar({ book }) {
 
   const add = (thenCheckout) => {
     if (outOfStock) return;
-    const cart = readCart();
-    const existing = cart.find((item) => item.id === book.id);
-    const already = existing?.quantity ?? 0;
 
-    if (already + quantity > stock) {
-      const room = Math.max(0, stock - already);
+    // Room left on the shelf, once whatever is already in the basket is
+    // counted. The store enforces this too; checking here lets the page say
+    // exactly how many more fit instead of silently adding fewer.
+    const inBasket = quantityOf(store.cart, book.id);
+    const room = Math.max(0, stock - inBasket);
+
+    if (room === 0) {
       setError(
-        room === 0
-          ? `All ${stock} available ${stock === 1 ? "copy is" : "copies are"} already in your basket.`
-          : `You can add ${room} more ${room === 1 ? "copy" : "copies"} — that is all we have.`
+        `All ${stock} available ${stock === 1 ? "copy is" : "copies are"} already in your basket.`
       );
       return;
     }
 
-    const next = existing
-      ? cart.map((item) =>
-          item.id === book.id
-            ? { ...item, quantity: item.quantity + quantity, stock_quantity: stock }
-            : item
-        )
-      : [...cart, { ...book, quantity }];
+    const toAdd = Math.min(quantity, room);
+    store.addToCart(book, toAdd, { silent: true });
 
-    writeCart(next);
-    setNotice(`Added ${quantity} ${quantity === 1 ? "copy" : "copies"} to your basket.`);
-    setError("");
+    setNotice(
+      toAdd === 1
+        ? "Added 1 copy to your basket."
+        : `Added ${toAdd} copies to your basket.`
+    );
+    setError(
+      toAdd < quantity
+        ? `Only ${toAdd} more ${toAdd === 1 ? "copy fits" : "copies fit"} in your basket — that is all we have.`
+        : ""
+    );
     if (thenCheckout) router.push("/checkout");
   };
 
   const toggleWishlist = () => {
-    try {
-      const list = readWishlist();
-      const exists = list.some((item) => item.id === book.id);
-      const next = exists ? list.filter((item) => item.id !== book.id) : [...list, book];
-      localStorage.setItem("bh_wishlist", JSON.stringify(next));
-      window.dispatchEvent(new CustomEvent("bh:cart-changed", { detail: { source: "book-page" } }));
-      setWishlisted(!exists);
-    } catch {}
+    store.toggleWishlist(book);
   };
 
   return (

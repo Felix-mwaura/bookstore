@@ -123,7 +123,7 @@ function Skeleton({ className="" }) {
 
 function StatCard({ icon, label, value, delta, deltaUp, sub, accent }) {
   return (
-    <div className={`rounded-2xl border p-5 flex flex-col gap-3 ${accent?"bg-[#1B2A4A] border-[#1B2A4A]":"bg-white border-[#E3DCCB] hover:shadow-sm transition-shadow"}`}>
+    <div className={`tilt-card rounded-2xl border p-5 flex flex-col gap-3 ${accent?"bg-[#1B2A4A] border-[#1B2A4A]":"bg-white border-[#E3DCCB] hover:shadow-sm transition-shadow"}`}>
       <div className="flex items-start justify-between">
         <div>
           <p className={`text-xs font-bold uppercase tracking-widest ${accent?"text-stone-400":"text-stone-400"}`}>{label}</p>
@@ -187,7 +187,7 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
     <aside className={`hidden lg:flex flex-col border-r border-line bg-white transition-all duration-200 flex-shrink-0 ${collapsed?"w-[56px]":"w-[240px]"}`}>
       {/* Logo */}
       <div className="h-14 flex items-center gap-2.5 px-3.5 border-b border-[#E3DCCB] flex-shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-navy flex items-center justify-center flex-shrink-0">
+        <div className="book-badge-3d w-7 h-7 rounded-lg bg-navy flex items-center justify-center flex-shrink-0 shadow-sm">
           <span className="font-playfair text-sm font-bold text-white">B</span>
         </div>
         {!collapsed && <span className="font-black text-sm text-[#1B2A4A] tracking-tight whitespace-nowrap">Book Haven</span>}
@@ -364,7 +364,7 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="stat-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         <StatCard
           icon="💰"
           label="Net revenue"
