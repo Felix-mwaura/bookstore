@@ -28,8 +28,16 @@ function Badge({ status }) {
     "Only 1 left":"bg-orange-50 text-orange-700 border border-orange-200",
     "Pre-order":"bg-blue-50 text-blue-700 border border-blue-200",
   };
+  // The label carries the meaning; the mark and the colour only reinforce it.
+  const marks = {
+    Processing: "•", Pending: "•", Shipped: "→", Delivered: "✓", Cancelled: "×",
+    Paid: "✓", Refunded: "↺", Failed: "!", Active: "✓", Suspended: "!",
+    admin: "★", customer: "•", "In Stock": "✓", "Out of Stock": "×",
+    "Only 3 left": "•", "Only 1 left": "•", "Pre-order": "•",
+  };
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${map[status]||"bg-stone-50 text-stone-600 border border-[#E3DCCB]"}`}>
+    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${map[status]||"bg-subtle text-muted border border-line"}`}>
+      <span aria-hidden="true" className="text-[11px] leading-none">{marks[status] || "•"}</span>
       {status}
     </span>
   );
@@ -148,11 +156,11 @@ const NAV = [
 
 function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
   return (
-    <aside className={`flex flex-col border-r border-[#E3DCCB] bg-white transition-all duration-200 flex-shrink-0 ${collapsed?"w-[56px]":"w-[220px]"}`}>
+    <aside className={`flex flex-col border-r border-[#E3DCCB] bg-white transition-all duration-200 flex-shrink-0 ${collapsed?"w-[56px]":"w-[240px]"}`}>
       {/* Logo */}
       <div className="h-14 flex items-center gap-2.5 px-3.5 border-b border-[#E3DCCB] flex-shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-[#1B2A4A] flex items-center justify-center flex-shrink-0">
-          <span className="text-sm">📚</span>
+        <div className="w-7 h-7 rounded-lg bg-navy flex items-center justify-center flex-shrink-0">
+          <span className="font-playfair text-sm font-bold text-white">B</span>
         </div>
         {!collapsed && <span className="font-black text-sm text-[#1B2A4A] tracking-tight whitespace-nowrap">Book Haven</span>}
       </div>

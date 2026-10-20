@@ -154,7 +154,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
     e?.preventDefault();
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
-    if (category !== "All") params.set("category", categorySlug(category));
+    if (category !== "All") params.set("category", category);
     router.push(`/books${params.toString() ? `?${params}` : ""}`);
     setSearchOpen(false);
     setMenuOpen(false);
@@ -225,7 +225,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
   return (
     <>
       <div className="bg-navy text-cream/90 text-center py-1.5 text-xs sm:text-[13px] px-4">
-        Free delivery on orders over KSh 3,000 · KSh 300 flat rate below that
+        Free delivery on orders of KSh 3,000 and above · KSh 300 flat rate below that
       </div>
 
       <header className="sticky top-0 z-40 bg-cream/95 backdrop-blur border-b border-line">
@@ -244,7 +244,6 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
             </button>
 
             <Link href="/" className="flex items-center gap-2 flex-shrink-0" aria-label="Book Haven home">
-              <span className="text-xl sm:text-2xl" aria-hidden="true">📚</span>
               <span className="font-playfair text-lg sm:text-xl font-bold text-navy leading-none">Book Haven</span>
             </Link>
 
