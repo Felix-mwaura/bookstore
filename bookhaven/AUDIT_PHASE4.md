@@ -194,7 +194,8 @@ D1–D7 were changed and built, and the public-facing ones were re-fetched from 
 | Admin below `lg` | ⚠️ code-level only |
 | `scripts/smoke.mjs` (local production build) | ✅ 24 passed, 9 skipped (privileged routes need the service key) |
 | `scripts/agent-smoke.mjs` | ✅ 6 turns passed |
-| `POST /api/admin/agent` unauthenticated | ✅ 401/403 on the deployed build |
+| `GET /api/admin/agent` unauthenticated (production) | ✅ `{"error":"Not signed in"}` |
+| `GET /api/admin/metrics` unauthenticated (production) | ✅ `{"error":"Not signed in"}` |
 | Assistant answered by a real model | ⚠️ not run — no API key in this environment |
 
 **Failures encountered and fixed during the pass:** none in production. One regression risk was found and corrected before deploy (the basket could flash "empty" before `localStorage` finished loading — now gated on `cartReady`).
@@ -206,7 +207,7 @@ D1–D7 were changed and built, and the public-facing ones were re-fetched from 
 1. `npm run agent:smoke` — 6 turns through the real loop with a scripted provider: metrics, low stock, reference search, town search, `get_order`, argument clamping, unknown-tool rejection and 401 mapping.
 2. `npm run build` — 31 routes compile, including `/api/admin/agent`.
 3. `npm run smoke http://127.0.0.1:3126` — 13 public pages, 2 redirects, 7 headers, 9 admin guards, order API and newsletter validation: **24 passed, 9 skipped** (the skips are the service-role guard on a machine without the key, each correctly naming the missing variable).
-4. Deployed to production, then the same script was pointed at the live host to confirm the guards return 401/403 there rather than the local 500.
+4. After the production deploy, the guarded endpoints were checked individually over HTTPS: `GET /api/admin/agent` → `{"error":"Not signed in"}`, `GET /api/admin/metrics` → the same, and `GET /admin` → `/login?next=%2Fadmin`. The script itself could not be run against the live host from this sandbox because outbound HTTP is restricted to the package registries and GitHub; those three checks were made through the browsing proxy instead.
 5. `npx eslint .` — 0 errors.
 6. Unresolved: no signed-in pass over the assistant panel and no live model answer (no key, no admin session here).
 
