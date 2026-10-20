@@ -1,36 +1,99 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BookHaven
 
-## Getting Started
+Kenyan online bookstore built with Next.js 16 (App Router), React 19, Supabase
+(Postgres, Auth, Storage, Realtime) and Tailwind CSS 4. Payments: M-Pesa STK
+Push and cash on delivery.
 
-First, run the development server:
+## Run locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # fill in the values
+npm run dev                  # http://localhost:3000
+npm run build                # production build
+npx eslint .                 # lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Node 20+ is required.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Where | Purpose |
+| --- | --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | client + server | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | client + server | Public anon key (RLS enforced) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **server only** | Bypasses RLS. Admin reads, order writes, storage cleanup |
+| `ADMIN_EMAIL` | **server only** | Optional owner account that cannot be demoted |
+| `MPESA_CONSUMER_KEY` | **server only** | Daraja app consumer key |
+| `MPESA_CONSUMER_SECRET` | **server only** | Daraja app consumer secret |
+| `MPESA_SHORTCODE` | **server only** | Paybill / till number |
+| `MPESA_PASSKEY` | **server only** | STK push passkey |
+| `MPESA_CALLBACK_URL` | **server only** | Public HTTPS callback URL |
+| `MPESA_ENV` | **server only** | `sandbox` (default) or `production` |
 
-## Learn More
+If the two `NEXT_PUBLIC_*` values are missing, the app falls back to the
+project's public URL and anon key so an existing deployment keeps working.
+Everything else must be configured explicitly; the server refuses to run a
+privileged operation without `SUPABASE_SERVICE_ROLE_KEY` rather than silently
+degrading.
 
-To learn more about Next.js, take a look at the following resources:
+## Database
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The schema lives in Supabase (project `luniopceavtkljywukyi`). Key objects:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `books`, `orders`, `profiles`, `addresses`, `wishlists`, `mpesa_payments`,
+  `admin_activity_log` — all with Row Level Security enabled.
+- `place_order(p_user_id, p_items, p_delivery_details, p_payment_method,
+  p_checkout_request_id, p_idempotency_key)` — service-role only. Locks book
+  rows, validates stock, prices from the catalogue, stores explicit
+  `subtotal` / `delivery_fee` / `cod_fee` / `total`, verifies M-Pesa payments,
+  and is idempotent per `(user_id, idempotency_key)`.
+- `set_order_status(p_order_id, p_new_status, p_admin_id, p_admin_email)` —
+  service-role only. Atomic transition + single restock on cancellation +
+  activity log entry.
+- `quote_cart(p_items)` — server-side price quote used before an STK push.
+- `restock_order`, `book_has_orders` — internal helpers.
+- Storage bucket `book-covers` (public read, 2 MB limit, JPEG/PNG/WebP).
 
-## Deploy on Vercel
+Orders cannot be written directly by any browser role: the `orders` table has
+only SELECT policies. All inserts and status changes go through the functions
+above, called with the service role from `/api/orders` and `/api/admin/orders`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Delivery rule (single source of truth, mirrored in Postgres and the checkout
+UI): free over KSh 3,000, otherwise KSh 300. There is no COD surcharge.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Security model
+
+- Authorization is `profiles.role = 'admin'`, checked server-side by
+  `requireAdmin()` on every `/api/admin/*` route. Hiding a button is never the
+  control; `ADMIN_EMAIL` is only an anti-lockout marker.
+- `proxy.js` (Next 16's replacement for `middleware.js`) gates `/admin`
+  pages; `app/admin/page.js` and each admin API route re-check independently.
+- Row Level Security restricts customers to their own orders, addresses and
+  wishlist entries.
+- The service-role key is only read inside server modules (`app/lib/server.js`,
+  `app/lib/admin-auth.js`) and never with a `NEXT_PUBLIC_` prefix.
+- M-Pesa callback can only *update* a pending payment that the server created
+  before sending the STK prompt; it cannot insert payments and never writes to
+  `orders`.
+
+## Deployment (Vercel)
+
+1. Import the GitHub repository and set the production branch.
+2. Add every variable from `.env.example` under
+   **Settings → Environment Variables** (Production + Preview).
+3. Mark `SUPABASE_SERVICE_ROLE_KEY`, `MPESA_CONSUMER_SECRET` and
+   `MPESA_PASSKEY` as **Sensitive**.
+4. Set `MPESA_CALLBACK_URL` to `https://<your-domain>/api/mpesa/callback` and
+   whitelist that URL in the Daraja portal. Daraja cannot call `localhost`.
+5. Deploy, then sign in as an admin and open `/admin` to confirm the role
+   check passes.
+
+## Known limitations
+
+- Email notifications are not implemented yet (order confirmation, dispatch,
+  etc. are silent). The UI does not claim otherwise.
+- Card payments are not implemented; only M-Pesa and cash on delivery are
+  offered.
+- `app/books.js` contains the original static demo catalogue. Pages read from
+  Supabase; the file is not imported by any route.

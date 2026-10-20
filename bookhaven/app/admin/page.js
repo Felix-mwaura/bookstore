@@ -1,90 +1,87 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
-import { createClient } from "@supabase/supabase-js";
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from "../lib/supabase-config";
 import AdminClient from "./admin-client";
 
 export const dynamic = "force-dynamic";
 
-// Was hardcoded here previously — now required from the environment.
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
-
+// Renders the admin dashboard.
+//
+// Reads run with the ADMIN'S OWN JWT, so Row Level Security decides what is
+// visible and no secret is needed just to open the page. (This used to throw
+// a 500 whenever SUPABASE_SERVICE_ROLE_KEY was absent — which is always the
+// case on preview deployments, where Vercel scopes secrets to production.)
+//
+// The service role is still required for *mutations* (create/edit books,
+// change order status, change roles); those live in /api/admin/* and fail
+// with an explicit message rather than a crash.
 export default async function AdminPage() {
-  if (!ADMIN_EMAIL) {
-    // Fail loudly and specifically rather than silently misbehaving —
-    // this is a deployment/config problem, not a normal access-denied case.
-    throw new Error("Server misconfigured: ADMIN_EMAIL environment variable is not set");
-  }
-
   const cookieStore = await cookies();
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll(); },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            );
-          } catch {}
-        },
+  const supabase = createServerClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
       },
-    }
-  );
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          );
+        } catch {
+          // Called from a Server Component — safe to ignore; proxy.js refreshes.
+        }
+      },
+    },
+  });
 
-  // 1. Not logged in → go to login
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session) redirect("/login");
+  // 1. Must be signed in. getUser() verifies the JWT with the Auth server,
+  //    unlike getSession() which only decodes the cookie.
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) redirect("/login");
 
-  // 2. Wrong email → go to home (not account, so they can't snoop)
-  if (session.user.email !== ADMIN_EMAIL) redirect("/");
-
-  // 3. Must have admin role in DB — this, not the email check above, is
-  // the real authorization gate every mutation ultimately relies on.
+  // 2. Must have role = admin in the database. This is the authorization
+  //    gate — NOT an email comparison.
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
-    .eq("id", session.user.id)
-    .single();
+    .eq("id", user.id)
+    .maybeSingle();
 
-  if (profile?.role !== "admin") redirect("/");
+  if (profile?.role !== "admin") redirect("/access-denied");
 
-  // 4. Service role client — bypasses ALL RLS
-  const admin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
-
-  // These three are fully independent — run them concurrently instead of
-  // one after another. Deliberately NOT included here: auth.admin.listUsers(),
-  // which used to run unconditionally on every single page load just to get
-  // real email addresses. That's now a separate, lazy fetch
-  // (GET /api/admin/users) the client only makes once the Users or
-  // Customers tab is actually opened — the initial dashboard load no
-  // longer waits on it.
+  // 3. Dashboard reads, scoped by RLS to what an admin may see.
   const [ordersResult, profilesResult, booksCountResult] = await Promise.all([
-    admin.from("orders").select("*").order("created_at", { ascending: false }).limit(500),
-    admin.from("profiles").select("*").order("created_at", { ascending: false }),
-    admin.from("books").select("*", { count: "exact", head: true }),
+    supabase
+      .from("orders")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(500),
+    supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+    supabase.from("books").select("*", { count: "exact", head: true }),
   ]);
+
+  const readError =
+    ordersResult.error || profilesResult.error || booksCountResult.error;
+
+  if (readError) {
+    // Surface the real reason instead of a blank "server error" page. This is
+    // a configuration problem (usually a missing RLS policy or env var), not
+    // something the admin can retry their way out of.
+    console.error("Admin dashboard read failed:", readError.message);
+    throw new Error(`Could not load the admin dashboard: ${readError.message}`);
+  }
 
   const ordersData = ordersResult.data || [];
   const profilesData = profilesResult.data || [];
   const booksCount = booksCountResult.count || 0;
 
-  // Initial user list from `profiles` alone — real names/roles/join dates,
-  // but no email yet (email lives only in auth.users, which requires the
-  // costlier Admin API call). The Users/Customers tabs fetch the full,
-  // email-inclusive version themselves on first open.
-  const users = profilesData.map(p => ({
+  const users = profilesData.map((p) => ({
     id: p.id,
     role: p.role,
     created_at: p.created_at,
-    email: "",
+    email: p.email || "",
     first_name: p.first_name || "",
     last_name: p.last_name || "",
     phone: p.phone || "",
@@ -95,7 +92,8 @@ export default async function AdminPage() {
       initialOrders={ordersData}
       initialUsers={users}
       initialBooksCount={booksCount}
-      sessionUser={{ id: session.user.id, email: session.user.email }}
+      sessionUser={{ id: user.id, email: user.email }}
+      canMutate={Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)}
     />
   );
 }

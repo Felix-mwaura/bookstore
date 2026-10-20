@@ -1,12 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { BookCover } from "../components/BookCard";
 import { supabase } from "../lib/supabase";
-function generateOrderId() {
-  return "BH-" + Math.random().toString(36).substring(2, 7).toUpperCase();
-}
 
 function formatPhone(raw) {
   const d = raw.replace(/\D/g, "");
@@ -146,25 +143,58 @@ function StepDetails({ data, onChange, onNext }) {
   );
 }
 
-function MpesaFlow({ phone, total, orderId, onSuccess }) {
+function MpesaFlow({ phone, total, reference, items, onSuccess }) {
   const [stage, setStage] = useState("idle"); // idle | sending | waiting | polling | success | failed | cancelled
   const [mpesaPhone, setMpesaPhone] = useState(phone || "");
   const [phoneError, setPhoneError] = useState("");
   const [countdown, setCountdown] = useState(60);
   const [checkoutRequestId, setCheckoutRequestId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [chargedAmount, setChargedAmount] = useState(total);
   const timerRef = useRef(null);
   const pollRef = useRef(null);
+
+  // Ask the server (which asks Safaricom) whether this payment went through.
+  // Defined before the effects that schedule it so it is never referenced
+  // before it exists.
+  const checkPaymentStatus = useCallback(async () => {
+    if (!checkoutRequestId) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const res = await fetch("/api/mpesa/query", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ checkoutRequestId }),
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (data.success) {
+        clearInterval(timerRef.current);
+        clearInterval(pollRef.current);
+        setStage("success");
+        setTimeout(() => onSuccess("mpesa", checkoutRequestId), 1200);
+      } else if (data.cancelled || data.timedOut) {
+        clearInterval(timerRef.current);
+        clearInterval(pollRef.current);
+        setStage("cancelled");
+      }
+      // Otherwise still pending — the customer may not have entered their
+      // PIN yet, so keep polling until the countdown ends.
+    } catch {}
+  }, [checkoutRequestId, onSuccess]);
 
   // Countdown timer while waiting for user to enter PIN on phone
   useEffect(() => {
     if (stage !== "waiting") return;
-    setCountdown(60);
     timerRef.current = setInterval(() => {
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(timerRef.current);
-          // After countdown, poll once more to check if they paid
           checkPaymentStatus();
           return 0;
         }
@@ -172,38 +202,14 @@ function MpesaFlow({ phone, total, orderId, onSuccess }) {
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
-  }, [stage]);
+  }, [stage, checkPaymentStatus]);
 
   // Poll payment status every 5 seconds while waiting
   useEffect(() => {
     if (stage !== "waiting" || !checkoutRequestId) return;
     pollRef.current = setInterval(() => checkPaymentStatus(), 5000);
     return () => clearInterval(pollRef.current);
-  }, [stage, checkoutRequestId]);
-
-  const checkPaymentStatus = async () => {
-    if (!checkoutRequestId) return;
-    try {
-      const res = await fetch("/api/mpesa/query", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ checkoutRequestId }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        clearInterval(timerRef.current);
-        clearInterval(pollRef.current);
-        setStage("success");
-        setTimeout(() => onSuccess("mpesa"), 1500);
-      } else if (data.cancelled) {
-        clearInterval(timerRef.current);
-        clearInterval(pollRef.current);
-        setStage("cancelled");
-      }
-      // If neither, keep polling — user might still be entering PIN
-    } catch {}
-  };
+  }, [stage, checkoutRequestId, checkPaymentStatus]);
 
   const sendSTK = async () => {
     setPhoneError("");
@@ -212,17 +218,27 @@ function MpesaFlow({ phone, total, orderId, onSuccess }) {
 
     setStage("sending");
     setErrorMsg("");
+    setCountdown(60);
 
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Please sign in again to pay.");
+
       const res = await fetch("/api/mpesa/stk", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: mpesaPhone, amount: total, orderId }),
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${session.access_token}`,
+        },
+        // Only the items and the phone number: the server prices the cart
+        // itself, so the amount cannot be tampered with in the browser.
+        body: JSON.stringify({ phone: mpesaPhone, items }),
       });
       const data = await res.json();
 
       if (data.success) {
         setCheckoutRequestId(data.checkoutRequestId);
+        if (Number.isFinite(data.amount)) setChargedAmount(data.amount);
         setStage("waiting");
       } else {
         setErrorMsg(data.error || "Failed to send M-Pesa request. Please try again.");
@@ -272,7 +288,7 @@ function MpesaFlow({ phone, total, orderId, onSuccess }) {
 
       <div className="bg-stone-50 rounded-xl p-4 flex justify-between items-center">
         <span className="text-stone-500 text-sm">Amount to pay</span>
-        <span className="text-2xl font-black text-[#1C1917]">KSh {total.toLocaleString()}</span>
+        <span className="text-2xl font-black text-[#1C1917]">KSh {chargedAmount.toLocaleString()}</span>
       </div>
 
       <button onClick={sendSTK}
@@ -313,8 +329,8 @@ function MpesaFlow({ phone, total, orderId, onSuccess }) {
           <p className="text-green-100 text-xs">Pay To</p>
           <p className="font-black text-base">BOOK HAVEN KENYA</p>
           <p className="text-green-200 text-xs mt-2">Amount</p>
-          <p className="font-black text-3xl">KSh {total.toLocaleString()}</p>
-          <p className="text-green-300 text-xs mt-2">Ref: {orderId}</p>
+          <p className="font-black text-3xl">KSh {chargedAmount.toLocaleString()}</p>
+          <p className="text-green-300 text-xs mt-2">Ref: {reference}</p>
         </div>
       </div>
 
@@ -385,102 +401,72 @@ function MpesaFlow({ phone, total, orderId, onSuccess }) {
   );
 }
 
-function CardFlow({ total, onSuccess }) {
-  const [form, setForm] = useState({ number: "", name: "", expiry: "", cvv: "" });
-  const [errors, setErrors] = useState({});
-  const [processing, setProcessing] = useState(false);
-  const formatCard = (v) => v.replace(/\D/g, "").slice(0, 16).replace(/(.{4})/g, "$1 ").trim();
-  const formatExpiry = (v) => { const d = v.replace(/\D/g, "").slice(0, 4); return d.length > 2 ? d.slice(0, 2) + "/" + d.slice(2) : d; };
-  const validate = () => {
-    const e = {};
-    if (form.number.replace(/\s/g, "").length < 16) e.number = "Enter a valid 16-digit number";
-    if (!form.name.trim()) e.name = "Name on card required";
-    if (form.expiry.length < 5) e.expiry = "Enter MM/YY";
-    if (form.cvv.length < 3) e.cvv = "Enter 3-digit CVV";
-    return e;
-  };
-  const submit = () => { const e = validate(); if (Object.keys(e).length) { setErrors(e); return; } setProcessing(true); setTimeout(() => { setProcessing(false); onSuccess("card"); }, 3000); };
-  const num = form.number.replace(/\s/g, "");
-  const brand = num.startsWith("4") ? "VISA" : num.startsWith("5") ? "MC" : null;
-  if (processing) return (
-    <div className="text-center py-14 space-y-5">
-      <div className="w-16 h-16 border-4 border-stone-200 border-t-[#991B1B] rounded-full animate-spin mx-auto" />
-      <p className="font-bold text-[#1C1917] text-lg">Processing payment…</p>
-      <p className="text-stone-500 text-sm">Please don't close this page</p>
-    </div>
-  );
-  const InputField = ({ label, name, placeholder }) => (
-    <div>
-      <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">{label}</label>
-      <input value={form[name]} placeholder={placeholder}
-        onChange={(e) => { let v = e.target.value; if (name === "number") v = formatCard(v); if (name === "expiry") v = formatExpiry(v); if (name === "cvv") v = v.replace(/\D/g, "").slice(0, 4); setForm((p) => ({ ...p, [name]: v })); setErrors((p) => ({ ...p, [name]: "" })); }}
-        className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm font-mono outline-none transition focus:bg-white focus:ring-2 focus:ring-[#991B1B]/20 ${errors[name] ? "border-red-400 bg-red-50/50" : "border-stone-200 focus:border-[#991B1B]"}`} />
-      {errors[name] && <p className="text-red-500 text-xs mt-1">{errors[name]}</p>}
-    </div>
-  );
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2 p-4 bg-stone-50 border border-stone-200 rounded-2xl">
-        {["VISA", "MC", "KCB", "EQUITY"].map((b) => <span key={b} className={`px-2 py-1 text-[10px] font-black rounded border shadow-sm transition ${brand === b ? "bg-[#1C1917] text-white border-[#1C1917]" : "bg-white text-stone-500 border-stone-200"}`}>{b}</span>)}
-        <span className="text-xs text-stone-500 ml-1">All major cards accepted</span>
-      </div>
-      <div className="relative"><InputField label="Card Number" name="number" placeholder="1234 5678 9012 3456" />{brand && <span className="absolute right-3 top-8 text-xs font-black text-stone-400 bg-white px-2 py-0.5 rounded border border-stone-200">{brand}</span>}</div>
-      <InputField label="Name on Card" name="name" placeholder="GRACE WAMBUI" />
-      <div className="grid grid-cols-2 gap-4"><InputField label="Expiry" name="expiry" placeholder="MM/YY" /><InputField label="CVV" name="cvv" placeholder="123" /></div>
-      <div className="flex items-start gap-2 text-xs text-stone-500 bg-stone-50 rounded-xl p-3">
-        <svg className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-        Your card details are encrypted with 256-bit SSL and never stored.
-      </div>
-      <button onClick={submit} className="w-full bg-[#1C1917] hover:bg-[#991B1B] text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95">Pay KSh {total.toLocaleString()}</button>
-    </div>
-  );
-}
-
 function CodFlow({ total, onSuccess }) {
   const [agreed, setAgreed] = useState(false);
-  const codTotal = total + 50;
   return (
     <div className="space-y-5">
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
         <div className="flex items-center gap-3 mb-4"><span className="text-3xl">💵</span><div><p className="font-bold text-amber-800">Cash on Delivery</p><p className="text-sm text-amber-700">Pay in cash when your books arrive</p></div></div>
         <ul className="space-y-2.5">
-          {[`Have exact change ready — KSh ${codTotal.toLocaleString()}`, "Our rider will call 30 minutes before arrival", "Available in Nairobi, Mombasa, Kisumu & Nakuru", "A KSh 50 handling fee applies for COD orders"].map((t) => (
+          {[`Have exact change ready — KSh ${total.toLocaleString()}`, "Our rider will call 30 minutes before arrival", "Available in Nairobi, Mombasa, Kisumu & Nakuru"].map((t) => (
             <li key={t} className="flex items-start gap-2 text-sm text-amber-800">
               <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>{t}
             </li>
           ))}
         </ul>
       </div>
-      <div className="bg-stone-50 rounded-xl p-4 space-y-2 text-sm">
-        <div className="flex justify-between"><span className="text-stone-500">Order total</span><span className="font-semibold">KSh {total.toLocaleString()}</span></div>
-        <div className="flex justify-between"><span className="text-stone-500">COD handling fee</span><span className="font-semibold">KSh 50</span></div>
-        <div className="flex justify-between font-bold text-[#1C1917] border-t border-stone-200 pt-2"><span>Pay on delivery</span><span>KSh {codTotal.toLocaleString()}</span></div>
+      <div className="bg-stone-50 rounded-xl p-4 text-sm">
+        <div className="flex justify-between font-bold text-[#1C1917]"><span>Pay on delivery</span><span>KSh {total.toLocaleString()}</span></div>
       </div>
       <label className="flex items-start gap-3 cursor-pointer group">
         <div onClick={() => setAgreed(!agreed)} className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition ${agreed ? "bg-[#1C1917] border-[#1C1917]" : "border-stone-300 group-hover:border-stone-400"}`}>
           {agreed && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
         </div>
-        <span className="text-sm text-stone-600 leading-relaxed">I understand I must pay <strong className="text-[#1C1917]">KSh {codTotal.toLocaleString()}</strong> in cash to the delivery rider.</span>
+        <span className="text-sm text-stone-600 leading-relaxed">I understand I must pay <strong className="text-[#1C1917]">KSh {total.toLocaleString()}</strong> in cash to the delivery rider.</span>
       </label>
       <button onClick={() => agreed && onSuccess("cod")} disabled={!agreed} className="w-full bg-[#1C1917] hover:bg-[#991B1B] disabled:bg-stone-200 disabled:text-stone-400 text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95">Place Order — Pay on Delivery</button>
     </div>
   );
 }
 
-function StepPayment({ details, total, orderId, onSuccess, onBack }) {
+function StepPayment({ details, total, items, reference, canPay, onSuccess, onBack }) {
   const [method, setMethod] = useState("mpesa");
   const delivery = total >= 3000 ? 0 : 300;
   const grand = total + delivery;
   const methods = [
     { id: "mpesa", label: "M-Pesa", sub: "STK Push", icon: "M", color: "bg-green-600" },
-    { id: "card", label: "Card", sub: "Visa / Mastercard", icon: "💳", color: "bg-blue-600" },
     { id: "cod", label: "Cash on Delivery", sub: "Pay on arrival", icon: "💵", color: "bg-amber-500" },
   ];
+
+  // Orders are attached to a verified account server-side, so payment needs
+  // a session. Say so plainly instead of taking money for an unsaved order.
+  if (!canPay) {
+    return (
+      <div className="space-y-5">
+        <h2 className="text-2xl font-bold text-[#1C1917] mb-1">Sign in to complete your order</h2>
+        <p className="text-stone-500 text-sm">
+          Orders are linked to your BookHaven account so you can track them and we can reach
+          you about delivery.
+        </p>
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+          Your basket is saved. Sign in or create an account and you will return straight to checkout.
+        </div>
+        <Link href="/login?next=/checkout" className="block text-center bg-[#1C1917] hover:bg-[#991B1B] text-white py-4 rounded-xl font-bold transition">
+          Sign in to continue
+        </Link>
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-600 transition">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Back to details
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h2 className="text-2xl font-bold text-[#1C1917] mb-1">Payment</h2>
       <p className="text-stone-500 text-sm mb-7">Delivering to <span className="font-semibold text-[#1C1917]">{details.firstName} {details.lastName}</span> · {details.city}</p>
-      <div className="grid grid-cols-3 gap-3 mb-7">
+      <div className="grid grid-cols-2 gap-3 mb-7">
         {methods.map((m) => (
           <button key={m.id} onClick={() => setMethod(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-[#991B1B] bg-[#991B1B]/5" : "border-stone-200 hover:border-stone-300 bg-white"}`}>
             <div className={`w-9 h-9 ${m.color} rounded-lg flex items-center justify-center mx-auto mb-2`}><span className="text-white font-black text-sm">{m.icon}</span></div>
@@ -491,8 +477,7 @@ function StepPayment({ details, total, orderId, onSuccess, onBack }) {
       </div>
       <div className="bg-stone-50/50 rounded-2xl p-1">
         <div className="bg-white rounded-xl p-5 border border-stone-100">
-          {method === "mpesa" && <MpesaFlow phone={details.phone} total={grand} orderId={orderId} onSuccess={onSuccess} />}
-          {method === "card" && <CardFlow total={grand} onSuccess={onSuccess} />}
+          {method === "mpesa" && <MpesaFlow phone={details.phone} total={grand} reference={reference} items={items} onSuccess={onSuccess} />}
           {method === "cod" && <CodFlow total={grand} onSuccess={onSuccess} />}
         </div>
       </div>
@@ -504,40 +489,66 @@ function StepPayment({ details, total, orderId, onSuccess, onBack }) {
   );
 }
 
-function StepConfirmation({ orderId, details, method, cart, total, saveError, stockError }) {
+function StepConfirmation({ order, reference, details, method, cart, total, saveError, stockError, saving, onRetry }) {
   const delivery = total >= 3000 ? 0 : 300;
-  const grand = total + delivery + (method === "cod" ? 50 : 0);
-  const methodLabels = { mpesa: "M-Pesa", card: "Card", cod: "Cash on Delivery" };
+  const grand = order?.total ?? total + delivery;
+  const methodLabels = { mpesa: "M-Pesa", cod: "Cash on Delivery" };
   const eta = details.city === "Nairobi" ? "1–2 business days" : "2–4 business days";
+  const shownRef = order?.id || reference;
+  const paidAlready = method === "mpesa";
+
   return (
     <div className="text-center py-4 animate-slide-up">
       <div className="relative w-24 h-24 mx-auto mb-6">
-        <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center">
-          <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+        <div className={`w-24 h-24 rounded-full flex items-center justify-center ${order ? "bg-green-100" : "bg-amber-100"}`}>
+          {order
+            ? <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            : <svg className="w-12 h-12 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         </div>
-        <div className="absolute inset-0 border-4 border-green-300 rounded-full animate-ping opacity-20" />
       </div>
-      <h2 className="text-3xl font-black text-[#1C1917]">Order Confirmed! 🎉</h2>
-      <p className="text-stone-500 mt-2 mb-8">Thank you {details.firstName}! Your books are on their way.</p>
+
+      <h2 className="text-3xl font-black text-[#1C1917]">{order ? "Order Confirmed! 🎉" : "Your order could not be saved"}</h2>
+      <p className="text-stone-500 mt-2 mb-8">
+        {order ? `Thank you ${details.firstName}! Your books are on their way.` : `Thank you ${details.firstName}. We need to sort one thing out before this order is complete.`}
+      </p>
+
       {stockError && (
         <div className="max-w-sm mx-auto mb-6 bg-red-50 border border-red-200 rounded-xl p-4 text-left text-sm text-red-800">
-          {stockError} Your payment was received — please contact support with reference <strong>{orderId}</strong> and we'll sort out a substitute or refund for that item.
+          {stockError}
+          {paidAlready && <> Your payment was received — please contact support with reference <strong>{shownRef}</strong> and we&apos;ll sort out a substitute or refund for that item.</>}
         </div>
       )}
+
       {saveError && !stockError && (
-        <div className="max-w-sm mx-auto mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-left text-sm text-amber-800">
-          Your payment was received, but we couldn't attach this order to your account automatically.
-          Please save your order reference <strong>{orderId}</strong> and contact support so we can confirm it manually.
+        <div className="max-w-sm mx-auto mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-left text-sm text-amber-800 space-y-2">
+          <p>{saveError}</p>
+          <p>
+            {paidAlready
+              ? <>Your M-Pesa payment went through but the order was not recorded. Save this reference and contact support — do <strong>not</strong> pay again.</>
+              : <>Nothing has been charged. You can safely try again.</>}
+          </p>
+          <button onClick={onRetry} disabled={saving} className="w-full bg-[#1C1917] hover:bg-[#991B1B] disabled:opacity-60 text-white py-3 rounded-xl font-bold text-sm transition">
+            {saving ? "Saving…" : "Try saving the order again"}
+          </button>
         </div>
       )}
+
       <div className="bg-stone-50 rounded-2xl p-6 text-left max-w-sm mx-auto space-y-3 mb-6">
-        {[{ label: "Order ID", value: orderId, mono: true }, { label: "Delivering to", value: `${details.address}, ${details.city}` }, { label: "Payment", value: methodLabels[method] || method }, { label: "Amount paid", value: `KSh ${grand.toLocaleString()}` }, { label: "Estimated delivery", value: eta }].map(({ label, value, mono }) => (
+        {[
+          { label: order ? "Order ID" : "Reference", value: shownRef, mono: true },
+          { label: "Delivering to", value: `${details.address}, ${details.city}` },
+          { label: "Payment", value: methodLabels[method] || method },
+          { label: order ? "Amount due" : "Amount", value: `KSh ${grand.toLocaleString()}` },
+          ...(order?.subtotal != null ? [{ label: "Subtotal", value: `KSh ${order.subtotal.toLocaleString()}` }, { label: "Delivery", value: order.delivery_fee ? `KSh ${order.delivery_fee.toLocaleString()}` : "Free" }] : []),
+          { label: "Estimated delivery", value: eta },
+        ].map(({ label, value, mono }) => (
           <div key={label} className="flex justify-between text-sm gap-4">
             <span className="text-stone-500 flex-shrink-0">{label}</span>
             <span className={`font-semibold text-[#1C1917] text-right ${mono ? "font-mono" : ""}`}>{value}</span>
           </div>
         ))}
       </div>
+
       <div className="flex justify-center gap-3 mb-6">
         {cart.slice(0, 4).map((item) => (
           <div key={item.id} className="w-12 rounded-r-sm overflow-hidden flex-shrink-0" style={{ aspectRatio: "2/3", boxShadow: "-1px 0 3px rgba(0,0,0,0.1), 2px 4px 10px rgba(0,0,0,0.12)" }}>
@@ -546,12 +557,14 @@ function StepConfirmation({ orderId, details, method, cart, total, saveError, st
         ))}
         {cart.length > 4 && <div className="w-12 bg-stone-100 rounded-r-sm flex items-center justify-center text-xs font-bold text-stone-500" style={{ aspectRatio: "2/3" }}>+{cart.length - 4}</div>}
       </div>
+
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-700 max-w-sm mx-auto mb-8">
-        📧 A confirmation has been sent to <strong>{details.email}</strong>
+        Keep this reference. Email notifications are not switched on yet, so this page and your account page are the record of this order.
       </div>
+
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Link href="/" className="bg-[#1C1917] hover:bg-[#991B1B] text-white px-8 py-3.5 rounded-xl font-bold transition-all active:scale-95">Continue Shopping</Link>
-        <button onClick={() => window.print()} className="border-2 border-stone-200 hover:border-stone-300 text-stone-600 px-8 py-3.5 rounded-xl font-bold transition-all">🖨️ Print Receipt</button>
+        <Link href="/account" className="bg-[#1C1917] hover:bg-[#991B1B] text-white px-8 py-3.5 rounded-xl font-bold transition-all active:scale-95">View my orders</Link>
+        <Link href="/books" className="border-2 border-stone-200 hover:border-stone-300 text-stone-600 px-8 py-3.5 rounded-xl font-bold transition-all">Continue shopping</Link>
       </div>
     </div>
   );
@@ -561,49 +574,99 @@ export default function CheckoutPage() {
   const [cart, setCart] = useState([]);
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState(null);
-  const [orderId] = useState(generateOrderId);
+  const [checkoutRequestId, setCheckoutRequestId] = useState(null);
+  const [order, setOrder] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const [stockError, setStockError] = useState(null);
+  const [signedIn, setSignedIn] = useState(null); // null = still checking
   const [details, setDetails] = useState({ firstName: "", lastName: "", email: "", phone: "", address: "", city: "", notes: "" });
 
-  useEffect(() => { try { const saved = localStorage.getItem("bh_cart"); if (saved) setCart(JSON.parse(saved)); } catch {} }, []);
+  // Human-readable reference for support conversations. The real, saved
+  // reference shown after checkout is the order's database id.
+  const [reference] = useState(() => "BH-" + Math.random().toString(36).substring(2, 7).toUpperCase());
+
+  // Stable per checkout attempt: a double click or a retry with the same
+  // key returns the original order instead of creating a duplicate.
+  const [idempotencyKey] = useState(() =>
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `bh-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("bh_cart");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring browser-only state after mount avoids a hydration mismatch
+      if (saved) setCart(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    supabase.auth
+      .getSession()
+      .then(({ data: { session } }) => { if (!cancelled) setSignedIn(!!session); })
+      .catch(() => { if (!cancelled) setSignedIn(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   const updateDetail = (key, val) => setDetails((p) => ({ ...p, [key]: val }));
   const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
 
-  const [orderSaveError, setOrderSaveError] = useState(false);
-  const [stockError, setStockError] = useState(null);
-
-  const handlePaymentSuccess = async (method) => {
-    setPaymentMethod(method);
+  const saveOrder = async (method, checkoutId) => {
+    setSaving(true);
+    setSaveError(null);
+    setStockError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const res = await fetch("/api/orders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ items: cart, total, deliveryDetails: details, paymentMethod: method }),
-        });
-        const json = await res.json();
-        if (!res.ok || json.error) {
-          if (json.code === "INSUFFICIENT_STOCK") {
-            // Stock changed between adding to cart and checkout — this is a
-            // real, customer-facing outcome, not a hidden failure. Payment
-            // already succeeded for M-Pesa/card, so this still needs a human
-            // to resolve, but at least the customer sees WHY, not a lie.
-            setStockError(json.error);
-          } else {
-            console.error("Order save failed:", json.error || res.status);
-            setOrderSaveError(true);
-          }
+      if (!session) throw new Error("Please sign in to save your order.");
+
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${session.access_token}`,
+        },
+        // Prices/totals are NOT sent: the server recomputes them from the
+        // catalogue and returns the authoritative order.
+        body: JSON.stringify({
+          items: cart.map(({ id, quantity }) => ({ id, quantity })),
+          deliveryDetails: details,
+          paymentMethod: method,
+          checkoutRequestId: checkoutId || null,
+          idempotencyKey,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+
+      if (!res.ok || !json.order) {
+        if (json.code === "INSUFFICIENT_STOCK") {
+          setStockError(json.error);
+          setStep(3);
+          return;
         }
-      } else {
-        setOrderSaveError(true);
+        throw new Error(json.error || `Could not save the order (${res.status}).`);
       }
-    } catch (e) {
-      console.error("Order save failed", e);
-      setOrderSaveError(true);
+
+      setOrder(json.order);
+      setStep(3);
+      // Only empty the basket once the order really exists in the database.
+      localStorage.removeItem("bh_cart");
+    } catch (err) {
+      console.error("Order save failed:", err);
+      setSaveError(err.message || "Could not save your order.");
+      setStep(3);
+    } finally {
+      setSaving(false);
     }
-    localStorage.removeItem("bh_cart");
-    setStep(3);
+  };
+
+  const handlePaymentSuccess = (method, checkoutId) => {
+    setPaymentMethod(method);
+    setCheckoutRequestId(checkoutId || null);
+    saveOrder(method, checkoutId);
   };
 
   if (cart.length === 0 && step < 3) return (
@@ -635,7 +698,6 @@ export default function CheckoutPage() {
         </div>
       </header>
 
-      {/* Mobile order summary strip */}
       {step < 3 && (
         <div className="lg:hidden bg-white border-b border-stone-200 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -658,8 +720,31 @@ export default function CheckoutPage() {
         <div className="grid lg:grid-cols-[1fr_360px] gap-6 lg:gap-8 items-start">
           <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 lg:p-8">
             {step === 1 && <StepDetails data={details} onChange={updateDetail} onNext={() => setStep(2)} />}
-            {step === 2 && <StepPayment details={details} total={total} orderId={orderId} onSuccess={handlePaymentSuccess} onBack={() => setStep(1)} />}
-            {step === 3 && <StepConfirmation orderId={orderId} details={details} method={paymentMethod} cart={cart} total={total} saveError={orderSaveError} stockError={stockError} />}
+            {step === 2 && (
+              <StepPayment
+                details={details}
+                total={total}
+                items={cart.map(({ id, quantity }) => ({ id, quantity }))}
+                reference={reference}
+                canPay={signedIn === true}
+                onSuccess={handlePaymentSuccess}
+                onBack={() => setStep(1)}
+              />
+            )}
+            {step === 3 && (
+              <StepConfirmation
+                order={order}
+                reference={reference}
+                details={details}
+                method={paymentMethod}
+                cart={cart}
+                total={total}
+                saveError={saveError}
+                stockError={stockError}
+                saving={saving}
+                onRetry={() => saveOrder(paymentMethod, checkoutRequestId)}
+              />
+            )}
           </div>
           {step < 3 && (
             <div className="hidden lg:block">

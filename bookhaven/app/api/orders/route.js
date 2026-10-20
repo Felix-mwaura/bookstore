@@ -1,30 +1,9 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { clientForToken, bearerToken, serviceClient } from "../../lib/server";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://luniopceavtkljywukyi.supabase.co";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bmlvcGNlYXZ0a2xqeXd1a3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzk1NTUsImV4cCI6MjA5NDc1NTU1NX0.zmZcxS2uxyon8Est9l3feYLuYy02hgcIpCNKAqKWtCE";
-
-// Builds a client that carries the CALLER'S OWN JWT on every request.
-// This is the missing piece: supabase.auth.getUser(token) only verifies
-// a token — it does NOT attach it to later .from() calls on a plain
-// createClient(url, anonKey) instance. Without this, every .from("orders")
-// query below would run as the anon Postgres role, so
-// `auth.uid() = user_id` RLS policies correctly (and silently) block
-// both the SELECT (customer sees zero orders) and the INSERT (order
-// never gets created), even though the API route itself reports success.
-function clientForToken(token) {
-  return createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: token ? { Authorization: `Bearer ${token}` } : {} },
-  });
-}
-
-function getToken(request) {
-  return request.headers.get("authorization")?.replace("Bearer ", "") || null;
-}
-
-// GET /api/orders — fetch the logged-in user's own orders (RLS-enforced)
+// GET /api/orders — the signed-in customer's own orders (RLS-enforced)
 export async function GET(request) {
-  const token = getToken(request);
+  const token = bearerToken(request);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const client = clientForToken(token);
@@ -41,67 +20,196 @@ export async function GET(request) {
   return NextResponse.json({ orders: data || [] });
 }
 
-// POST /api/orders — save a new order after checkout (RLS-enforced, stock-safe)
+// Normalise to exactly what place_order() understands: [{ id, quantity }].
+// Prices, titles and totals in the request body are ignored on purpose —
+// the database re-reads them, so a tampered client cannot set its own price.
+function cleanItems(raw) {
+  if (!Array.isArray(raw) || raw.length === 0 || raw.length > 50) return null;
+
+  const merged = new Map();
+  for (const item of raw) {
+    const id = Number(item?.id);
+    const quantity = Number(item?.quantity);
+    if (!Number.isInteger(id) || id <= 0) return null;
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 50) return null;
+    merged.set(id, (merged.get(id) || 0) + quantity);
+  }
+
+  const items = [...merged.entries()].map(([id, quantity]) => ({ id, quantity }));
+  if (items.some((i) => i.quantity > 50)) return null;
+  return items;
+}
+
+function cleanDeliveryDetails(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const str = (v, max) =>
+    typeof v === "string" ? v.trim().slice(0, max) : "";
+
+  const details = {
+    firstName: str(raw.firstName, 80),
+    lastName: str(raw.lastName, 80),
+    email: str(raw.email, 160),
+    phone: str(raw.phone, 32),
+    address: str(raw.address, 240),
+    city: str(raw.city, 80),
+    notes: str(raw.notes, 500),
+  };
+
+  if (!details.firstName || !details.lastName || !details.phone || !details.address || !details.city) {
+    return null;
+  }
+  return details;
+}
+
+// POST /api/orders — save a new order after checkout
+//
+// Security / integrity properties:
+//   • the caller is identified by the verified JWT, never by the body;
+//   • prices and the total are recomputed by place_order() from the books
+//     table — the client's `total` is not accepted at all;
+//   • stock is locked and decremented atomically inside that function;
+//   • M-Pesa orders only succeed when a completed mpesa_payments row exists
+//     for this user, for this checkout id, that has not already been used;
+//   • the same idempotency key returns the original order instead of
+//     creating a duplicate (double-click / retry safe).
 export async function POST(request) {
-  const token = getToken(request);
+  const token = bearerToken(request);
   if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const client = clientForToken(token);
   const { data: { user }, error: userError } = await client.auth.getUser(token);
   if (userError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = await request.json();
-  const { items, total, deliveryDetails, paymentMethod, checkoutRequestId } = body;
-
-  if (!items || !total || !deliveryDetails || !paymentMethod) {
-    return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  // Cash on delivery isn't paid yet; M-Pesa/card orders only ever reach this
-  // point after the payment step already succeeded, so they count as paid.
-  const paymentStatus = /cod|cash/i.test(paymentMethod) ? "pending" : "paid";
+  const { items, deliveryDetails, paymentMethod, checkoutRequestId, idempotencyKey } = body || {};
 
-  // place_order() is an atomic Postgres function: it locks each book row,
-  // verifies enough stock exists, decrements it, and inserts the order in
-  // one transaction — so two customers buying the last copy at the same
-  // moment can't both succeed, and an order is never created for stock that
-  // doesn't exist. user_id is always the SERVER-VERIFIED user — never taken
-  // from the request body — so nobody can place an order as someone else.
-  // place_order is executable by the service role ONLY (a customer calling
-  // it directly could forge orders for other users). The caller's identity
-  // was verified above via their token; user.id comes from that, never
-  // from the request body.
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) {
+  const cleanItemList = cleanItems(items);
+  if (!cleanItemList) {
+    return NextResponse.json(
+      { error: "Your cart is empty or contains an invalid quantity." },
+      { status: 400 }
+    );
+  }
+
+  const cleanDetails = cleanDeliveryDetails(deliveryDetails);
+  if (!cleanDetails) {
+    return NextResponse.json(
+      { error: "Please provide a name, phone number, delivery address and town." },
+      { status: 400 }
+    );
+  }
+
+  if (typeof paymentMethod !== "string" || !paymentMethod.trim()) {
+    return NextResponse.json({ error: "A payment method is required." }, { status: 400 });
+  }
+
+  const method = paymentMethod.trim().toLowerCase();
+  if (!["mpesa", "cod"].includes(method)) {
+    return NextResponse.json(
+      { error: "That payment method is not available yet." },
+      { status: 400 }
+    );
+  }
+
+  if (method === "mpesa" && (typeof checkoutRequestId !== "string" || !checkoutRequestId)) {
+    return NextResponse.json(
+      { error: "We could not verify this M-Pesa payment. Please try again." },
+      { status: 402 }
+    );
+  }
+
+  const idem =
+    typeof idempotencyKey === "string" && idempotencyKey.trim()
+      ? idempotencyKey.trim().slice(0, 100)
+      : null;
+
+  let serverClient;
+  try {
+    serverClient = serviceClient();
+  } catch {
     console.error("/api/orders: SUPABASE_SERVICE_ROLE_KEY is not set");
-    return NextResponse.json({ error: "Server misconfigured — please contact support" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Server misconfigured — please contact support" },
+      { status: 500 }
+    );
   }
-  const serverClient = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
   const { data, error } = await serverClient.rpc("place_order", {
     p_user_id: user.id,
-    p_items: items,
-    p_total: total,
-    p_delivery_details: deliveryDetails,
-    p_payment_method: paymentMethod,
-    p_payment_status: paymentStatus,
-    p_checkout_request_id: checkoutRequestId || null,
+    p_items: cleanItemList,
+    p_delivery_details: cleanDetails,
+    p_payment_method: method,
+    p_checkout_request_id: method === "mpesa" ? checkoutRequestId : null,
+    p_idempotency_key: idem,
   });
 
   if (error) {
-    // Turn the RPC's raised exception into a clear, customer-facing message
     const msg = error.message || "";
+
     if (msg.includes("INSUFFICIENT_STOCK")) {
-      const [, , title, available] = msg.split(":");
+      // Message shape: INSUFFICIENT_STOCK:{"id":..,"title":..,"available":..}
+      const payload = msg.slice(msg.indexOf(":") + 1);
+      let detail = null;
+      try {
+        detail = JSON.parse(payload);
+      } catch {
+        // Fall through to a generic message.
+      }
       return NextResponse.json(
-        { error: `Only ${available} left of "${title}" — please update your cart.`, code: "INSUFFICIENT_STOCK" },
+        {
+          error: detail
+            ? `Only ${detail.available} left of "${detail.title}" — please update your cart.`
+            : "One of the books in your cart no longer has enough stock.",
+          code: "INSUFFICIENT_STOCK",
+          detail,
+        },
         { status: 409 }
       );
     }
+
     if (msg.includes("BOOK_NOT_FOUND")) {
-      return NextResponse.json({ error: "One of the items in your cart is no longer available." }, { status: 409 });
+      return NextResponse.json(
+        { error: "One of the items in your cart is no longer available.", code: "BOOK_NOT_FOUND" },
+        { status: 409 }
+      );
     }
-    return NextResponse.json({ error: msg }, { status: 500 });
+
+    if (msg.includes("PAYMENT_NOT_VERIFIED")) {
+      return NextResponse.json(
+        {
+          error:
+            "We could not confirm this M-Pesa payment. If you were charged, contact support with your M-Pesa receipt number — do not pay again.",
+          code: "PAYMENT_NOT_VERIFIED",
+        },
+        { status: 402 }
+      );
+    }
+
+    if (msg.includes("INVALID_DELIVERY_DETAILS")) {
+      return NextResponse.json(
+        { error: "Please provide a name, phone number, delivery address and town." },
+        { status: 400 }
+      );
+    }
+
+    if (msg.includes("INVALID_ITEMS") || msg.includes("INVALID_QUANTITY")) {
+      return NextResponse.json(
+        { error: "Your cart contains an invalid item or quantity." },
+        { status: 400 }
+      );
+    }
+
+    console.error("/api/orders place_order failed:", msg);
+    return NextResponse.json(
+      { error: "We could not save your order. Please try again." },
+      { status: 500 }
+    );
   }
 
   return NextResponse.json({ order: data });

@@ -193,7 +193,7 @@ function LoginInner() {
         .from("profiles")
         .select("role")
         .eq("id", u.id)
-        .single();
+        .maybeSingle();
       router.push(prof?.role === "admin" ? "/admin" : "/account");
     } catch {
       router.push("/account");
@@ -288,7 +288,7 @@ function LoginInner() {
               </svg>
             </div>
             <p style={{ fontFamily:"'IM Fell English',serif" }} className="italic text-amber-700/60 text-[13px] text-center mt-6 leading-relaxed relative z-10">
-              "A reader lives a thousand lives<br/>before he dies."<br/>
+              &quot;A reader lives a thousand lives<br/>before he dies.&quot;<br/>
               <span className="text-[11px] opacity-60">— George R.R. Martin</span>
             </p>
           </div>
