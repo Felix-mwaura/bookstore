@@ -115,20 +115,26 @@ export default function ProductCard({ book, onAddToCart, note }) {
             onClick={handleAdd}
             disabled={!state.canBuy}
             aria-label={state.canBuy ? `Add ${book.title} to basket` : `${book.title} is out of stock`}
-            className={`relative z-20 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-white transition-colors active:scale-95 disabled:cursor-not-allowed disabled:bg-stone-300 ${
+            className={`relative z-20 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-white transition-colors active:scale-95 disabled:cursor-not-allowed disabled:bg-stone-300 sm:min-w-0 sm:px-3 ${
               justAdded ? "bg-success" : "bg-navy hover:bg-sienna"
             }`}
           >
             {!state.canBuy ? (
               <span className="px-2 text-[11px]">Sold out</span>
             ) : justAdded ? (
-              <svg className="h-4 w-4 animate-pop" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5 13l4 4L19 7" />
-              </svg>
+              <span className="flex items-center gap-1.5 px-2 sm:px-0">
+                <svg className="h-4 w-4 animate-pop" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="hidden text-xs font-semibold sm:inline">Added</span>
+              </span>
             ) : (
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
+              <>
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+                <span className="ml-1.5 hidden text-xs font-semibold sm:inline">Add</span>
+              </>
             )}
             <span className="sr-only" aria-live="polite">{justAdded ? "Added to basket" : ""}</span>
           </button>

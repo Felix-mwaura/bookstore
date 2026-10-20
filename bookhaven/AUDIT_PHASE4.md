@@ -260,7 +260,8 @@ app/books/[slug]/page.js               book cover on a 3D stage, tilts on hover
 app/admin/admin-client.js              stat tiles tilt and rise in; logo sits in 3D
 scripts/cart-smoke.mjs                 new: 25 assertions over the basket rules
 scripts/store-wiring.mjs               new: proves grid, header and drawer share one store
-package.json                           cart:smoke / store:wiring wired into npm test
+scripts/price-smoke.mjs                new: compact prices are exact or not compacted
+package.json                           cart/price/wiring smokes wired into npm test
 ```
 
 **What was actually wrong with Add to basket.** `useStore()` was an ordinary
