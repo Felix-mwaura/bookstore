@@ -97,16 +97,35 @@ export default function AccountPage() {
   // ── load session, profile and orders ───────────────────
   useEffect(() => {
     let cancelled = false;
+    let giveUp = null;
+
+    // A password-reset email can arrive in either shape: an implicit-flow
+    // hash (#access_token=…&type=recovery) or a PKCE `?code=` that the
+    // Supabase client exchanges in the background. Both leave the tokens in
+    // the URL for a moment, so the page must not bounce the visitor to
+    // /login while that exchange is still in flight.
+    const fromLink =
+      typeof window !== "undefined" &&
+      (new URLSearchParams(window.location.search).has("code") ||
+        window.location.hash.includes("type=recovery"));
 
     async function load() {
+      if (fromLink) {
+        setRecovering(true);
+        setActiveTab("security");
+      }
+
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
-        // The reset link puts the tokens in the URL hash; the Supabase client
-        // consumes them a tick later, so wait for the auth event rather than
-        // bouncing a recovering user straight to the sign-in page.
-        const hash = typeof window !== "undefined" ? window.location.hash : "";
-        if (hash.includes("type=recovery")) return;
+        if (fromLink) {
+          // Wait for the exchange. If it never completes, send them back to
+          // the reset form rather than showing a spinner forever.
+          giveUp = window.setTimeout(() => {
+            if (!cancelled) router.replace("/login?mode=reset");
+          }, 8000);
+          return;
+        }
         router.replace("/login?next=%2Faccount");
         return;
       }
@@ -144,11 +163,19 @@ export default function AccountPage() {
         setLoading(false);
         if (session?.user) setUser(session.user);
       }
+      // PKCE does not emit PASSWORD_RECOVERY; it just signs the visitor in
+      // after the code exchange. Re-run the loader once that session exists.
+      if (event === "SIGNED_IN" && session && fromLink && !cancelled) {
+        setRecovering(true);
+        setActiveTab("security");
+        load();
+      }
       if (event === "SIGNED_OUT") router.replace("/login");
     });
 
     return () => {
       cancelled = true;
+      if (giveUp) window.clearTimeout(giveUp);
       listener.subscription.unsubscribe();
     };
   }, [router]);
@@ -262,7 +289,9 @@ export default function AccountPage() {
           <div role="status" className="mb-6 rounded-card border border-warning/40 bg-warning/10 px-4 py-3">
             <p className="text-sm font-semibold text-navy">Set a new password</p>
             <p className="mt-0.5 text-xs text-muted">
-              You followed a reset link. Choose a new password below — the link stops working once you save.
+              You arrived from an emailed link. If you asked to reset your password, choose a new one
+              below — the link stops working once you save. Otherwise you can ignore this and use the
+              other tabs.
             </p>
           </div>
         )}
