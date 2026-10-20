@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import { useDialog } from "../lib/useDialog";
+import AssistantTab from "./assistant-tab";
 
 // ─────────────────────────────────────────────────────────
 // Helpers
@@ -163,6 +164,7 @@ function MiniChart({ data, color="#B5532F" }) {
 const NAV = [
   { section:"Main" },
   { id:"overview", label:"Dashboard", icon:"📊" },
+  { id:"assistant", label:"Assistant", icon:"✨" },
   { id:"orders", label:"Orders", icon:"📦", badge:true },
   { id:"books", label:"Products", icon:"📚" },
   { id:"customers", label:"Customers", icon:"👥" },
@@ -238,7 +240,7 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
 // TOPBAR
 // ─────────────────────────────────────────────────────────
 function Topbar({ activeTab, sessionUser, onLogout, onMenu }) {
-  const labels = { overview:"Dashboard", orders:"Orders", books:"Products", customers:"Customers", payments:"Payments", reports:"Reports", inventory:"Inventory", reviews:"Reviews", coupons:"Coupons", users:"Users & Roles", activity:"Activity Logs", settings:"Settings" };
+  const labels = { overview:"Dashboard", assistant:"Assistant", orders:"Orders", books:"Products", customers:"Customers", payments:"Payments", reports:"Reports", inventory:"Inventory", reviews:"Reviews", coupons:"Coupons", users:"Users & Roles", activity:"Activity Logs", settings:"Settings" };
   const meta = sessionUser?.user_metadata || {};
   const displayName = [meta.first_name, meta.last_name].filter(Boolean).join(" ") || sessionUser?.email?.split("@")[0] || "Admin";
 
@@ -2963,6 +2965,7 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
             </div>
           )}
           {activeTab==="overview"&&<OverviewTab metrics={metrics} loading={metricsLoading} error={metricsError} range={range} setRange={setRange} onRetry={loadMetrics} onNavigate={setActiveTab}/>}
+          {activeTab==="assistant"&&<AssistantTab/>}
           {activeTab==="orders"&&<OrdersTab orders={orders} books={books} onReload={loadOrders} showToast={showToast}/>}
           {activeTab==="books"&&<BooksTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}
           {activeTab==="customers"&&<CustomersTab users={users} orders={orders}/>}

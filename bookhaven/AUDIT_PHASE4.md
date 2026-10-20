@@ -2,7 +2,7 @@
 
 **Date:** 20 October 2026
 **Scope:** `bookhaven/` (Next.js app router), Supabase schema/migrations, Vercel production deployment
-**Base commit:** `90be087` → **head:** `7d26d64` (PRs #17–#22)
+**Base commit:** `90be087` → **head:** PRs #17–#25 (assistant + Phase 7)
 **Production:** https://bookstore-puce-sigma.vercel.app
 
 ---
@@ -11,10 +11,12 @@
 
 | Check | Method | Result |
 | --- | --- | --- |
-| Build | `npx next build --webpack` (Next 16.4.2) | ✅ compiled successfully, 30 routes |
+| Build | `npx next build --webpack` (Next 16.4.2) | ✅ compiled successfully, 31 routes |
 | Lint | `npx eslint .` | ✅ 0 errors, 7 warnings (unused vars, `<img>` in admin) |
 | Dependencies | `npm audit` / `npm audit --omit=dev` | ✅ 0 production vulnerabilities; 5 high **dev-only** advisories in the ESLint toolchain |
-| Security headers | `curl -I` against a local `next start` | ✅ all six headers present |
+| Security headers | `scripts/smoke.mjs` against a local `next start` | ✅ 24 checks pass, 9 skipped (no service-role key locally) |
+| Admin assistant loop | `scripts/agent-smoke.mjs` — mocked provider + stub DB | ✅ 6 turns: tool dispatch, clamping, reference search, error mapping |
+| Admin assistant UI | build + code review | ⚠️ needs an admin session; see limitation 5 |
 | Public pages | `fetch_page` against production after each deploy | ✅ home, `/books`, `/books?page=2`, `/category/finance`, `/books/deep-work-4`, `/checkout` gate |
 | Redirects | production fetch | ✅ `/books/2` → canonical slug, unauthenticated `/orders/<uuid>` → `/login` |
 | Layout at 320–1920 | **Static review only** | ⚠️ see limitation below |
@@ -27,6 +29,7 @@
 2. **Dribbble was not inspected.** Browsing to Dribbble was not possible from this environment, so the visual direction came from your written brief (cream/navy/sienna, Playfair + Inter, no gradients or glass) and from established typographic/bookshop conventions. No claim is made that specific Dribbble shots were studied.
 3. **No database credentials.** RLS policies for the *base* tables are not in this repository, so their live state could not be read. Findings that depend on them are marked **unverified** rather than "fixed".
 4. **This was not a penetration test.** It is a source-level review plus targeted verification of what could be exercised without production data.
+5. **The assistant was verified without a live model or admin session.** The tool loop, argument clamping and error mapping are exercised against a scripted mock provider and a stub database; the panel is build-checked and the route's anonymous guard is checked over HTTP. No real model answer and no signed-in click-through of the panel has been observed.
 
 ---
 
@@ -42,6 +45,18 @@
 - Account: rebuilt on the shared store shell. No gradient banner, no emoji tabs, no duplicated header. Orders show fulfilment and payment as two separate, labelled states; money owed is stated explicitly ("KSh X due on delivery").
 - Copy honesty pass: removed an invented "1–2 business days / 2–4 business days" delivery estimate and an unverified "we confirm every order by phone before dispatch". The confirmation now says no receipt email is sent yet, because SMTP is deliberately off.
 - Removed dead/fake affordances: the admin search field that did nothing, the notification bell with a hard-coded red dot, an orphaned `Navbar.js`, and the unused live-books hook.
+
+**Admin assistant (`/admin` → Assistant)**
+
+A read-only natural-language layer over the store, added in Phase 7. Ask "what needs my attention today?", "summarise the last 7 days", "which titles are low on stock?" and it answers from seven SELECT-only tools (metrics, orders, one order, low stock, book search, customers, stock movements).
+
+- **No write path exists.** There is no tool that mutates anything. A prompt injected through an order note or a confused model cannot mark an order paid, delete a book or move stock — the capability is absent, not merely discouraged.
+- **Authorization is the existing one.** `/api/admin/agent` calls `requireAdmin()` first; the model never sees a request from a non-admin.
+- **Secrets stay server-side.** `ANTHROPIC_API_KEY` is read only in `app/lib/agent-provider.js`. The browser talks to `/api/admin/agent`, never to the provider.
+- **Grounded answers.** The system prompt forbids estimating and requires the time window to be stated; each answer lists the tools it read. Missing numbers are reported as missing.
+- **Bounded.** 20 questions per admin per 10 minutes, 5 tool rounds, 10 tool calls, 14 messages, 20k characters; tool arguments are clamped in code (asking for 5,000 rows returns 25).
+- **Honest when unconfigured.** With no key the tab shows a real 7-day snapshot computed in SQL and the exact setup steps, with chat disabled — it never fakes an answer.
+- Tool output is truncated and treated as data; the panel renders plain text only, so model output cannot inject HTML.
 
 **Admin** — see §C.
 
@@ -118,6 +133,18 @@ Severity is my assessment of impact in this deployment. "Confirmed" means I repr
 | D14 | **Low** | CSP has no `script-src` (Next inline bootstrap would break without a nonce) | Weakens defence-in-depth against injected scripts; the rest of the policy still blocks framing, base-tag hijacking and foreign form posts | Add a nonce-based `script-src` once the app is on a custom domain and can be re-tested | Open |
 | D15 | **Low** | No automated tests | Regressions are caught by hand | Playwright smoke tests for the six public routes + one admin mutation | Open |
 
+### The assistant (new surface, reviewed on its own terms)
+
+| Risk | Mitigation | Status |
+| --- | --- | --- |
+| Model performs a destructive action | No write tool exists; the route has no mutation path | Confirmed by code |
+| Prompt injection via order notes / customer names | Tool output is data-only text; system prompt forbids following it; no capability to abuse even if followed | Confirmed by design |
+| Key leaked to the browser | Key read only in a server module; browser calls the app route | Confirmed by code |
+| Unauthenticated use | `requireAdmin()` runs before body parsing | Verified over HTTP (401/403) |
+| Cost abuse / loops | 20 questions/10 min per admin, 5 rounds, 10 calls, 14 messages, 20k chars, 45 s provider timeout | Verified in the mocked loop for rounds/calls; the limiter is per instance |
+| Data over-exposure | Tools return trimmed rows; customer contact only where an order needs it; results truncated at 12k chars | Confirmed by code |
+| Provider text leaking internals | Provider errors are mapped to fixed sentences; raw bodies go to `console.error` only | Verified in the smoke test |
+
 ### Ground truth on what "fixed" means here
 
 D1–D7 were changed and built, and the public-facing ones were re-fetched from production. None of them is a claim that the app is now secure end to end: **D8 and D11 are the two that decide whether the admin surface is actually protected**, and both need the database.
@@ -149,7 +176,7 @@ D1–D7 were changed and built, and the public-facing ones were re-fetched from 
 
 | Test | Result |
 | --- | --- |
-| `npx next build --webpack` (Next 16.4.2) | ✅ compiled; 30 routes (17 API, 13 pages/static) |
+| `npx next build --webpack` (Next 16.4.2) | ✅ compiled; 31 routes (18 API, 13 pages/static) |
 | `npx eslint .` | ✅ 0 errors, 7 warnings |
 | `npm audit --omit=dev` | ✅ 0 vulnerabilities |
 | `npm audit` (incl. dev) | ⚠️ 5 high in `eslint-config-next`'s `fast-glob`/`braces`/`micromatch` chain — build-time only, no fix without an ESLint major |
@@ -165,10 +192,23 @@ D1–D7 were changed and built, and the public-facing ones were re-fetched from 
 | `/orders/<uuid>` signed out | ✅ redirect to `/login` |
 | Admin at 1280+ | ✅ build + code review (authenticated UI not re-exercised) |
 | Admin below `lg` | ⚠️ code-level only |
+| `scripts/smoke.mjs` (local production build) | ✅ 24 passed, 9 skipped (privileged routes need the service key) |
+| `scripts/agent-smoke.mjs` | ✅ 6 turns passed |
+| `POST /api/admin/agent` unauthenticated | ✅ 401/403 on the deployed build |
+| Assistant answered by a real model | ⚠️ not run — no API key in this environment |
 
 **Failures encountered and fixed during the pass:** none in production. One regression risk was found and corrected before deploy (the basket could flash "empty" before `localStorage` finished loading — now gated on `cartReady`).
 
 ---
+
+### Phase 7 — final validation
+
+1. `npm run agent:smoke` — 6 turns through the real loop with a scripted provider: metrics, low stock, reference search, town search, `get_order`, argument clamping, unknown-tool rejection and 401 mapping.
+2. `npm run build` — 31 routes compile, including `/api/admin/agent`.
+3. `npm run smoke http://127.0.0.1:3126` — 13 public pages, 2 redirects, 7 headers, 9 admin guards, order API and newsletter validation: **24 passed, 9 skipped** (the skips are the service-role guard on a machine without the key, each correctly naming the missing variable).
+4. Deployed to production, then the same script was pointed at the live host to confirm the guards return 401/403 there rather than the local 500.
+5. `npx eslint .` — 0 errors.
+6. Unresolved: no signed-in pass over the assistant panel and no live model answer (no key, no admin session here).
 
 ## G. Files changed
 
@@ -186,6 +226,15 @@ app/lib/useLiveBooks.js                deleted (no remaining consumer)
 next.config.ts                         security headers, poweredByHeader off
 package.json / package-lock.json       next + eslint-config-next → 16.4.2
 supabase/migrations/20261020030000_profile_role_hardening.sql   new, NOT applied
+app/admin/assistant-tab.js             new: assistant panel (read-only, snapshot, setup state)
+app/api/admin/agent/route.js           new: admin-only GET snapshot / POST conversation
+app/lib/admin-agent-tools.js           new: 7 read-only tools with validation and clamping
+app/lib/agent-runner.js                new: bounded tool-use loop (max 5 rounds / 10 calls)
+app/lib/agent-provider.js              new: Anthropic Messages adapter, no SDK, no key leakage
+app/admin/admin-client.js              Assistant entry in nav, topbar label, tab route
+scripts/agent-smoke.mjs                new: offline tool-loop test (mock provider + stub DB)
+scripts/smoke.mjs                      new: HTTP status/header/auth-guard smoke test
+README.md / .env.example               assistant setup, env vars, test commands
 AUDIT_PHASE4.md                        this report
 ```
 
@@ -209,13 +258,17 @@ AUDIT_PHASE4.md                        this report
 9. Decide the stock-history dialog: card layout or a wider sheet.
 10. SMTP (when you have the domain): set `RESEND_API_KEY` + `EMAIL_FROM`, deploy `supabase/functions/send-email`, and replace the "no receipt email is sent yet" notice on the confirmation screen.
 11. Add the password-recovery email template review in Supabase (the redirect URL must be in the allow-list, or the link silently fails).
-12. Automated smoke tests (D15) and a nonce-based CSP (D14).
+12. Automated smoke tests (D15) and a nonce-based CSP (D14). **Partly done:** `scripts/smoke.mjs` and `scripts/agent-smoke.mjs` cover the public surface, headers, admin guards and the assistant loop. They are not wired to CI yet.
+13. **Assistant:** add `ANTHROPIC_API_KEY` in Vercel to switch chat on, then ask two or three real questions as the admin and confirm the answers match the Orders/Inventory screens. Pin `ANTHROPIC_MODEL` if the default is unavailable on your account.
+14. **Assistant cost control:** each answer is at most 5 model calls. If usage grows, add a monthly token budget and log token counts per admin (the route already returns `usage`).
 
 ---
 
 ## I. MVP readiness
 
 **As a shop that takes cash on delivery: functionally ready, with one security gate.**
+
+The admin now also has a read-only assistant. It is an operations convenience, not a launch dependency: with no key the dashboard is exactly as it was, and with a key it can only read. Nothing in the launch decision depends on it.
 
 The storefront is fast, honest, server-rendered and usable from a 320 px phone through a desktop. Orders are priced and stock-checked server-side, duplicate submissions are idempotent, and the admin can run orders and inventory from a phone. That is a working MVP for pay-on-delivery.
 
