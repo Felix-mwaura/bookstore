@@ -104,16 +104,66 @@ export async function PATCH(request) {
 
   const { data: fields, error: vError } = sanitize(body, { partial: true });
   if (vError) return NextResponse.json({ error: vError }, { status: 400 });
-  if (Object.keys(fields).length === 0) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
-  const { data, error } = await adminClient.from("books").update(fields).eq("id", body.id).select().maybeSingle();
-  if (error) {
-    console.error("PATCH /api/admin/books:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  // A stock number typed into the book form is still an inventory movement,
+  // so it goes through adjust_book_stock() rather than a blind column write.
+  // Otherwise editing a book would silently bypass the movement history that
+  // the Inventory tab depends on.
+  const stockTarget = fields.stock_quantity;
+  const hasStockChange = stockTarget !== undefined;
+  if (hasStockChange) delete fields.stock_quantity;
+
+  if (Object.keys(fields).length === 0 && !hasStockChange) {
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
   }
-  if (!data) return NextResponse.json({ error: "Book not found" }, { status: 404 });
 
-  await logActivity(adminClient, user, "book_updated", body.id, { title: data.title, fields: Object.keys(fields) });
+  let data;
+  if (Object.keys(fields).length > 0) {
+    const { data: updated, error } = await adminClient
+      .from("books").update(fields).eq("id", body.id).select().maybeSingle();
+    if (error) {
+      console.error("PATCH /api/admin/books:", error.message);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    if (!updated) return NextResponse.json({ error: "Book not found" }, { status: 404 });
+    data = updated;
+  }
+
+  if (hasStockChange) {
+    const stockReason = typeof body.stock_reason === "string" ? body.stock_reason : "manual_adjustment";
+    const allowedReasons = ["restock", "correction", "damage", "return", "manual_adjustment"];
+    if (!allowedReasons.includes(stockReason)) {
+      return NextResponse.json({ error: "Invalid stock reason" }, { status: 400 });
+    }
+    const stockNote =
+      typeof body.stock_note === "string" && body.stock_note.trim().length >= 3
+        ? body.stock_note.trim().slice(0, 300)
+        : "Stock edited from the book form";
+
+    const { data: adjusted, error: stockError } = await adminClient.rpc("adjust_book_stock", {
+      p_book_id: body.id,
+      p_new_quantity: stockTarget,
+      p_reason: stockReason,
+      p_note: stockNote,
+      p_admin_id: user.id,
+      p_admin_email: user.email,
+    });
+
+    if (stockError) {
+      const msg = stockError.message || "";
+      if (msg.includes("BOOK_NOT_FOUND")) {
+        return NextResponse.json({ error: "Book not found" }, { status: 404 });
+      }
+      console.error("PATCH /api/admin/books (stock):", msg);
+      return NextResponse.json({ error: "Could not update stock" }, { status: 500 });
+    }
+    data = adjusted;
+  }
+
+  await logActivity(adminClient, user, "book_updated", body.id, {
+    title: data.title,
+    fields: Object.keys(fields).concat(hasStockChange ? ["stock_quantity"] : []),
+  });
   return NextResponse.json({ book: data });
 }
 
