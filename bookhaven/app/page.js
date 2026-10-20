@@ -1,13 +1,19 @@
 import HomeClient from "./components/HomeClient";
-import { getStorefrontBooks } from "./lib/catalogue";
+import StoreLayout from "./components/StoreLayout";
+import { getCatalogueStats, getStorefrontBooks } from "./lib/catalogue";
 
 // The homepage is rendered on the server so the shelf, the hero covers and
 // the real catalogue counts are in the HTML a crawler (or a slow phone)
-// receives. The client component takes over for the cart, filters and
-// realtime updates.
+// receives. StoreLayout adds the header, basket and footer; HomeClient only
+// renders the page itself.
 export const revalidate = 60;
 
 export default async function Home() {
-  const books = await getStorefrontBooks(60);
-  return <HomeClient initialBooks={books} />;
+  const [books, stats] = await Promise.all([getStorefrontBooks(60), getCatalogueStats()]);
+
+  return (
+    <StoreLayout>
+      <HomeClient initialBooks={books} stats={stats} />
+    </StoreLayout>
+  );
 }

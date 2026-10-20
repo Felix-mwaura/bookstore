@@ -1,555 +1,216 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { BookCover } from "./BookCard";
-import WishlistDrawer from "./WishlistDrawer";
-import { supabase } from "../lib/supabase";
 
-// ── Icons ──────────────────────────────────────────────
-const SearchIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
+import { BookCover } from "./BookCover";
+import { bookPath } from "../lib/book-url";
+import { FREE_DELIVERY_THRESHOLD, formatKsh } from "../lib/site";
+import { useDialog } from "../lib/useDialog";
+import { STORE_CONTACT } from "../lib/site";
 
-const HeartIcon = ({ filled }) => (
-  <svg className={`w-6 h-6 ${filled ? "text-red-600 fill-red-600" : "text-stone-600"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-  </svg>
-);
-
-const CartIcon = () => (
-  <svg className="w-6 h-6 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-  </svg>
-);
-
-// ── Account dropdown ────────────────────────────────────
-function AccountLink() {
-  const [user, setUser] = useState(null);
-  const [open, setOpen] = useState(false);
-  const [loggingOut, setLoggingOut] = useState(false);
-  const ref = useRef(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const meta = session.user.user_metadata || {};
-          const name = `${meta.first_name || ""}`.trim() || session.user.email?.split("@")[0] || "Reader";
-          setUser({ name, email: session.user.email, initial: name.charAt(0).toUpperCase() });
-          return;
-        }
-      } catch {}
-      try {
-        const u = localStorage.getItem("bh_user");
-        if (u) {
-          const parsed = JSON.parse(u);
-          setUser({ name: parsed.name || "Reader", email: parsed.email, initial: (parsed.name || "R").charAt(0).toUpperCase() });
-        }
-      } catch {}
-    };
-    loadUser();
-
-    // Listen for auth state changes so dropdown updates on login/logout
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        const meta = session.user.user_metadata || {};
-        const name = `${meta.first_name || ""}`.trim() || session.user.email?.split("@")[0] || "Reader";
-        setUser({ name, email: session.user.email, initial: name.charAt(0).toUpperCase() });
-      } else {
-        setUser(null);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, []);
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    await supabase.auth.signOut();
-    localStorage.removeItem("bh_user");
-    localStorage.removeItem("bh_cart");
-    localStorage.removeItem("bh_wishlist");
-    setUser(null);
-    setOpen(false);
-    setLoggingOut(false);
-    router.push("/");
-  };
-
-  // ── Guest ──
-  if (!user) return (
-    <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-        Account
-        <svg className={`w-3.5 h-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-stone-100 z-[60] overflow-hidden"
-          style={{ animation: "dropdownIn 0.18s cubic-bezier(0.16,1,0.3,1) forwards" }}>
-          <div className="bg-[#1C1917] px-5 py-4">
-            <p className="text-white font-bold text-sm">Hello, Guest</p>
-            <p className="text-stone-400 text-xs mt-0.5">Sign in for the best experience</p>
-          </div>
-          <div className="p-3 grid grid-cols-2 gap-2 border-b border-stone-100">
-            <Link href="/login" onClick={() => setOpen(false)}
-              className="bg-[#991B1B] hover:bg-[#7F1D1D] text-white text-center py-2.5 rounded-xl text-sm font-bold transition active:scale-95">
-              Sign In
-            </Link>
-            <Link href="/login?tab=register" onClick={() => setOpen(false)}
-              className="border-2 border-stone-200 hover:border-[#991B1B] text-stone-700 hover:text-[#991B1B] text-center py-2.5 rounded-xl text-sm font-bold transition">
-              Register
-            </Link>
-          </div>
-          <div className="py-2">
-            {[
-              { icon: "📦", label: "Track Orders", href: "/login" },
-              { icon: "♡", label: "My Wishlist", href: "/login" },
-              { icon: "📍", label: "Saved Addresses", href: "/login" },
-              { icon: "❓", label: "Help & Support", href: "/#contact" },
-            ].map(({ icon, label, href }) => (              <Link key={label} href={href} onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 hover:text-[#1C1917] transition">
-                <span className="text-base w-5 text-center">{icon}</span>
-                {label}
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  // ── Logged in ──
-  return (
-    <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)}
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg transition hover:bg-stone-50 ${open ? "bg-stone-50" : ""}`}>
-        <div className="w-8 h-8 rounded-full bg-[#991B1B] flex items-center justify-center text-white font-black text-sm shadow-sm flex-shrink-0">
-          {user.initial}
-        </div>
-        <div className="text-left hidden xl:block">
-          <p className="text-[10px] text-stone-400 leading-none">Hello,</p>
-          <p className="text-sm font-bold text-[#1C1917] leading-tight truncate max-w-[80px]">{user.name}</p>
-        </div>
-        <svg className={`w-3.5 h-3.5 text-stone-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-stone-100 z-[60] overflow-hidden"
-          style={{ animation: "dropdownIn 0.18s cubic-bezier(0.16,1,0.3,1) forwards" }}>
-
-          <div className="bg-gradient-to-br from-[#1C1917] to-[#2d1f15] px-5 py-4 flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-[#991B1B] flex items-center justify-center text-white font-black text-xl shadow-md flex-shrink-0">
-              {user.initial}
-            </div>
-            <div className="min-w-0">
-              <p className="text-white font-bold truncate">{user.name}</p>
-              <p className="text-stone-400 text-xs truncate mt-0.5">{user.email}</p>
-            </div>
-          </div>
-
-          <div className="px-3 pt-3 pb-1">
-            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-1">My Account</p>
-            {[
-              { icon: "👤", label: "My Profile", sub: "Edit personal info", href: "/account" },
-              { icon: "📦", label: "My Orders", sub: "Track & manage orders", href: "/account" },
-              { icon: "♡", label: "My Wishlist", sub: "Saved books", href: "/account" },
-              { icon: "📍", label: "My Addresses", sub: "Delivery addresses", href: "/account" },
-            ].map(({ icon, label, sub, href }) => (
-              <Link key={label} href={href} onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-stone-50 transition group">
-                <div className="w-8 h-8 rounded-lg bg-stone-100 group-hover:bg-[#991B1B]/10 flex items-center justify-center text-base transition flex-shrink-0">{icon}</div>
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-[#1C1917] group-hover:text-[#991B1B] transition">{label}</p>
-                  <p className="text-xs text-stone-400">{sub}</p>
-                </div>
-                <svg className="w-4 h-4 text-stone-300 group-hover:text-[#991B1B] ml-auto transition flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </Link>
-            ))}
-          </div>
-
-          <div className="mx-3 border-t border-stone-100 my-1" />
-
-          <div className="px-3 pb-1">
-            <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-1">Support</p>
-            {[
-              { icon: "❓", label: "Help Centre", href: "/#contact" },
-              { icon: "🔄", label: "Returns & Refunds", href: "/#contact" },
-            ].map(({ icon, label, href }) => (
-              <Link key={label} href={href} onClick={() => setOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-stone-50 transition text-sm text-stone-600 hover:text-[#1C1917]">
-                <span className="w-8 h-8 rounded-lg bg-stone-100 flex items-center justify-center text-base flex-shrink-0">{icon}</span>
-                {label}
-              </Link>
-            ))}
-          </div>
-
-          <div className="mx-3 border-t border-stone-100 my-1" />
-
-          <div className="px-3 pb-3 space-y-1">
-            <button onClick={handleLogout} disabled={loggingOut}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-stone-50 transition group text-left">
-              <div className="w-8 h-8 rounded-lg bg-stone-100 group-hover:bg-stone-200 flex items-center justify-center flex-shrink-0 transition">
-                <svg className="w-4 h-4 text-stone-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </div>
-              <span className="text-sm font-semibold text-stone-600 group-hover:text-[#1C1917] transition">
-                {loggingOut ? "Signing out…" : "Sign Out"}
-              </span>
-            </button>
-            <button
-              onClick={() => { if (confirm("Delete your account? This cannot be undone.")) { handleLogout(); } }}
-              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-red-50 transition group text-left">
-              <div className="w-8 h-8 rounded-lg bg-stone-100 group-hover:bg-red-100 flex items-center justify-center flex-shrink-0 transition">
-                <svg className="w-4 h-4 text-stone-400 group-hover:text-red-500 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </div>
-              <span className="text-sm font-semibold text-stone-400 group-hover:text-red-600 transition">Delete Account</span>
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export const categoryIcons = {
-  All: "🏠", "Self-Help": "🌱", Finance: "💰", Productivity: "⚡",
-  Psychology: "🧠", History: "🏛️", Philosophy: "💭", Fiction: "✨", Biography: "👤",
-};
-
-export const categories = ["All", "Self-Help", "Finance", "Productivity", "Psychology", "History", "Philosophy", "Fiction", "Biography"];
+// The header and the category list live in their own modules now. These
+// re-exports keep the existing page imports working unchanged.
+export { default as StoreHeader } from "./StoreHeader";
+export { categories, categoryIcons } from "../lib/categories";
 
 // ── Cart Drawer ─────────────────────────────────────────
 export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total }) {
+  const close = useCallback(() => onClose(), [onClose]);
+  const panelRef = useDialog(isOpen, close);
+
   if (!isOpen) return null;
+
+  const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const remaining = Math.max(0, FREE_DELIVERY_THRESHOLD - total);
+  const progress = Math.min(100, Math.round((total / FREE_DELIVERY_THRESHOLD) * 100));
+
   return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-fade-in" onClick={onClose} />
-      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-2xl animate-slide-in-right flex flex-col">
-        <div className="flex items-center justify-between p-5 sm:p-6 border-b border-stone-200">
+    <div className="fixed inset-0 z-[60]">
+      <div className="absolute inset-0 bg-navy/50" onClick={close} aria-hidden="true" />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="basket-title"
+        tabIndex={-1}
+        className="absolute right-0 top-0 h-[100dvh] w-full max-w-md bg-cream shadow-pop flex flex-col animate-slide-in-right"
+      >
+        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-line">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-[#1C1917]">Your Basket</h2>
-            <p className="text-sm text-stone-500 mt-0.5">{cart.reduce((a, b) => a + b.quantity, 0)} items</p>
+            <h2 id="basket-title" className="text-lg font-bold text-navy">Your basket</h2>
+            <p className="text-xs text-muted mt-0.5">
+              {itemCount === 0 ? "No items yet" : `${itemCount} ${itemCount === 1 ? "item" : "items"}`}
+            </p>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-stone-100 rounded-full transition">
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <button
+            type="button"
+            onClick={close}
+            aria-label="Close basket"
+            className="w-11 h-11 -mr-2 flex items-center justify-center rounded-lg hover:bg-subtle"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
           {cart.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="text-6xl mb-4">📖</div>
-              <p className="text-stone-500 text-lg">Your basket is empty</p>
-              <button onClick={onClose} className="mt-4 text-[#991B1B] font-semibold hover:underline">Continue Shopping</button>
+            <div className="px-2 py-16 text-center">
+              <svg className="mx-auto h-12 w-12 text-line" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              <h3 className="mt-4 text-base font-semibold text-navy">Your basket is empty</h3>
+              <p className="mt-1 text-sm text-muted">Add a book and it will wait here for you.</p>
+              <Link href="/books" onClick={close} className="btn-primary mt-5 text-sm">Browse books</Link>
             </div>
           ) : (
-            <div className="space-y-5">
+            <ul role="list" className="divide-y divide-line">
               {cart.map((item) => (
-                <div key={item.id} className="flex gap-3 sm:gap-4">
-                  <div className="w-16 sm:w-20 flex-shrink-0 rounded-r-md overflow-hidden" style={{ aspectRatio: "2/3", boxShadow: "-1px 0 3px rgba(0,0,0,0.1), 3px 6px 16px rgba(0,0,0,0.12)" }}>
-                    <BookCover book={item} className="w-full h-full" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-[#1C1917] text-sm line-clamp-2">{item.title}</h4>
-                    <p className="text-xs text-stone-500 mt-0.5">{item.author}</p>
-                    <p className="text-sm font-bold text-[#991B1B] mt-1">KSh {(item.price * item.quantity).toLocaleString()}</p>
-                    <div className="flex items-center gap-3 mt-2.5">
-                      <div className="flex items-center border border-stone-300 rounded-lg">
-                        <button onClick={() => onUpdateQty(item.id, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-100 font-bold text-sm">−</button>
-                        <span className="w-8 text-center text-sm font-semibold">{item.quantity}</span>
-                        <button onClick={() => onUpdateQty(item.id, 1)} className="w-8 h-8 flex items-center justify-center hover:bg-stone-100 font-bold text-sm">+</button>
+                <li key={item.id} className="flex gap-3 py-3">
+                  <Link href={bookPath(item)} onClick={close} className="w-16 shrink-0 rounded-r-sm overflow-hidden book-shadow">
+                    <BookCover book={item} className="w-full" sizes="64px" />
+                  </Link>
+
+                  <div className="min-w-0 flex-1">
+                    <Link href={bookPath(item)} onClick={close} className="block text-sm font-semibold text-navy line-clamp-2 hover:text-sienna">
+                      {item.title}
+                    </Link>
+                    <p className="mt-0.5 text-xs text-muted truncate">{item.author}</p>
+
+                    <div className="mt-2 flex items-center justify-between gap-2">
+                      <div className="flex items-center rounded-control border border-line bg-white">
+                        <button
+                          type="button"
+                          onClick={() => onUpdateQty(item.id, -1)}
+                          aria-label={`Decrease quantity of ${item.title}`}
+                          className="w-9 h-11 flex items-center justify-center text-navy hover:bg-subtle rounded-l-control"
+                        >
+                          <span aria-hidden="true">−</span>
+                        </button>
+                        <span className="w-8 text-center text-sm font-semibold tabular-nums">{item.quantity}</span>
+                        <button
+                          type="button"
+                          onClick={() => onUpdateQty(item.id, 1)}
+                          aria-label={`Increase quantity of ${item.title}`}
+                          className="w-9 h-11 flex items-center justify-center text-navy hover:bg-subtle rounded-r-control"
+                        >
+                          <span aria-hidden="true">+</span>
+                        </button>
                       </div>
-                      <button onClick={() => onRemove(item.id)} className="text-xs text-stone-400 hover:text-red-600 underline">Remove</button>
+
+                      <p className="text-sm font-bold text-navy">{formatKsh(item.price * item.quantity)}</p>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onRemove(item.id)}
+                      className="mt-1.5 text-xs text-muted underline underline-offset-2 hover:text-error"
+                    >
+                      Remove
+                    </button>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </div>
+
         {cart.length > 0 && (
-          <div className="border-t border-stone-200 p-4 sm:p-6 bg-stone-50">
-            <div className="flex justify-between text-sm mb-2">
-              <span className="text-stone-600">Subtotal</span>
-              <span className="font-semibold">KSh {total.toLocaleString()}</span>
+          <div className="border-t border-line p-4">
+            <div className="rounded-card border border-line bg-white p-4">
+              <div className="flex justify-between text-sm">
+                <span className="text-muted">Subtotal</span>
+                <span className="font-semibold text-navy">{formatKsh(total)}</span>
+              </div>
+              <div className="mt-1.5 flex justify-between text-sm">
+                <span className="text-muted">Delivery</span>
+                <span className="font-semibold text-navy">
+                  {remaining === 0 ? "Free" : "Calculated at checkout"}
+                </span>
+              </div>
+
+              <div className="mt-3">
+                <div className="h-1.5 w-full rounded-full bg-subtle" aria-hidden="true">
+                  <div className="h-1.5 rounded-full bg-sienna transition-all duration-200" style={{ width: `${progress}%` }} />
+                </div>
+                <p className="mt-2 text-xs text-muted" role="status">
+                  {remaining === 0
+                    ? "Delivery is free on this order."
+                    : `Add ${formatKsh(remaining)} more for free delivery.`}
+                </p>
+              </div>
+
+              <div className="mt-3 flex justify-between border-t border-line pt-3 text-base font-bold text-navy">
+                <span>Total</span>
+                <span>{formatKsh(total)}</span>
+              </div>
             </div>
-            <div className="flex justify-between text-sm mb-3">
-              <span className="text-stone-600">Delivery</span>
-              <span className="font-semibold text-green-700">Calculated at checkout</span>
-            </div>
-            <div className="flex justify-between text-base sm:text-lg font-bold border-t border-stone-200 pt-3 mb-4">
-              <span>Total</span>
-              <span>KSh {total.toLocaleString()}</span>
-            </div>
-            <Link href="/checkout" onClick={onClose}
-              className="block w-full bg-[#1C1917] hover:bg-[#991B1B] text-white py-3.5 rounded-xl font-bold text-center transition-all duration-200 text-sm sm:text-base">
-              Proceed to Checkout →
+
+            <Link href="/checkout" onClick={close} className="btn-primary mt-3 w-full text-sm">
+              Checkout
             </Link>
-            <p className="text-center text-xs text-stone-400 mt-3">M-Pesa & Card accepted · Secure checkout</p>
+            <p className="mt-2 text-center text-xs text-muted">Delivery is added on the next step, before you pay.</p>
           </div>
         )}
       </div>
     </div>
-  );
-}
-
-// ── Shared Store Header ─────────────────────────────────
-export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistClick }) {
-  const router = useRouter();
-  const [query, setQuery] = useState("");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-
-  const handleSearch = (e) => {
-    if (e.key === "Enter" && query.trim()) {
-      router.push(`/books?q=${encodeURIComponent(query.trim())}`);
-      setMobileSearchOpen(false);
-    }
-  };
-
-  const handleSearchSubmit = () => {
-    if (query.trim()) {
-      router.push(`/books?q=${encodeURIComponent(query.trim())}`);
-      setMobileSearchOpen(false);
-    }
-  };
-
-  return (
-    <>
-      <div className="bg-[#1C1917] text-white text-center py-2 text-xs sm:text-sm font-medium px-4">
-        Free delivery on orders over KSh 3,000 · KSh 300 flat rate below that
-      </div>
-
-      <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between h-16 sm:h-20 gap-3">
-
-            <Link href="/" className="flex items-center gap-2 flex-shrink-0 group">
-              <span className="text-2xl sm:text-3xl">📚</span>
-              <div>
-                <p className="text-lg sm:text-2xl font-black tracking-tight text-[#1C1917] leading-none group-hover:text-[#991B1B] transition">Book Haven</p>
-                <p className="text-[9px] sm:text-[10px] uppercase tracking-[0.2em] text-stone-500 font-semibold">Kenya</p>
-              </div>
-            </Link>
-
-            <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1">
-              <Link href="/" className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">🏠 Home</Link>
-              <Link href="/books" className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">All Books</Link>
-              {["Self-Help", "Finance", "Fiction", "Biography"].map((cat) => (
-                <Link key={cat} href={`/category/${cat.toLowerCase().replace(/\s+/g, "-")}`}
-                  className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">
-                  {categoryIcons[cat]} {cat}
-                </Link>
-              ))}
-              <Link href="/#about" className="px-3 py-2 text-sm font-medium text-stone-600 hover:text-[#991B1B] hover:bg-stone-50 rounded-lg transition">About</Link>
-            </nav>
-
-            <div className="hidden md:flex flex-1 max-w-xs xl:max-w-sm">
-              <div className="relative w-full">
-                <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={handleSearch}
-                  placeholder="Search books..."
-                  className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-10 pr-10 py-2.5 text-sm outline-none focus:border-[#991B1B] focus:ring-1 focus:ring-[#991B1B]/20 transition" />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"><SearchIcon /></div>
-                {query && (
-                  <button onClick={handleSearchSubmit} className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-[#991B1B] transition">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <button onClick={() => setMobileSearchOpen(!mobileSearchOpen)}
-                className="md:hidden p-2 hover:bg-stone-50 rounded-lg transition text-stone-600">
-                <SearchIcon />
-              </button>
-
-              <button onClick={onWishlistClick}
-                className="hidden sm:flex flex-col items-center p-2 hover:bg-stone-50 rounded-lg transition relative">
-                <div className="relative">
-                  <HeartIcon filled={wishlistCount > 0} />
-                  {wishlistCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-[#991B1B] text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center">{wishlistCount}</span>
-                  )}
-                </div>
-                <span className="text-[10px] font-medium text-stone-500 mt-0.5 hidden sm:block">Wishlist</span>
-              </button>
-
-              <button onClick={onCartClick}
-                className="flex flex-col items-center p-2 hover:bg-stone-50 rounded-lg transition relative">
-                <div className="relative">
-                  <CartIcon />
-                  {cartCount > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 bg-[#991B1B] text-white text-[9px] font-bold h-4 w-4 rounded-full flex items-center justify-center border border-white">{cartCount}</span>
-                  )}
-                </div>
-                <span className="text-[10px] font-medium text-stone-500 mt-0.5 hidden sm:block">Cart</span>
-              </button>
-
-              <div className="hidden lg:block">
-                <AccountLink />
-              </div>
-
-              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 hover:bg-stone-50 rounded-lg transition">
-                <svg className="w-6 h-6 text-stone-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {mobileMenuOpen
-                    ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />}
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {mobileSearchOpen && (
-            <div className="md:hidden pb-3 animate-fade-in">
-              <div className="relative w-full">
-                <input type="text" value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={handleSearch}
-                  autoFocus placeholder="Search books, authors..."
-                  className="w-full bg-stone-50 border border-stone-200 rounded-xl pl-10 pr-10 py-3 text-sm outline-none focus:border-[#991B1B] focus:ring-1 focus:ring-[#991B1B]/20 transition" />
-                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400"><SearchIcon /></div>
-                <button onClick={handleSearchSubmit} className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#991B1B] text-white rounded-lg p-1 transition hover:bg-[#7F1D1D]">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {mobileMenuOpen && (
-          <div className="lg:hidden bg-white border-t border-stone-100 animate-fade-in max-h-[80vh] overflow-y-auto">
-            <div className="px-4 py-4 space-y-1">
-              <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-2">Browse</p>
-              {[
-                { href: "/", label: "Home", icon: "🏠" },
-                { href: "/books", label: "All Books", icon: "📚" },
-              ].map(({ href, label, icon }) => (
-                <Link key={label} href={href} onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-3 py-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-sm font-semibold text-stone-700 transition">
-                  <span className="text-base">{icon}</span> {label}
-                </Link>
-              ))}
-
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                {categories.filter(c => c !== "All").map((cat) => (
-                  <Link key={cat} href={`/category/${cat.toLowerCase().replace(/\s+/g, "-")}`}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-2 px-3 py-2.5 bg-stone-50 hover:bg-stone-100 rounded-xl text-sm font-medium text-stone-700 transition">
-                    <span>{categoryIcons[cat]}</span> {cat}
-                  </Link>
-                ))}
-              </div>
-
-              <div className="border-t border-stone-100 pt-3 mt-2">
-                <p className="text-[10px] font-black text-stone-400 uppercase tracking-widest px-2 mb-2">Account</p>
-                <div className="px-1">
-                  <AccountLink />
-                </div>
-              </div>
-
-              <button onClick={() => { onWishlistClick(); setMobileMenuOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-sm font-semibold text-stone-700 transition">
-                <span className="text-base">♡</span>
-                Wishlist
-                {wishlistCount > 0 && <span className="ml-auto bg-[#991B1B] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{wishlistCount}</span>}
-              </button>
-
-              <Link href="/#about" onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-sm font-semibold text-stone-700 transition">
-                <span className="text-base">ℹ️</span> About Us
-              </Link>
-
-              <Link href="/#contact" onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-3 rounded-xl bg-stone-50 hover:bg-stone-100 text-sm font-semibold text-stone-700 transition">
-                <span className="text-base">📞</span> Contact
-              </Link>
-            </div>
-          </div>
-        )}
-      </header>
-    </>
   );
 }
 
 // ── Shared Footer ───────────────────────────────────────
 export function StoreFooter() {
+  const year = new Date().getFullYear();
+
   return (
-    <footer className="bg-white border-t border-stone-200 pt-10 sm:pt-16 pb-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-8 sm:mb-12">
+    <footer className="bg-navy text-cream/80 mt-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
           <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-2xl">📚</span>
-              <span className="text-xl font-black text-[#1C1917]">Book Haven</span>
-            </div>
-            <p className="text-sm text-stone-500 leading-relaxed mb-4">Kenya&apos;s trusted online bookstore since 2018. We deliver quality books nationwide with care.</p>
-            <div className="flex gap-3">
-              {["X", "IG", "FB"].map((s) => (
-                <button key={s} className="w-9 h-9 rounded-full bg-stone-100 hover:bg-[#1C1917] hover:text-white flex items-center justify-center text-xs font-bold transition">{s}</button>
-              ))}
-            </div>
+            <Link href="/" className="flex items-center gap-2">
+              <span className="text-xl" aria-hidden="true">📚</span>
+              <span className="font-playfair text-lg font-bold text-white">Book Haven</span>
+            </Link>
+            <p className="mt-3 text-sm leading-relaxed text-cream/70">
+              Books in Kenyan shillings, delivered nationwide. Free over KSh 3,000,
+              a flat KSh 300 below that.
+            </p>
           </div>
+
           <div>
-            <h4 className="font-bold text-[#1C1917] mb-3 sm:mb-4">Shop</h4>
-            <ul className="space-y-2 sm:space-y-3 text-sm text-stone-500">
-              {[["All Books", "/books"], ["Self-Help", "/category/self-help"], ["Finance", "/category/finance"], ["Fiction", "/category/fiction"], ["Biography", "/category/biography"]].map(([l, href]) => (
-                <li key={l}><Link href={href} className="hover:text-[#991B1B] transition">{l}</Link></li>
-              ))}
+            <h2 className="text-sm font-bold text-white mb-3">Shop</h2>
+            <ul className="space-y-2 text-sm">
+              <li><Link href="/books" className="hover:text-white transition">All books</Link></li>
+              <li><Link href="/category/fiction" className="hover:text-white transition">Fiction</Link></li>
+              <li><Link href="/category/finance" className="hover:text-white transition">Finance</Link></li>
+              <li><Link href="/category/self-help" className="hover:text-white transition">Self-Help</Link></li>
             </ul>
           </div>
+
           <div>
-            <h4 className="font-bold text-[#1C1917] mb-3 sm:mb-4">Help</h4>
-            <ul className="space-y-2 sm:space-y-3 text-sm text-stone-500">
-              {["Delivery Info", "Returns Policy", "Order Tracking", "FAQs", "Contact Us"].map((l) => (
-                <li key={l} className="hover:text-[#991B1B] cursor-pointer transition">{l}</li>
-              ))}
+            <h2 className="text-sm font-bold text-white mb-3">Your account</h2>
+            <ul className="space-y-2 text-sm">
+              <li><Link href="/account" className="hover:text-white transition">Orders &amp; tracking</Link></li>
+              <li><Link href="/login" className="hover:text-white transition">Sign in</Link></li>
+              <li><Link href="/login?tab=register" className="hover:text-white transition">Create an account</Link></li>
             </ul>
           </div>
+
           <div>
-            <h4 className="font-bold text-[#1C1917] mb-3 sm:mb-4">Contact</h4>
-            <ul className="space-y-2 sm:space-y-3 text-sm text-stone-500">
-              <li>hello@bookhaven.co.ke</li>
-              <li>+254 712 345 678</li>
-              <li>The Junction Mall, Nairobi</li>
-              <li>Mon–Sat: 9am–7pm</li>
+            <h2 className="text-sm font-bold text-white mb-3">Contact</h2>
+            <ul className="space-y-2 text-sm">
+              <li><a href={`mailto:${STORE_CONTACT.email}`} className="hover:text-white transition">{STORE_CONTACT.email}</a></li>
+              <li><a href={STORE_CONTACT.phoneHref} className="hover:text-white transition">{STORE_CONTACT.phone}</a></li>
+              <li>{STORE_CONTACT.location}</li>
+              <li className="text-cream/60">{STORE_CONTACT.hours}</li>
             </ul>
           </div>
         </div>
-        <div className="border-t border-stone-200 pt-6 sm:pt-8 flex flex-col md:flex-row justify-between items-center gap-3 sm:gap-4">
-          <p className="text-xs text-stone-400">© 2026 Book Haven Kenya. All rights reserved.</p>
-          <div className="flex gap-4 text-xs text-stone-400">
-            {["Privacy Policy", "Terms of Service", "Cookie Settings"].map((l) => (
-              <span key={l} className="hover:text-[#1C1917] cursor-pointer">{l}</span>
-            ))}
-          </div>
+
+        <div className="border-t border-white/15 mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2">
+          <p className="text-xs text-cream/60">© {year} Book Haven Kenya</p>
+          <p className="text-xs text-cream/60">Prices in KES · Pay on delivery</p>
         </div>
       </div>
     </footer>
@@ -563,7 +224,6 @@ export function useStore() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [toast, setToast] = useState(null);
-  const [selectedBook, setSelectedBook] = useState(null);
 
   useEffect(() => {
     try {
@@ -571,21 +231,14 @@ export function useStore() {
       const w = localStorage.getItem("bh_wishlist");
       // Browser-only state restored after mount so the server-rendered
       // HTML and the first client render stay identical.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only state restored after mount
       if (c) setCart(JSON.parse(c));
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (w) setWishlist(JSON.parse(w));
     } catch {}
   }, []);
 
   useEffect(() => { localStorage.setItem("bh_cart", JSON.stringify(cart)); }, [cart]);
   useEffect(() => { localStorage.setItem("bh_wishlist", JSON.stringify(wishlist)); }, [wishlist]);
-
-  useEffect(() => {
-    const handler = (e) => { if (e.key === "Escape") setSelectedBook(null); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
 
   // Keeps every mounted copy of the cart in step. The server-rendered book
   // page writes to the same localStorage key from a separate client island,
@@ -665,46 +318,8 @@ export function useStore() {
   // Anything that removes every line item has effectively emptied the basket;
   // the checkout page relies on this to stop showing a stale review.
   return {
-    cart, wishlist, isCartOpen, isWishlistOpen, toast, selectedBook,
-    setIsCartOpen, setIsWishlistOpen, setSelectedBook,
+    cart, wishlist, isCartOpen, isWishlistOpen, toast,
+    setIsCartOpen, setIsWishlistOpen,
     addToCart, removeFromCart, updateQty, setQty, toggleWishlist, cartTotal, cartCount,
   };
-}
-
-// ── StoreShell default export ───────────────────────────
-export default function StoreShell({ children }) {
-  const store = useStore();
-  return (
-    <>
-      <StoreHeader
-        cartCount={store.cartCount}
-        wishlistCount={store.wishlist.length}
-        onCartClick={() => store.setIsCartOpen(true)}
-        onWishlistClick={() => store.setIsWishlistOpen(true)}
-      />
-      {typeof children === "function" ? children(store) : children}
-      <WishlistDrawer
-        wishlist={store.wishlist}
-        isOpen={store.isWishlistOpen}
-        onClose={() => store.setIsWishlistOpen(false)}
-        onRemove={(id) => { store.toggleWishlist(store.wishlist.find((b) => b.id === id)); }}
-        onAddToCart={(book) => { store.addToCart(book); store.setIsWishlistOpen(false); }}
-        onViewDetail={store.setSelectedBook}
-      />
-      <CartDrawer
-        cart={store.cart}
-        isOpen={store.isCartOpen}
-        onClose={() => store.setIsCartOpen(false)}
-        onUpdateQty={store.updateQty}
-        onRemove={store.removeFromCart}
-        total={store.cartTotal}
-      />
-      {store.toast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1C1917] text-white px-5 py-3 rounded-lg shadow-2xl animate-slide-up flex items-center gap-3 whitespace-nowrap max-w-[90vw]">
-          <span className="text-green-400">✓</span>
-          <span className="text-sm font-medium truncate">{store.toast}</span>
-        </div>
-      )}
-    </>
-  );
 }
