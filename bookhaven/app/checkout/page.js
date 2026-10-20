@@ -463,7 +463,7 @@ function CodFlow({ total, onSuccess, disabled = false }) {
           {[
             `Have KSh ${total.toLocaleString()} ready when the books arrive`,
             "The rider will call the phone number you gave us",
-            "We confirm every order by phone before dispatch",
+            "We use this number if we need to reach you about the delivery",
           ].map((t) => (
             <li key={t} className="flex items-start gap-2 text-sm text-amber-800">
               <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>{t}
@@ -570,7 +570,6 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
   const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
   const grand = order?.total ?? total + delivery;
   const methodLabels = { mpesa: "M-Pesa", cod: "Cash on Delivery" };
-  const eta = details.city === "Nairobi" ? "1–2 business days" : "2–4 business days";
   // The reference customers quote to support is derived from the saved order
   // id. Before the order exists there is nothing real to quote, so we show
   // the M-Pesa transaction instead of inventing a code.
@@ -622,7 +621,6 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
           { label: "Payment", value: methodLabels[method] || method },
           { label: order ? "Amount due" : "Amount", value: `KSh ${grand.toLocaleString()}` },
           ...(order?.subtotal != null ? [{ label: "Subtotal", value: `KSh ${order.subtotal.toLocaleString()}` }, { label: "Delivery", value: order.delivery_fee ? `KSh ${order.delivery_fee.toLocaleString()}` : "Free" }] : []),
-          { label: "Estimated delivery", value: eta },
         ].map(({ label, value, mono }) => (
           <div key={label} className="flex justify-between text-sm gap-4">
             <span className="text-stone-500 flex-shrink-0">{label}</span>
@@ -642,7 +640,7 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
 
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-700 max-w-sm mx-auto mb-8">
         {order
-          ? "We have emailed nothing yet — order email delivery is not switched on. This page and your account page are the record of this order."
+          ? "No receipt email is sent yet. This page and your account page are the record of this order."
           : "Keep the reference above. If money left your account, contact us before trying again."}
       </div>
 
