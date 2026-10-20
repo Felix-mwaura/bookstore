@@ -1,32 +1,29 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "../../../lib/admin-auth";
+import { mpesaConfig, mpesaAccessToken } from "../../../lib/mpesa";
 
-export async function GET() {
-  try {
-    const key = process.env.MPESA_CONSUMER_KEY;
-    const secret = process.env.MPESA_CONSUMER_SECRET;
+// GET /api/mpesa/token — admin-only connectivity check.
+//
+// This used to return the raw Daraja access token to any anonymous caller,
+// which let anyone spend the merchant's API quota. The token now never
+// leaves the server: this endpoint only reports whether credentials work.
+export async function GET(request) {
+  const auth = await requireAdmin(request);
+  if (auth instanceof NextResponse) return auth;
 
-    if (!key || !secret) {
-      return NextResponse.json({ error: "M-Pesa credentials not configured" }, { status: 500 });
-    }
-
-    const auth = Buffer.from(`${key}:${secret}`).toString("base64");
-
-    const res = await fetch(
-      "https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials",
-      {
-        method: "GET",
-        headers: { Authorization: `Basic ${auth}` },
-      }
-    );
-
-    const data = await res.json();
-
-    if (!res.ok || !data.access_token) {
-      return NextResponse.json({ error: "Failed to get token", details: data }, { status: 500 });
-    }
-
-    return NextResponse.json({ token: data.access_token });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  const config = mpesaConfig();
+  if (config.error) {
+    return NextResponse.json({ ok: false, error: config.error }, { status: 503 });
   }
+
+  const result = await mpesaAccessToken(config);
+  if (result.error) {
+    return NextResponse.json({ ok: false, error: "Daraja authentication failed" }, { status: 502 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    environment: config.base.includes("sandbox") ? "sandbox" : "production",
+    expiresIn: result.expiresIn ?? null,
+  });
 }

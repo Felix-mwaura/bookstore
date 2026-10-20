@@ -26,7 +26,7 @@ export default function AccessDeniedPage() {
         </div>
 
         <h1 className="text-3xl font-black text-[#1C1917] mb-3">Access Denied</h1>
-        <p className="text-stone-500 mb-2">You don't have permission to access this page.</p>
+        <p className="text-stone-500 mb-2">You don&apos;t have permission to access this page.</p>
         <p className="text-stone-400 text-sm mb-8">This area is restricted to administrators only. If you believe this is a mistake, please contact the site administrator.</p>
 
         <div className="bg-stone-100 rounded-2xl px-6 py-4 mb-8 text-left space-y-2.5">

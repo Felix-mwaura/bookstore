@@ -17,7 +17,11 @@ export function StoreProvider({ children }) {
     try {
       const c = localStorage.getItem("bh_cart");
       const w = localStorage.getItem("bh_wishlist");
+      // Browser-only state restored after mount so the server-rendered
+      // HTML and the first client render stay identical.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (c) setCart(JSON.parse(c));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (w) setWishlist(JSON.parse(w));
     } catch {}
   }, []);

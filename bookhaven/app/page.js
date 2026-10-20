@@ -23,7 +23,7 @@ function HeroBanner({ books }) {
               <span className="italic text-[#991B1B]">Bestselling</span> Titles
             </h2>
             <p className="mt-4 sm:mt-6 text-base sm:text-lg text-stone-600 max-w-lg leading-relaxed">
-              Discover this season's most talked-about books — from gripping memoirs to life-changing self-help.
+              Discover this season&apos;s most talked-about books — from gripping memoirs to life-changing self-help.
             </p>
             <div className="flex flex-col xs:flex-row gap-3 mt-6 sm:mt-8">
               <Link href="/books" className="btn-primary text-center shadow-lg shadow-red-900/20">
@@ -193,7 +193,7 @@ function ReviewsSection() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {reviews.map((r, i) => (
             <div key={i} className="bg-[#FAF8F5] rounded-2xl border border-stone-200 p-5 sm:p-6 flex flex-col">
-              <div className="text-3xl font-black text-stone-100 leading-none mb-2 select-none">"</div>
+              <div className="text-3xl font-black text-stone-100 leading-none mb-2 select-none">&quot;</div>
               <p className="text-stone-600 text-sm leading-relaxed flex-1">{r.text}</p>
               <div className="mt-4 pt-4 border-t border-stone-100 flex items-center justify-between">
                 <div className="flex items-center gap-2.5">
@@ -230,10 +230,10 @@ function AboutSection() {
           <div>
             <span className="text-xs font-black uppercase tracking-widest text-[#991B1B] mb-2 block">Our Story</span>
             <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1C1917] leading-tight">
-              Kenya's Home for <br /><span className="italic text-[#991B1B]">Great Books</span>
+              Kenya&apos;s Home for <br /><span className="italic text-[#991B1B]">Great Books</span>
             </h2>
             <p className="mt-4 sm:mt-6 text-stone-600 leading-relaxed text-sm sm:text-base">
-              Book Haven started in 2018 from a small room in Nairobi's South B estate. Our founder Grace noticed that Kenyans who loved reading had to either pay import prices or hunt through second-hand markets. She decided to fix that.
+              Book Haven started in 2018 from a small room in Nairobi&apos;s South B estate. Our founder Grace noticed that Kenyans who loved reading had to either pay import prices or hunt through second-hand markets. She decided to fix that.
             </p>
             <p className="mt-3 sm:mt-4 text-stone-600 leading-relaxed text-sm sm:text-base">
               Today we stock over 2,000 titles, deliver to all 47 counties, and have helped more than 15,000 Kenyans build their personal libraries.
@@ -320,7 +320,7 @@ function Newsletter() {
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">Join Our Reading Community</h2>
         <p className="text-stone-400 max-w-xl mx-auto mb-6 sm:mb-8 text-sm sm:text-base">Get weekly book recommendations, author interviews, and exclusive member discounts.</p>
         {subscribed ? (
-          <p className="text-green-400 font-semibold">✓ You're in! Check your inbox soon.</p>
+          <p className="text-green-400 font-semibold">✓ You&apos;re in! Check your inbox soon.</p>
         ) : (
           <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}

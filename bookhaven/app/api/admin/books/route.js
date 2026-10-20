@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
+import { SUPABASE_URL } from "../../../lib/supabase-config";
 
 // Only these columns can ever be written from the browser — blocks
 // mass-assignment of things like rating/reviews/created_at, and `stock`
@@ -13,8 +14,10 @@ const ALLOWED = [
 const isInt = (v) => Number.isInteger(v);
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 
+// Must match the URL the browser client builds for getPublicUrl(), including
+// the env fallback — otherwise every upload would be rejected as "not ours".
 function coverPrefix() {
-  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/book-covers/`;
+  return `${SUPABASE_URL}/storage/v1/object/public/book-covers/`;
 }
 
 // Returns { data } with only whitelisted, validated fields, or { error }.

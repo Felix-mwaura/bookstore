@@ -497,12 +497,21 @@ function OrdersTab({ orders, onUpdateStatus, showToast }) {
     setConfirm({ orderId, status:"Cancelled" });
   };
 
+  // Mirrors the transition rules enforced by set_order_status() in Postgres.
+  // Delivered and Cancelled are terminal — no moving back to an earlier state.
+  const nextStatuses = (status) => {
+    if (status === "Processing") return ["Processing", "Shipped", "Cancelled"];
+    if (status === "Shipped") return ["Shipped", "Delivered", "Cancelled"];
+    return [status];
+  };
+  const isTerminal = (status) => status === "Delivered" || status === "Cancelled";
+
   return (
     <div>
       <ConfirmDialog
         open={!!confirm}
         title="Cancel order?"
-        message="This will mark the order as cancelled and restore any reserved stock. This can be reversed by changing the status again."
+        message="This will mark the order as cancelled and return the books to stock. Cancelling is final — the order cannot be reopened."
         danger
         loading={!!confirm && updating===confirm.orderId}
         confirmLabel="Cancel Order"
@@ -574,11 +583,12 @@ function OrdersTab({ orders, onUpdateStatus, showToast }) {
                     <td className="px-3 py-3 text-[10px] text-stone-400 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
                     <td className="px-3 py-3">
                       <div className="flex items-center gap-1">
-                        <select value={o.status} onChange={e=>updateStatus(o.id,e.target.value)} disabled={updating===o.id}
-                          className="text-xs bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 outline-none focus:border-[#991B1B] disabled:opacity-50 cursor-pointer">
-                          {["Processing","Shipped","Delivered","Cancelled"].map(s=><option key={s}>{s}</option>)}
+                        <select value={o.status} onChange={e=>updateStatus(o.id,e.target.value)} disabled={updating===o.id || isTerminal(o.status)}
+                          title={isTerminal(o.status) ? "Delivered and cancelled orders are final" : "Change order status"}
+                          className="text-xs bg-stone-50 border border-stone-200 rounded-lg px-2 py-1 outline-none focus:border-[#991B1B] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer">
+                          {nextStatuses(o.status).map(s=><option key={s}>{s}</option>)}
                         </select>
-                        {o.status!=="Cancelled"&&<button onClick={()=>cancelOrder(o.id)} className="p-1 text-stone-400 hover:text-red-600 transition" title="Cancel order">
+                        {!isTerminal(o.status) && <button onClick={()=>cancelOrder(o.id)} className="p-1 text-stone-400 hover:text-red-600 transition" title="Cancel order">
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
                         </button>}
                       </div>
@@ -889,7 +899,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
             </div>
             <label className="flex items-center gap-2 mt-6 cursor-pointer">
               <input type="checkbox" checked={form.is_featured} onChange={e=>setForm(p=>({...p,is_featured:e.target.checked}))} className="w-4 h-4 accent-[#991B1B]"/>
-              <span className="text-sm text-stone-600">Show in "Recommended" on the homepage</span>
+              <span className="text-sm text-stone-600">Show in &quot;Recommended&quot; on the homepage</span>
             </label>
             <div className="col-span-2">
               <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Description</label>
@@ -1462,6 +1472,9 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
     }
   }, []);
 
+  // Initial data load. State is only set from the async callback once the
+  // request resolves, which is the intended fetch-on-mount pattern.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadBooks(); }, [loadBooks]);
 
   // The full user list (with real emails, via the Auth Admin API) is
@@ -1483,7 +1496,9 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
     } catch { /* keep showing the profiles-only list already in state */ }
   }, [usersDetailLoaded]);
 
+  // Lazy fetch when the tab opens; state is set after the request resolves.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (activeTab === "users" || activeTab === "customers") loadFullUsers();
   }, [activeTab, loadFullUsers]);
 

@@ -1,60 +1,83 @@
-import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { clientForToken, bearerToken } from "../../lib/server";
 
-const supabase = createClient(
-  "https://luniopceavtkljywukyi.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imx1bmlvcGNlYXZ0a2xqeXd1a3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkxNzk1NTUsImV4cCI6MjA5NDc1NTU1NX0.zmZcxS2uxyon8Est9l3feYLuYy02hgcIpCNKAqKWtCE"
-);
+// The wishlist routes were broken: they built a plain anon client and never
+// attached the caller's JWT, so every `.from("wishlists")` query ran as the
+// `anon` role and `auth.uid() = user_id` matched nothing. Reads returned an
+// empty list and writes were silently rejected. clientForToken() attaches
+// the verified token so Row Level Security behaves as intended.
 
-async function getUser(request) {
-  const token = request.headers.get("authorization")?.replace("Bearer ", "");
-  if (!token) return null;
-  const { data: { user } } = await supabase.auth.getUser(token);
-  return user;
+async function requireUser(request) {
+  const token = bearerToken(request);
+  if (!token) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+
+  const client = clientForToken(token);
+  const { data: { user }, error } = await client.auth.getUser(token);
+  if (error || !user) return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+
+  return { client, user };
 }
 
-// GET /api/wishlist — fetch user's wishlist book IDs
-export async function GET(request) {
-  const user = await getUser(request);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+function validBookId(value) {
+  const id = Number(value);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
 
-  const { data, error } = await supabase
+export async function GET(request) {
+  const { client, user, error } = await requireUser(request);
+  if (error) return error;
+
+  const { data, error: dbError } = await client
     .from("wishlists")
     .select("book_id")
     .eq("user_id", user.id);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ bookIds: data.map((r) => r.book_id) });
+  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  return NextResponse.json({ bookIds: (data || []).map((r) => r.book_id) });
 }
 
-// POST /api/wishlist — add a book
 export async function POST(request) {
-  const user = await getUser(request);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { client, user, error } = await requireUser(request);
+  if (error) return error;
 
-  const { bookId } = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-  const { error } = await supabase
+  const bookId = validBookId(body?.bookId);
+  if (!bookId) return NextResponse.json({ error: "A valid bookId is required" }, { status: 400 });
+
+  const { error: dbError } = await client
     .from("wishlists")
     .upsert({ user_id: user.id, book_id: bookId }, { onConflict: "user_id,book_id" });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }
 
-// DELETE /api/wishlist — remove a book
 export async function DELETE(request) {
-  const user = await getUser(request);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { client, user, error } = await requireUser(request);
+  if (error) return error;
 
-  const { bookId } = await request.json();
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
 
-  const { error } = await supabase
+  const bookId = validBookId(body?.bookId);
+  if (!bookId) return NextResponse.json({ error: "A valid bookId is required" }, { status: 400 });
+
+  const { error: dbError } = await client
     .from("wishlists")
     .delete()
     .eq("user_id", user.id)
     .eq("book_id", bookId);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

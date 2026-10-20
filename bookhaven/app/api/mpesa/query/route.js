@@ -1,52 +1,137 @@
 import { NextResponse } from "next/server";
+import { userFromRequest, serviceClient } from "../../../lib/server";
+import { mpesaConfig, mpesaAccessToken, mpesaTimestamp, mpesaPassword } from "../../../lib/mpesa";
 
-function getTimestamp() {
-  const now = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  return now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + pad(now.getHours()) + pad(now.getMinutes()) + pad(now.getSeconds());
-}
-
+// POST /api/mpesa/query — poll the status of the caller's own STK request.
+//
+// This is the reconciliation path when the callback has not arrived yet.
+// The browser's claim of success is never trusted: the server asks Safaricom
+// directly, and only a ResultCode of 0 marks the stored payment completed.
 export async function POST(request) {
+  const auth = await userFromRequest(request);
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  let body;
   try {
-    const { checkoutRequestId } = await request.json();
-
-    const key = process.env.MPESA_CONSUMER_KEY;
-    const secret = process.env.MPESA_CONSUMER_SECRET;
-    const shortcode = process.env.MPESA_SHORTCODE ;
-    const passkey = process.env.MPESA_PASSKEY ;
-
-    // Get token
-    const auth = Buffer.from(`${key}:${secret}`).toString("base64");
-    const tokenRes = await fetch("https://sandbox.safaricom.co.ke/oauth/v1/generate?grant_type=client_credentials", {
-      headers: { Authorization: `Basic ${auth}` },
-    });
-    const { access_token } = await tokenRes.json();
-
-    const timestamp = getTimestamp();
-    const password = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString("base64");
-
-    // Query STK status
-    const queryRes = await fetch("https://sandbox.safaricom.co.ke/mpesa/stkpushquery/v1/query", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${access_token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        BusinessShortCode: shortcode,
-        Password: password,
-        Timestamp: timestamp,
-        CheckoutRequestID: checkoutRequestId,
-      }),
-    });
-
-    const data = await queryRes.json();
-
-    // ResultCode 0 = success, 1032 = cancelled, 1037 = timeout
-    return NextResponse.json({
-      resultCode: data.ResultCode,
-      resultDesc: data.ResultDesc,
-      success: data.ResultCode === "0",
-      cancelled: data.ResultCode === "1032",
-    });
-  } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
+
+  const checkoutRequestId = body?.checkoutRequestId;
+  if (typeof checkoutRequestId !== "string" || !checkoutRequestId) {
+    return NextResponse.json({ error: "checkoutRequestId is required" }, { status: 400 });
+  }
+
+  const config = mpesaConfig();
+  if (config.error) {
+    return NextResponse.json({ error: "M-Pesa is not configured." }, { status: 503 });
+  }
+
+  let db;
+  try {
+    db = serviceClient();
+  } catch {
+    return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
+  }
+
+  // Only the customer who started this payment may query it.
+  const { data: payment } = await db
+    .from("mpesa_payments")
+    .select("id, status, expected_amount, amount, mpesa_receipt")
+    .eq("checkout_request_id", checkoutRequestId)
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+
+  if (!payment) {
+    return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+  }
+
+  if (payment.status === "completed") {
+    return NextResponse.json({
+      success: true,
+      pending: false,
+      cancelled: false,
+      amount: payment.amount ?? payment.expected_amount,
+      receipt: payment.mpesa_receipt,
+    });
+  }
+
+  const tokenResult = await mpesaAccessToken(config);
+  if (tokenResult.error) {
+    return NextResponse.json({ error: "M-Pesa is temporarily unavailable." }, { status: 502 });
+  }
+
+  const timestamp = mpesaTimestamp();
+  const password = mpesaPassword(config.shortcode, config.passkey, timestamp);
+
+  const queryRes = await fetch(`${config.base}/mpesa/stkpushquery/v1/query`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${tokenResult.token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      BusinessShortCode: config.shortcode,
+      Password: password,
+      Timestamp: timestamp,
+      CheckoutRequestID: checkoutRequestId,
+    }),
+    cache: "no-store",
+  });
+
+  const data = await queryRes.json().catch(() => ({}));
+  const code = String(data.ResultCode ?? "");
+
+  if (code === "0") {
+    // Safaricom confirms the payment. Reconcile locally so place_order()
+    // can verify it even if the callback is delayed.
+    await db
+      .from("mpesa_payments")
+      .update({
+        status: "completed",
+        result_code: 0,
+        result_desc: data.ResultDesc || "Confirmed via STK query",
+        amount: payment.amount ?? payment.expected_amount,
+      })
+      .eq("id", payment.id)
+      .eq("status", "pending");
+
+    return NextResponse.json({
+      success: true,
+      pending: false,
+      cancelled: false,
+      amount: payment.amount ?? payment.expected_amount,
+    });
+  }
+
+  if (code === "1032" || code === "1037") {
+    // 1032 = cancelled by user, 1037 = timeout / unreachable.
+    await db
+      .from("mpesa_payments")
+      .update({
+        status: "failed",
+        result_code: Number(code),
+        result_desc: data.ResultDesc || (code === "1032" ? "Cancelled" : "Timed out"),
+      })
+      .eq("id", payment.id)
+      .eq("status", "pending");
+
+    return NextResponse.json({
+      success: false,
+      pending: false,
+      cancelled: code === "1032",
+      timedOut: code === "1037",
+      resultDesc: data.ResultDesc,
+    });
+  }
+
+  // Any other code means "still waiting" (the customer may not have entered
+  // their PIN yet) unless Safaricom returned an explicit error.
+  return NextResponse.json({
+    success: false,
+    pending: true,
+    cancelled: false,
+    resultDesc: data.ResultDesc,
+  });
 }

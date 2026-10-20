@@ -510,7 +510,7 @@ export function StoreFooter() {
               <span className="text-2xl">📚</span>
               <span className="text-xl font-black text-[#1C1917]">Book Haven</span>
             </div>
-            <p className="text-sm text-stone-500 leading-relaxed mb-4">Kenya's trusted online bookstore since 2018. We deliver quality books nationwide with care.</p>
+            <p className="text-sm text-stone-500 leading-relaxed mb-4">Kenya&apos;s trusted online bookstore since 2018. We deliver quality books nationwide with care.</p>
             <div className="flex gap-3">
               {["X", "IG", "FB"].map((s) => (
                 <button key={s} className="w-9 h-9 rounded-full bg-stone-100 hover:bg-[#1C1917] hover:text-white flex items-center justify-center text-xs font-bold transition">{s}</button>
@@ -569,7 +569,11 @@ export function useStore() {
     try {
       const c = localStorage.getItem("bh_cart");
       const w = localStorage.getItem("bh_wishlist");
+      // Browser-only state restored after mount so the server-rendered
+      // HTML and the first client render stay identical.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (c) setCart(JSON.parse(c));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (w) setWishlist(JSON.parse(w));
     } catch {}
   }, []);
