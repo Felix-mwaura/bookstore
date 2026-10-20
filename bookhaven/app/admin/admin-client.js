@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef, Fragment } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
+import { useDialog } from "../lib/useDialog";
 
 // ─────────────────────────────────────────────────────────
 // Helpers
@@ -156,7 +157,7 @@ const NAV = [
 
 function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
   return (
-    <aside className={`flex flex-col border-r border-[#E3DCCB] bg-white transition-all duration-200 flex-shrink-0 ${collapsed?"w-[56px]":"w-[240px]"}`}>
+    <aside className={`hidden lg:flex flex-col border-r border-line bg-white transition-all duration-200 flex-shrink-0 ${collapsed?"w-[56px]":"w-[240px]"}`}>
       {/* Logo */}
       <div className="h-14 flex items-center gap-2.5 px-3.5 border-b border-[#E3DCCB] flex-shrink-0">
         <div className="w-7 h-7 rounded-lg bg-navy flex items-center justify-center flex-shrink-0">
@@ -211,48 +212,49 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
 // ─────────────────────────────────────────────────────────
 // TOPBAR
 // ─────────────────────────────────────────────────────────
-function Topbar({ activeTab, sessionUser, onLogout }) {
+function Topbar({ activeTab, sessionUser, onLogout, onMenu }) {
   const labels = { overview:"Dashboard", orders:"Orders", books:"Products", customers:"Customers", payments:"Payments", reports:"Reports", inventory:"Inventory", reviews:"Reviews", coupons:"Coupons", users:"Users & Roles", activity:"Activity Logs", settings:"Settings" };
-  const [search, setSearch] = useState("");
+  const meta = sessionUser?.user_metadata || {};
+  const displayName = [meta.first_name, meta.last_name].filter(Boolean).join(" ") || sessionUser?.email?.split("@")[0] || "Admin";
+
   return (
-    <div className="h-14 flex items-center gap-3 px-4 border-b border-[#E3DCCB] bg-white flex-shrink-0">
-      {/* Breadcrumb */}
-      <div className="hidden sm:flex items-center gap-1 text-xs text-stone-400">
-        <span>Book Haven</span>
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
-        <span className="text-stone-700 font-medium">{labels[activeTab]||activeTab}</span>
-      </div>
-
-      {/* Search */}
-      <div className="flex-1 max-w-xs ml-auto sm:ml-4 relative">
-        <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search anything…"
-          className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition"/>
-        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+    <header className="h-14 flex items-center gap-2 px-3 sm:px-4 border-b border-line bg-white flex-shrink-0">
+      <button
+        type="button"
+        onClick={onMenu}
+        aria-label="Open admin menu"
+        aria-haspopup="dialog"
+        className="lg:hidden w-11 h-11 -ml-1 flex items-center justify-center rounded-lg text-navy hover:bg-subtle transition"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
         </svg>
+      </button>
+
+      <p className="lg:hidden text-sm font-semibold text-navy truncate">{labels[activeTab] || activeTab}</p>
+
+      <div className="hidden lg:flex items-center gap-1 text-xs text-muted">
+        <span>Book Haven</span>
+        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
+        <span className="text-ink font-medium">{labels[activeTab]||activeTab}</span>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 ml-2">
-        <button className="w-8 h-8 rounded-lg border border-[#E3DCCB] bg-stone-50 flex items-center justify-center text-stone-500 hover:bg-stone-100 transition relative" title="Notifications">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-          <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-[#B5532F] rounded-full"/>
-        </button>
-        <Link href="/" className="w-8 h-8 rounded-lg border border-[#E3DCCB] bg-stone-50 flex items-center justify-center text-stone-500 hover:bg-stone-100 transition" title="View store">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+      <div className="flex items-center gap-1 sm:gap-2 ml-auto">
+        <Link href="/" className="w-10 h-10 rounded-lg border border-line bg-white flex items-center justify-center text-muted hover:bg-subtle transition" title="View store" aria-label="View store">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         </Link>
-        <div className="flex items-center gap-2 pl-2 border-l border-[#E3DCCB]">
-          <Avatar name="Felix Mwaura" email={sessionUser?.email} size="sm"/>
-          <div className="hidden sm:block">
-            <p className="text-xs font-bold text-[#1B2A4A] leading-none">Felix Mwaura</p>
-            <p className="text-[10px] text-stone-400 mt-0.5">Admin</p>
+        <div className="flex items-center gap-2 pl-2 border-l border-line">
+          <Avatar name={displayName} email={sessionUser?.email} size="sm"/>
+          <div className="hidden sm:block max-w-[9rem]">
+            <p className="text-xs font-bold text-navy leading-none truncate">{displayName}</p>
+            <p className="text-[10px] text-muted mt-0.5">{meta.role === "admin" ? "Admin" : "Administrator"}</p>
           </div>
-          <button onClick={onLogout} className="ml-1 text-xs text-stone-400 hover:text-red-600 transition" title="Sign out">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          <button onClick={onLogout} className="w-10 h-10 flex items-center justify-center rounded-lg text-muted hover:text-error hover:bg-error/5 transition" title="Sign out" aria-label="Sign out">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </button>
         </div>
       </div>
-    </div>
+    </header>
   );
 }
 
@@ -858,7 +860,143 @@ function OrdersTab({ orders, books, onReload, showToast }) {
       )}
 
       <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Phones: a card per order. The table below needs ten columns and is
+            unusable at 360px, so the same data is laid out as a card with the
+            full detail panel one tap away. */}
+        <ul role="list" className="lg:hidden divide-y divide-stone-100">
+          {paginated.map((o) => {
+            const payFlow = PAYMENT_FLOW[o.payment_status] || [];
+            const isOpen = expanded === o.id;
+            return (
+              <li key={o.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(o.id)}
+                    onChange={() => toggleSelected(o.id)}
+                    aria-label={`Select order ${o.id.slice(0, 8)}`}
+                    className="mt-1 h-4 w-4 rounded border-stone-300"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-xs text-sienna">{o.id.slice(0, 8).toUpperCase()}</p>
+                    <p className="mt-1 text-sm font-semibold text-navy truncate">
+                      {o.delivery_details?.firstName} {o.delivery_details?.lastName}
+                    </p>
+                    <p className="text-xs text-muted truncate">
+                      {o.delivery_details?.phone}
+                      {o.delivery_details?.city ? ` · ${o.delivery_details.city}` : ""}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-navy">KSh {(o.total || 0).toLocaleString()}</p>
+                    <p className={`mt-1 text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-[#8A5A15]"}`}>
+                      {PAYMENT_LABEL[o.payment_status] || o.payment_status}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Badge status={o.status} />
+                  <select
+                    value={o.status}
+                    onChange={(e) => updateStatus(o.id, e.target.value)}
+                    disabled={updating === o.id || isTerminal(o.status)}
+                    aria-label={`Fulfilment status for order ${o.id.slice(0, 8)}`}
+                    className="min-h-11 text-xs bg-white border border-line rounded-control px-2 outline-none focus:border-navy disabled:opacity-50"
+                  >
+                    <option value={o.status}>{o.status}</option>
+                    {(STATUS_FLOW[o.status] || []).map((st) => <option key={st} value={st}>{st}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(isOpen ? null : o.id)}
+                    aria-expanded={isOpen}
+                    aria-controls={`order-details-${o.id}`}
+                    className="ml-auto min-h-11 px-2 text-xs font-semibold text-sienna underline underline-offset-2"
+                  >
+                    {isOpen ? "Hide details" : "Details"}
+                  </button>
+                </div>
+
+                {isOpen && (
+                  <div id={`order-details-${o.id}`} className="mt-3 rounded-card border border-line bg-stone-50 p-3 text-xs">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Items</p>
+                    <ul className="space-y-2">
+                      {(o.items || []).map((item, i) => {
+                        const book = bookById.get(String(item.id));
+                        return (
+                          <li key={i} className="flex items-center gap-2">
+                            <div className="w-8 h-11 rounded bg-stone-200 overflow-hidden shrink-0">
+                              {book?.cover_url && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={book.cover_url} alt="" className="w-full h-full object-cover" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-navy truncate">{item.title}</p>
+                              <p className="text-[10px] text-muted">Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}</p>
+                            </div>
+                            <p className="font-bold text-navy">KSh {((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
+                      <p className="font-semibold text-navy">Delivery</p>
+                      <p>{o.delivery_details?.address}</p>
+                      <p>{o.delivery_details?.city}</p>
+                      {(o.delivery_details?.instructions || o.delivery_details?.notes) && (
+                        <p className="italic">“{o.delivery_details.instructions || o.delivery_details.notes}”</p>
+                      )}
+                    </div>
+
+                    <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
+                      <p>Subtotal <span className="float-right font-semibold text-navy">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
+                      <p>Delivery <span className="float-right font-semibold text-navy">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
+                      <p>Total <span className="float-right font-bold text-navy">KSh {(o.total ?? 0).toLocaleString()}</span></p>
+                      {o.payment_ref && <p>Receipt <span className="float-right font-mono">{o.payment_ref}</span></p>}
+                      {o.courier && <p>Courier <span className="float-right">{o.courier}</span></p>}
+                    </div>
+
+                    {payFlow.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {payFlow.map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            disabled={updating === o.id}
+                            onClick={() => updatePayment(o.id, st)}
+                            className="min-h-11 px-3 rounded-control border border-line bg-white text-[11px] font-semibold text-ink disabled:opacity-40"
+                          >
+                            {st === "paid" ? "Mark paid" : st === "failed" ? "Mark failed" : st === "refund_pending" ? "Start refund" : st === "refunded" ? "Mark refunded" : "Reset to unpaid"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {!isTerminal(o.status) && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirm({ orderId: o.id })}
+                        className="mt-3 w-full min-h-11 rounded-control border border-error/30 text-xs font-bold text-error hover:bg-error/5"
+                      >
+                        Cancel this order
+                      </button>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+          {paginated.length === 0 && (
+            <li className="px-4 py-12 text-center">
+              <p className="text-sm text-muted">No orders match this view.</p>
+            </li>
+          )}
+        </ul>
+
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 border-b border-stone-100">
               <tr>
@@ -1832,7 +1970,143 @@ function CustomersTab({ users, orders }) {
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Phones: a card per order. The table below needs ten columns and is
+            unusable at 360px, so the same data is laid out as a card with the
+            full detail panel one tap away. */}
+        <ul role="list" className="lg:hidden divide-y divide-stone-100">
+          {paginated.map((o) => {
+            const payFlow = PAYMENT_FLOW[o.payment_status] || [];
+            const isOpen = expanded === o.id;
+            return (
+              <li key={o.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(o.id)}
+                    onChange={() => toggleSelected(o.id)}
+                    aria-label={`Select order ${o.id.slice(0, 8)}`}
+                    className="mt-1 h-4 w-4 rounded border-stone-300"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-xs text-sienna">{o.id.slice(0, 8).toUpperCase()}</p>
+                    <p className="mt-1 text-sm font-semibold text-navy truncate">
+                      {o.delivery_details?.firstName} {o.delivery_details?.lastName}
+                    </p>
+                    <p className="text-xs text-muted truncate">
+                      {o.delivery_details?.phone}
+                      {o.delivery_details?.city ? ` · ${o.delivery_details.city}` : ""}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-navy">KSh {(o.total || 0).toLocaleString()}</p>
+                    <p className={`mt-1 text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-[#8A5A15]"}`}>
+                      {PAYMENT_LABEL[o.payment_status] || o.payment_status}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Badge status={o.status} />
+                  <select
+                    value={o.status}
+                    onChange={(e) => updateStatus(o.id, e.target.value)}
+                    disabled={updating === o.id || isTerminal(o.status)}
+                    aria-label={`Fulfilment status for order ${o.id.slice(0, 8)}`}
+                    className="min-h-11 text-xs bg-white border border-line rounded-control px-2 outline-none focus:border-navy disabled:opacity-50"
+                  >
+                    <option value={o.status}>{o.status}</option>
+                    {(STATUS_FLOW[o.status] || []).map((st) => <option key={st} value={st}>{st}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(isOpen ? null : o.id)}
+                    aria-expanded={isOpen}
+                    aria-controls={`order-details-${o.id}`}
+                    className="ml-auto min-h-11 px-2 text-xs font-semibold text-sienna underline underline-offset-2"
+                  >
+                    {isOpen ? "Hide details" : "Details"}
+                  </button>
+                </div>
+
+                {isOpen && (
+                  <div id={`order-details-${o.id}`} className="mt-3 rounded-card border border-line bg-stone-50 p-3 text-xs">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Items</p>
+                    <ul className="space-y-2">
+                      {(o.items || []).map((item, i) => {
+                        const book = bookById.get(String(item.id));
+                        return (
+                          <li key={i} className="flex items-center gap-2">
+                            <div className="w-8 h-11 rounded bg-stone-200 overflow-hidden shrink-0">
+                              {book?.cover_url && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={book.cover_url} alt="" className="w-full h-full object-cover" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-navy truncate">{item.title}</p>
+                              <p className="text-[10px] text-muted">Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}</p>
+                            </div>
+                            <p className="font-bold text-navy">KSh {((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
+                      <p className="font-semibold text-navy">Delivery</p>
+                      <p>{o.delivery_details?.address}</p>
+                      <p>{o.delivery_details?.city}</p>
+                      {(o.delivery_details?.instructions || o.delivery_details?.notes) && (
+                        <p className="italic">“{o.delivery_details.instructions || o.delivery_details.notes}”</p>
+                      )}
+                    </div>
+
+                    <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
+                      <p>Subtotal <span className="float-right font-semibold text-navy">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
+                      <p>Delivery <span className="float-right font-semibold text-navy">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
+                      <p>Total <span className="float-right font-bold text-navy">KSh {(o.total ?? 0).toLocaleString()}</span></p>
+                      {o.payment_ref && <p>Receipt <span className="float-right font-mono">{o.payment_ref}</span></p>}
+                      {o.courier && <p>Courier <span className="float-right">{o.courier}</span></p>}
+                    </div>
+
+                    {payFlow.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {payFlow.map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            disabled={updating === o.id}
+                            onClick={() => updatePayment(o.id, st)}
+                            className="min-h-11 px-3 rounded-control border border-line bg-white text-[11px] font-semibold text-ink disabled:opacity-40"
+                          >
+                            {st === "paid" ? "Mark paid" : st === "failed" ? "Mark failed" : st === "refund_pending" ? "Start refund" : st === "refunded" ? "Mark refunded" : "Reset to unpaid"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {!isTerminal(o.status) && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirm({ orderId: o.id })}
+                        className="mt-3 w-full min-h-11 rounded-control border border-error/30 text-xs font-bold text-error hover:bg-error/5"
+                      >
+                        Cancel this order
+                      </button>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+          {paginated.length === 0 && (
+            <li className="px-4 py-12 text-center">
+              <p className="text-sm text-muted">No orders match this view.</p>
+            </li>
+          )}
+        </ul>
+
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 border-b border-stone-100">
               <tr>{["Customer","Email","Phone","Orders","Lifetime value","Joined","Role"].map(h=>(
@@ -1937,7 +2211,143 @@ function UsersTab({ users, orders, session, showToast }) {
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Phones: a card per order. The table below needs ten columns and is
+            unusable at 360px, so the same data is laid out as a card with the
+            full detail panel one tap away. */}
+        <ul role="list" className="lg:hidden divide-y divide-stone-100">
+          {paginated.map((o) => {
+            const payFlow = PAYMENT_FLOW[o.payment_status] || [];
+            const isOpen = expanded === o.id;
+            return (
+              <li key={o.id} className="p-4">
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    checked={selected.includes(o.id)}
+                    onChange={() => toggleSelected(o.id)}
+                    aria-label={`Select order ${o.id.slice(0, 8)}`}
+                    className="mt-1 h-4 w-4 rounded border-stone-300"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-mono text-xs text-sienna">{o.id.slice(0, 8).toUpperCase()}</p>
+                    <p className="mt-1 text-sm font-semibold text-navy truncate">
+                      {o.delivery_details?.firstName} {o.delivery_details?.lastName}
+                    </p>
+                    <p className="text-xs text-muted truncate">
+                      {o.delivery_details?.phone}
+                      {o.delivery_details?.city ? ` · ${o.delivery_details.city}` : ""}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-sm font-bold text-navy">KSh {(o.total || 0).toLocaleString()}</p>
+                    <p className={`mt-1 text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-[#8A5A15]"}`}>
+                      {PAYMENT_LABEL[o.payment_status] || o.payment_status}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <Badge status={o.status} />
+                  <select
+                    value={o.status}
+                    onChange={(e) => updateStatus(o.id, e.target.value)}
+                    disabled={updating === o.id || isTerminal(o.status)}
+                    aria-label={`Fulfilment status for order ${o.id.slice(0, 8)}`}
+                    className="min-h-11 text-xs bg-white border border-line rounded-control px-2 outline-none focus:border-navy disabled:opacity-50"
+                  >
+                    <option value={o.status}>{o.status}</option>
+                    {(STATUS_FLOW[o.status] || []).map((st) => <option key={st} value={st}>{st}</option>)}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(isOpen ? null : o.id)}
+                    aria-expanded={isOpen}
+                    aria-controls={`order-details-${o.id}`}
+                    className="ml-auto min-h-11 px-2 text-xs font-semibold text-sienna underline underline-offset-2"
+                  >
+                    {isOpen ? "Hide details" : "Details"}
+                  </button>
+                </div>
+
+                {isOpen && (
+                  <div id={`order-details-${o.id}`} className="mt-3 rounded-card border border-line bg-stone-50 p-3 text-xs">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Items</p>
+                    <ul className="space-y-2">
+                      {(o.items || []).map((item, i) => {
+                        const book = bookById.get(String(item.id));
+                        return (
+                          <li key={i} className="flex items-center gap-2">
+                            <div className="w-8 h-11 rounded bg-stone-200 overflow-hidden shrink-0">
+                              {book?.cover_url && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={book.cover_url} alt="" className="w-full h-full object-cover" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-navy truncate">{item.title}</p>
+                              <p className="text-[10px] text-muted">Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}</p>
+                            </div>
+                            <p className="font-bold text-navy">KSh {((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+
+                    <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
+                      <p className="font-semibold text-navy">Delivery</p>
+                      <p>{o.delivery_details?.address}</p>
+                      <p>{o.delivery_details?.city}</p>
+                      {(o.delivery_details?.instructions || o.delivery_details?.notes) && (
+                        <p className="italic">“{o.delivery_details.instructions || o.delivery_details.notes}”</p>
+                      )}
+                    </div>
+
+                    <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
+                      <p>Subtotal <span className="float-right font-semibold text-navy">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
+                      <p>Delivery <span className="float-right font-semibold text-navy">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
+                      <p>Total <span className="float-right font-bold text-navy">KSh {(o.total ?? 0).toLocaleString()}</span></p>
+                      {o.payment_ref && <p>Receipt <span className="float-right font-mono">{o.payment_ref}</span></p>}
+                      {o.courier && <p>Courier <span className="float-right">{o.courier}</span></p>}
+                    </div>
+
+                    {payFlow.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-1.5">
+                        {payFlow.map((st) => (
+                          <button
+                            key={st}
+                            type="button"
+                            disabled={updating === o.id}
+                            onClick={() => updatePayment(o.id, st)}
+                            className="min-h-11 px-3 rounded-control border border-line bg-white text-[11px] font-semibold text-ink disabled:opacity-40"
+                          >
+                            {st === "paid" ? "Mark paid" : st === "failed" ? "Mark failed" : st === "refund_pending" ? "Start refund" : st === "refunded" ? "Mark refunded" : "Reset to unpaid"}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {!isTerminal(o.status) && (
+                      <button
+                        type="button"
+                        onClick={() => setConfirm({ orderId: o.id })}
+                        className="mt-3 w-full min-h-11 rounded-control border border-error/30 text-xs font-bold text-error hover:bg-error/5"
+                      >
+                        Cancel this order
+                      </button>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+          {paginated.length === 0 && (
+            <li className="px-4 py-12 text-center">
+              <p className="text-sm text-muted">No orders match this view.</p>
+            </li>
+          )}
+        </ul>
+
+        <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-stone-50 border-b border-stone-100">
               <tr>{["User","Email","Phone","Role","Orders","Total Spent","Joined","Actions"].map(h=>(
@@ -2224,6 +2634,63 @@ function rangeBounds(range) {
   return { from, to };
 }
 
+// The same navigation as the sidebar, in a slide-over panel for phones and
+// small tablets. Rendered only when open so focus handling stays simple.
+function MobileNav({ open, activeTab, onSelect, onClose }) {
+  const panelRef = useDialog(open, onClose);
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[80] lg:hidden">
+      <div className="absolute inset-0 bg-navy/50" onClick={onClose} aria-hidden="true" />
+      <div
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Admin menu"
+        className="absolute left-0 top-0 h-[100dvh] w-[280px] max-w-[85%] bg-white shadow-pop flex flex-col animate-slide-in-left"
+      >
+        <div className="h-14 flex items-center justify-between gap-2 px-4 border-b border-line flex-shrink-0">
+          <span className="font-playfair text-base font-bold text-navy">Book Haven</span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close admin menu"
+            className="w-11 h-11 -mr-2 flex items-center justify-center rounded-lg text-navy hover:bg-subtle"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5" aria-label="Admin sections">
+          {NAV.map((item, i) => {
+            if (item.section) {
+              return <p key={i} className="px-2 pt-4 pb-1 text-[10px] font-bold text-muted uppercase tracking-widest">{item.section}</p>;
+            }
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => { onSelect(item.id); onClose(); }}
+                aria-current={isActive ? "page" : undefined}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm min-h-11 transition-colors ${
+                  isActive ? "bg-navy text-white" : "text-ink hover:bg-subtle"
+                }`}
+              >
+                <span className="text-base flex-shrink-0" aria-hidden="true">{item.icon}</span>
+                <span className="flex-1 text-left font-medium text-[13px]">{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminClient({ initialOrders, initialUsers, initialBooksCount, sessionUser, canMutate = true }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
@@ -2237,6 +2704,7 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   // so a broken API call looked identical to an empty catalogue.
   const [booksError, setBooksError] = useState(null);
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   // Server already verified admin access in page.js — start as true
   const [verified, setVerified] = useState(true);
   const [toasts, setToasts] = useState([]);
@@ -2421,15 +2889,26 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-stone-50">
+    <div className="flex h-[100dvh] overflow-hidden bg-stone-50">
       <Toast toasts={toasts} onRemove={removeToast}/>
 
       <Sidebar activeTab={activeTab} setTab={setActiveTab} collapsed={collapsed} setCollapsed={setCollapsed} pendingCount={processingCount}/>
+      <MobileNav
+        open={mobileNavOpen}
+        activeTab={activeTab}
+        onSelect={setActiveTab}
+        onClose={() => setMobileNavOpen(false)}
+      />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar activeTab={activeTab} sessionUser={sessionUser} onLogout={handleLogout}/>
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <Topbar
+          activeTab={activeTab}
+          sessionUser={sessionUser}
+          onLogout={handleLogout}
+          onMenu={() => setMobileNavOpen(true)}
+        />
 
-        <main className="flex-1 overflow-y-auto p-5 sm:p-6">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6">
           {!canMutate && (
             <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
               <span className="text-lg leading-none">⚠️</span>
