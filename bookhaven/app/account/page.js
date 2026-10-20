@@ -1,558 +1,533 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
-import { FULFILMENT_META, PAYMENT_META, orderReference, toneClass } from "../lib/orders";
+import StoreLayout from "../components/StoreLayout";
+import {
+  FULFILMENT_META,
+  PAYMENT_META,
+  orderReference,
+  paymentDue,
+  toneClass,
+} from "../lib/orders";
+import { formatKsh } from "../lib/site";
 
-const BookLoader = () => (
-  <div className="min-h-screen bg-[#FAF6EE] flex items-center justify-center">
-    <div className="flex flex-col items-center justify-center space-y-8">
-      <style dangerouslySetInnerHTML={{ __html: `
-        .bh-book-scene {
-          position: relative;
-          perspective: 800px;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          width: 140px;
-          height: 100px;
-        }
-        .bh-book-float {
-          position: relative;
-          width: 88px;
-          height: 60px;
-          transform-style: preserve-3d;
-          animation: bh-floatBounce 2.5s ease-in-out infinite;
-        }
-        .bh-book-glow-wrap {
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          opacity: 0;
-          animation: bh-fadeIn 0.8s ease forwards 0.6s;
-          z-index: 0;
-        }
-        .bh-book-glow {
-          width: 70px;
-          height: 50px;
-          background: rgba(245, 158, 11, 0.45);
-          filter: blur(14px);
-          border-radius: 50%;
-          animation: bh-pulseGlow 2s ease-in-out infinite;
-        }
-        .bh-cover {
-          position: absolute;
-          top: 0;
-          width: 50%;
-          height: 100%;
-          background-color: #B5532F;
-          border: 3px solid #1B2A4A;
-          z-index: 2;
-        }
-        .bh-cover-left {
-          left: 0;
-          border-radius: 8px 0 0 8px;
-          border-right: none;
-        }
-        .bh-cover-right {
-          right: 0;
-          border-radius: 0 8px 8px 0;
-          border-left: none;
-          transform-origin: left center;
-          transform: rotateY(-180deg);
-          animation: bh-openRight 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards 0.2s;
-        }
-        .bh-spine {
-          position: absolute;
-          left: 50%;
-          top: 3px;
-          bottom: 3px;
-          width: 6px;
-          background: #1B2A4A;
-          transform: translateX(-50%);
-          border-radius: 3px;
-          z-index: 3;
-          opacity: 0;
-          animation: bh-fadeIn 0.3s ease forwards 0.5s;
-        }
-        .bh-page {
-          position: absolute;
-          top: 5px;
-          right: 0;
-          width: calc(50% - 2px);
-          height: calc(100% - 10px);
-          background-color: #fff;
-          border: 2px solid #1B2A4A;
-          border-radius: 0 5px 5px 0;
-          transform-origin: left center;
-          transform-style: preserve-3d;
-          opacity: 0;
-          z-index: 1;
-        }
-        
-        .bh-page-1 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 0.8s; }
-        .bh-page-2 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 1.2s; }
-        .bh-page-3 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 1.6s; }
-        .bh-page-4 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 2.0s; }
-        .bh-page-5 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 2.4s; }
-        .bh-page-6 { animation: bh-flipPage 2.4s infinite cubic-bezier(0.64, 0.04, 0.35, 1) 2.8s; }
-
-        @keyframes bh-openRight {
-          0% { transform: rotateY(-180deg); }
-          100% { transform: rotateY(0deg); }
-        }
-        @keyframes bh-fadeIn {
-          to { opacity: 1; }
-        }
-        @keyframes bh-flipPage {
-          0% { transform: rotateY(0deg) translateZ(0px); opacity: 0; }
-          5% { transform: rotateY(0deg) translateZ(0px); opacity: 1; }
-          20% { background-color: #fdfdfd; }
-          50% { background-color: #f5f5f5; }
-          80% { transform: rotateY(-175deg) translateZ(3px); opacity: 1; }
-          85% { transform: rotateY(-180deg) translateZ(0px); opacity: 0; }
-          100% { transform: rotateY(-180deg) translateZ(0px); opacity: 0; }
-        }
-        @keyframes bh-floatBounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-6px); }
-        }
-        @keyframes bh-pulseGlow {
-          0%, 100% { opacity: 0.6; transform: scale(1); }
-          50% { opacity: 1; transform: scale(1.2); }
-        }
-      `}} />
-      
-      <div className="bh-book-scene">
-        <div className="bh-book-glow-wrap">
-          <div className="bh-book-glow"></div>
-        </div>
-        <div className="bh-book-float">
-          <div className="bh-cover bh-cover-left"></div>
-          <div className="bh-cover bh-cover-right"></div>
-          <div className="bh-spine"></div>
-          <div className="bh-page bh-page-1"></div>
-          <div className="bh-page bh-page-2"></div>
-          <div className="bh-page bh-page-3"></div>
-          <div className="bh-page bh-page-4"></div>
-          <div className="bh-page bh-page-5"></div>
-          <div className="bh-page bh-page-6"></div>
-        </div>
-      </div>
-      
-      <p className="text-stone-500 font-semibold text-sm animate-pulse">
-        Loading your account...
-      </p>
-    </div>
-  </div>
-);
-
-function AccountInner() {
-  const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("orders");
-  const [editMode, setEditMode] = useState(false);
-  const [formData, setFormData] = useState({ firstName: "", lastName: "", phone: "" });
-  const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState(null);
-  const isMountedRef = useRef(true);
-
-  useEffect(() => () => { isMountedRef.current = false; }, []);
-
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
-          router.push("/login");
-          return;
-        }
-
-        // Fetch profile
-        const { data: prof, error: profError } = await supabase
-          .from("profiles")
-          .select("role, first_name, last_name, phone")
-          .eq("id", session.user.id)
-          .single();
-
-        // If admin somehow lands here, redirect them to admin dashboard
-        if (prof?.role === "admin") {
-          router.push("/admin");
-          return;
-        }
-
-        // Profile row missing — create it
-        if (profError?.code === "PGRST116") {
-          await supabase.from("profiles").upsert({
-            id: session.user.id,
-            role: "customer",
-            first_name: session.user.user_metadata?.first_name || "",
-            last_name: session.user.user_metadata?.last_name || "",
-            phone: session.user.user_metadata?.phone || "",
-          });
-        }
-
-        setUser(session.user);
-        setProfile(prof || {});
-        setFormData({
-          firstName: prof?.first_name || session.user.user_metadata?.first_name || "",
-          lastName: prof?.last_name || session.user.user_metadata?.last_name || "",
-          phone: prof?.phone || session.user.user_metadata?.phone || "",
-        });
-
-        // Fetch user's orders
-        const { data: orderData } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("user_id", session.user.id)
-          .order("created_at", { ascending: false });
-
-        if (isMountedRef.current) {
-          setOrders(orderData || []);
-        }
-      } catch (err) {
-        console.error("[BookHaven] Account error:", err);
-      } finally {
-        // Always stop loading — prevents infinite spinner
-        if (isMountedRef.current) setLoading(false);
-      }
-    };
-
-    init();
-
-    // Subscribe to auth changes
-    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT") router.push("/login");
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, [router]);
-
-  const showToast = (msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => { if (isMountedRef.current) setToast(null); }, 3000);
-  };
-
-  const saveProfile = async () => {
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone,
-        })
-        .eq("id", user.id);
-
-      if (error) throw error;
-
-      // Also update auth metadata
-      await supabase.auth.updateUser({
-        data: {
-          first_name: formData.firstName,
-          last_name: formData.lastName,
-          phone: formData.phone,
-        }
-      });
-
-      setProfile({ ...profile, first_name: formData.firstName, last_name: formData.lastName, phone: formData.phone });
-      setEditMode(false);
-      showToast("Profile updated successfully");
-    } catch (err) {
-      showToast("Failed to update profile", "error");
-    } finally {
-      if (isMountedRef.current) setSaving(false);
-    }
-  };
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/");
-  };
-
-  const getStatusColor = (status) =>
-    toneClass((FULFILMENT_META[status] || {}).tone);
-
-  if (loading) {
-    return <BookLoader />;
-  }
-
-  // Money actually paid, excluding cancellations. Summing every order would
-  // count unpaid COD baskets and cancelled orders as "spent".
-  const totalSpent = orders
-    .filter((o) => o.payment_status === "paid" && o.status !== "Cancelled")
-    .reduce((s, o) => s + (o.total || 0), 0);
-  const totalOrders = orders.length;
-  const deliveredOrders = orders.filter(o => o.status === "Delivered").length;
-
+// ─────────────────────────────────────────────────────────
+// Small presentational helpers
+// ─────────────────────────────────────────────────────────
+function StatusPill({ meta, fallback }) {
+  const tone = meta?.tone || "stone";
   return (
-    <div className="min-h-screen bg-[#FAF6EE]">
-      {/* Toast */}
-      {toast && (
-        <div className={`fixed top-6 right-6 z-[100] px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 ${toast.type === "error" ? "bg-red-600" : "bg-[#1B2A4A]"} text-white`}>
-          <span>{toast.type === "error" ? "⚠️" : "✓"}</span>
-          <span className="text-sm font-medium">{toast.msg}</span>
-        </div>
-      )}
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${toneClass(tone)}`}>
+      <span aria-hidden="true">{tone === "green" ? "✓" : tone === "red" ? "!" : "•"}</span>
+      {meta?.label || fallback}
+    </span>
+  );
+}
 
-      {/* Header */}
-      <header className="bg-white border-b border-[#E3DCCB] sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <span className="text-xl">📚</span>
-            <span className="font-bold text-[#1B2A4A] text-sm sm:text-base">Book Haven</span>
-          </Link>
-          <div className="flex items-center gap-3">
-            <Link href="/" className="text-xs text-stone-500 hover:text-[#B5532F] transition hidden sm:block">Continue Shopping</Link>
-            <button onClick={handleLogout} className="text-xs font-semibold text-stone-500 hover:text-red-600 transition">
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        {/* Welcome Banner */}
-        <div className="bg-gradient-to-r from-[#1B2A4A] to-[#3a3530] rounded-2xl p-6 sm:p-8 mb-8 text-white relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="relative z-10">
-            <p className="text-amber-400 text-xs font-bold uppercase tracking-widest mb-2">My Account</p>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-1">
-              Hello, {profile?.first_name || user?.user_metadata?.first_name || "Reader"}!
-            </h1>
-            <p className="text-stone-400 text-sm">{user?.email}</p>
-          </div>
-        </div>
-
-        {/* Stats Row */}
-        <div className="grid grid-cols-3 gap-4 mb-8">
-          <div className="bg-white rounded-xl border border-[#E3DCCB] p-4 text-center">
-            <p className="text-2xl font-black text-[#1B2A4A]">{totalOrders}</p>
-            <p className="text-xs text-stone-500 font-medium uppercase tracking-wider">Orders</p>
-          </div>
-          <div className="bg-white rounded-xl border border-[#E3DCCB] p-4 text-center">
-            <p className="text-2xl font-black text-[#1B2A4A]">KSh {totalSpent.toLocaleString()}</p>
-            <p className="text-xs text-stone-500 font-medium uppercase tracking-wider">Total Spent</p>
-          </div>
-          <div className="bg-white rounded-xl border border-[#E3DCCB] p-4 text-center">
-            <p className="text-2xl font-black text-[#1B2A4A]">{deliveredOrders}</p>
-            <p className="text-xs text-stone-500 font-medium uppercase tracking-wider">Delivered</p>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex gap-1 bg-stone-100 rounded-xl p-1 mb-6 w-fit">
-          {[
-            { id: "orders", label: "My Orders", icon: "📦" },
-            { id: "profile", label: "Profile", icon: "👤" },
-            { id: "settings", label: "Settings", icon: "⚙️" },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                activeTab === tab.id
-                  ? "bg-white text-[#1B2A4A] shadow-sm"
-                  : "text-stone-500 hover:text-stone-700"
-              }`}
-            >
-              <span>{tab.icon}</span> {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Orders Tab */}
-        {activeTab === "orders" && (
-          <div className="space-y-4">
-            {orders.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-[#E3DCCB] p-12 text-center">
-                <div className="text-5xl mb-4">📭</div>
-                <h3 className="font-bold text-[#1B2A4A] text-lg mb-2">No orders yet</h3>
-                <p className="text-stone-500 text-sm mb-4">Start exploring our collection and place your first order.</p>
-                <Link href="/" className="inline-block bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition">
-                  Browse Books
-                </Link>
-              </div>
-            ) : (
-              orders.map(order => (
-                <div key={order.id} className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
-                  <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                      <p className="text-xs text-stone-400 font-mono">{orderReference(order.id)}</p>
-                      <p className="text-xs text-stone-400">{new Date(order.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}</p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(order.status)}`}>
-                        {(FULFILMENT_META[order.status] || {}).label || order.status}
-                      </span>
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${toneClass((PAYMENT_META[order.payment_status] || {}).tone)}`}>
-                        {(PAYMENT_META[order.payment_status] || {}).label || order.payment_status}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="px-5 py-4">
-                    <div className="space-y-2 mb-4">
-                      {(order.items || []).map((item, i) => (
-                        <div key={i} className="flex items-center gap-3">
-                          <div className="w-10 h-14 bg-stone-100 rounded border border-[#E3DCCB] flex-shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-[#1B2A4A] truncate">{item.title}</p>
-                            <p className="text-xs text-stone-500">{item.author}</p>
-                          </div>
-                          <p className="text-sm font-bold text-[#1B2A4A]">KSh {item.price?.toLocaleString()}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="flex items-center justify-between pt-3 border-t border-stone-100">
-                      <div>
-                        <p className="text-xs text-stone-400">Payment: <span className="text-stone-600 font-medium">{order.payment_method === "cod" ? "Cash on delivery" : order.payment_method}</span></p>
-                        <p className="text-xs text-stone-400">Delivery: <span className="text-stone-600 font-medium">{order.delivery_details?.city}</span></p>
-                        <Link href={`/orders/${order.id}`} className="inline-block text-xs font-bold text-[#B5532F] hover:underline mt-2">
-                          View order details →
-                        </Link>
-                      </div>
-                      <p className="text-lg font-black text-[#1B2A4A]">KSh {(order.total || 0).toLocaleString()}</p>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
-
-        {/* Profile Tab */}
-        {activeTab === "profile" && (
-          <div className="bg-white rounded-2xl border border-[#E3DCCB] p-6 sm:p-8">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-[#1B2A4A]">Personal Information</h2>
-              {!editMode && (
-                <button onClick={() => setEditMode(true)} className="text-sm text-[#B5532F] font-semibold hover:underline">
-                  Edit Profile
-                </button>
-              )}
-            </div>
-
-            {editMode ? (
-              <div className="space-y-4 max-w-md">
-                <div>
-                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">First Name</label>
-                  <input
-                    type="text"
-                    value={formData.firstName}
-                    onChange={e => setFormData(p => ({ ...p, firstName: e.target.value }))}
-                    className="w-full bg-white border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#B5532F] transition"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Last Name</label>
-                  <input
-                    type="text"
-                    value={formData.lastName}
-                    onChange={e => setFormData(p => ({ ...p, lastName: e.target.value }))}
-                    className="w-full bg-white border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#B5532F] transition"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    value={formData.phone}
-                    onChange={e => setFormData(p => ({ ...p, phone: e.target.value }))}
-                    className="w-full bg-white border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none focus:border-[#B5532F] transition"
-                  />
-                </div>
-                <div className="flex gap-3 pt-2">
-                  <button
-                    onClick={saveProfile}
-                    disabled={saving}
-                    className="bg-[#1B2A4A] hover:bg-[#B5532F] disabled:bg-stone-200 text-white px-6 py-2.5 rounded-xl font-semibold text-sm transition"
-                  >
-                    {saving ? "Saving..." : "Save Changes"}
-                  </button>
-                  <button
-                    onClick={() => { setEditMode(false); setFormData({ firstName: profile?.first_name || "", lastName: profile?.last_name || "", phone: profile?.phone || "" }); }}
-                    className="border border-[#E3DCCB] text-stone-600 px-6 py-2.5 rounded-xl font-semibold text-sm"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4 max-w-md">
-                <div className="flex items-center gap-4 pb-4 border-b border-stone-100">
-                  <div className="w-16 h-16 rounded-full bg-[#B5532F]/10 flex items-center justify-center text-[#B5532F] font-black text-2xl">
-                    {(profile?.first_name || user?.email || "?").charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <p className="font-bold text-[#1B2A4A] text-lg">{profile?.first_name} {profile?.last_name}</p>
-                    <p className="text-stone-500 text-sm">{user?.email}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-stone-400 uppercase tracking-wider font-bold mb-1">Phone</p>
-                    <p className="text-sm text-[#1B2A4A] font-medium">{profile?.phone || <span className="text-stone-300 italic">Not set</span>}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-stone-400 uppercase tracking-wider font-bold mb-1">Member Since</p>
-                    <p className="text-sm text-[#1B2A4A] font-medium">{new Date(user?.created_at).toLocaleDateString("en-KE", { month: "long", year: "numeric" })}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Settings Tab */}
-        {activeTab === "settings" && (
-          <div className="bg-white rounded-2xl border border-[#E3DCCB] p-6 sm:p-8">
-            <h2 className="text-xl font-bold text-[#1B2A4A] mb-6">Account Settings</h2>
-            <div className="space-y-4 max-w-md">
-              <div className="flex items-center justify-between py-3 border-b border-stone-100">
-                <div>
-                  <p className="text-sm font-semibold text-[#1B2A4A]">Email Notifications</p>
-                  <p className="text-xs text-stone-500">Receive order updates and promotions</p>
-                </div>
-                <div className="w-11 h-6 bg-[#B5532F] rounded-full relative cursor-pointer">
-                  <div className="absolute right-1 top-1 w-4 h-4 bg-white rounded-full" />
-                </div>
-              </div>
-              <div className="flex items-center justify-between py-3 border-b border-stone-100">
-                <div>
-                  <p className="text-sm font-semibold text-[#1B2A4A]">SMS Notifications</p>
-                  <p className="text-xs text-stone-500">Get delivery alerts via SMS</p>
-                </div>
-                <div className="w-11 h-6 bg-stone-200 rounded-full relative cursor-pointer">
-                  <div className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full" />
-                </div>
-              </div>
-              <div className="pt-4">
-                <button
-                  onClick={handleLogout}
-                  className="w-full border border-red-200 text-red-600 hover:bg-red-50 px-4 py-3 rounded-xl font-semibold text-sm transition"
-                >
-                  Sign Out of All Devices
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
+function Field({ id, label, hint, error, children }) {
+  return (
+    <div>
+      <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider text-muted mb-1">
+        {label}
+      </label>
+      {children}
+      {error ? (
+        <p id={`${id}-error`} role="alert" className="mt-1 text-xs text-error">{error}</p>
+      ) : hint ? (
+        <p id={`${id}-hint`} className="mt-1 text-xs text-muted">{hint}</p>
+      ) : null}
     </div>
   );
 }
 
-export default function AccountPage() {
+const inputClass =
+  "w-full min-h-11 rounded-control border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none transition focus:border-navy focus-visible:ring-2 focus-visible:ring-navy/20 disabled:opacity-60";
+
+function LoadingPanel() {
   return (
-    <Suspense fallback={<BookLoader />}>
-      <AccountInner />
-    </Suspense>
+    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10" aria-busy="true" aria-live="polite">
+      <div className="h-7 w-48 rounded bg-subtle animate-pulse" />
+      <div className="mt-3 h-4 w-64 rounded bg-subtle animate-pulse" />
+      <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        <div className="h-32 rounded-card bg-white border border-line" />
+        <div className="h-32 rounded-card bg-white border border-line" />
+      </div>
+      <span className="sr-only">Loading your account…</span>
+    </div>
+  );
+}
+
+const TABS = [
+  { id: "orders", label: "Orders" },
+  { id: "profile", label: "Profile" },
+  { id: "security", label: "Password" },
+];
+
+export default function AccountPage() {
+  const router = useRouter();
+
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState({});
+  const [orders, setOrders] = useState([]);
+  const [activeTab, setActiveTab] = useState("orders");
+
+  const [form, setForm] = useState({ firstName: "", lastName: "", phone: "" });
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  // Password state. `recovering` is true when the visitor arrived from a
+  // reset email, which is the only moment they are allowed to change a
+  // password without knowing the old one.
+  const [recovering, setRecovering] = useState(false);
+  const [pw, setPw] = useState({ next: "", confirm: "" });
+  const [pwError, setPwError] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
+
+  const showToast = useCallback((msg, type = "success") => {
+    setToast({ msg, type });
+    window.setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  // ── load session, profile and orders ───────────────────
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session) {
+        // The reset link puts the tokens in the URL hash; the Supabase client
+        // consumes them a tick later, so wait for the auth event rather than
+        // bouncing a recovering user straight to the sign-in page.
+        const hash = typeof window !== "undefined" ? window.location.hash : "";
+        if (hash.includes("type=recovery")) return;
+        router.replace("/login?next=%2Faccount");
+        return;
+      }
+
+      if (cancelled) return;
+      setUser(session.user);
+
+      const [{ data: prof }, { data: orderRows, error: orderError }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", session.user.id).maybeSingle(),
+        supabase
+          .from("orders")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      if (cancelled) return;
+      setProfile(prof || {});
+      setForm({
+        firstName: prof?.first_name || session.user.user_metadata?.first_name || "",
+        lastName: prof?.last_name || session.user.user_metadata?.last_name || "",
+        phone: prof?.phone || session.user.user_metadata?.phone || "",
+      });
+      if (orderError) setLoadError("We couldn’t load your orders just now. Refresh to try again.");
+      setOrders(orderRows || []);
+      setLoading(false);
+    }
+
+    load();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setRecovering(true);
+        setActiveTab("security");
+        setLoading(false);
+        if (session?.user) setUser(session.user);
+      }
+      if (event === "SIGNED_OUT") router.replace("/login");
+    });
+
+    return () => {
+      cancelled = true;
+      listener.subscription.unsubscribe();
+    };
+  }, [router]);
+
+  const stats = useMemo(() => {
+    const paid = orders.filter((o) => o.payment_status === "paid" && o.status !== "Cancelled");
+    return {
+      orders: orders.length,
+      spent: paid.reduce((sum, o) => sum + (o.total || 0), 0),
+      open: orders.filter((o) => !["Delivered", "Cancelled"].includes(o.status)).length,
+    };
+  }, [orders]);
+
+  // ── profile save ────────────────────────────────────────
+  async function saveProfile(event) {
+    event.preventDefault();
+    const errors = {};
+    const firstName = form.firstName.trim();
+    const lastName = form.lastName.trim();
+    const phone = form.phone.trim();
+
+    if (firstName.length < 2) errors.firstName = "Enter your first name.";
+    if (lastName.length < 2) errors.lastName = "Enter your last name.";
+    if (phone && !/^\+?[0-9 ()-]{7,20}$/.test(phone)) errors.phone = "Use digits, spaces, +, - or brackets.";
+    setFieldErrors(errors);
+    if (Object.keys(errors).length) return;
+
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ first_name: firstName, last_name: lastName, phone })
+      .eq("id", user.id);
+
+    if (error) {
+      setSaving(false);
+      showToast("We couldn’t save your details. Try again.", "error");
+      return;
+    }
+
+    // Keep auth metadata in step so the header greeting follows the profile.
+    await supabase.auth.updateUser({
+      data: { first_name: firstName, last_name: lastName, phone },
+    });
+
+    setProfile((p) => ({ ...p, first_name: firstName, last_name: lastName, phone }));
+    setSaving(false);
+    showToast("Profile saved.");
+  }
+
+  // ── password change / recovery ─────────────────────────
+  async function savePassword(event) {
+    event.preventDefault();
+    setPwError("");
+
+    if (pw.next.length < 8) return setPwError("Use at least 8 characters.");
+    if (!/[A-Za-z]/.test(pw.next) || !/[0-9]/.test(pw.next)) {
+      return setPwError("Include at least one letter and one number.");
+    }
+    if (pw.next !== pw.confirm) return setPwError("The two passwords don’t match.");
+    if (user?.email && pw.next.toLowerCase() === user.email.toLowerCase()) {
+      return setPwError("Choose a password that isn’t your email address.");
+    }
+
+    setPwBusy(true);
+    const { error } = await supabase.auth.updateUser({ password: pw.next });
+    setPwBusy(false);
+
+    if (error) {
+      setPwError(
+        /should be different|same password/i.test(error.message)
+          ? "That is already your password. Choose a new one."
+          : "We couldn’t change your password. Request a fresh reset link and try again."
+      );
+      return;
+    }
+
+    setPw({ next: "", confirm: "" });
+    setRecovering(false);
+    // Drop the recovery tokens from the address bar once they are spent.
+    if (typeof window !== "undefined" && window.location.hash) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+    showToast("Password updated. Use it next time you sign in.");
+  }
+
+  if (loading) {
+    return (
+      <StoreLayout>
+        <LoadingPanel />
+      </StoreLayout>
+    );
+  }
+
+  const displayName = profile.first_name || user?.user_metadata?.first_name || "";
+
+  return (
+    <StoreLayout>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10">
+        {toast && (
+          <div
+            role="status"
+            className={`fixed inset-x-4 top-4 z-[100] mx-auto max-w-sm rounded-card px-4 py-3 text-sm font-medium text-white shadow-pop sm:left-auto sm:right-6 ${
+              toast.type === "error" ? "bg-error" : "bg-navy"
+            }`}
+          >
+            {toast.msg}
+          </div>
+        )}
+
+        {recovering && (
+          <div role="status" className="mb-6 rounded-card border border-warning/40 bg-warning/10 px-4 py-3">
+            <p className="text-sm font-semibold text-navy">Set a new password</p>
+            <p className="mt-0.5 text-xs text-muted">
+              You followed a reset link. Choose a new password below — the link stops working once you save.
+            </p>
+          </div>
+        )}
+
+        <header className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-widest text-sienna">Your account</p>
+          <h1 className="mt-1 font-playfair text-2xl font-bold text-navy sm:text-3xl">
+            {displayName ? `Hello, ${displayName}` : "Your account"}
+          </h1>
+          <p className="mt-1 text-sm text-muted">{user?.email}</p>
+        </header>
+
+        <dl className="mb-8 grid grid-cols-3 gap-2 sm:gap-4">
+          {[
+            { label: "Orders", value: stats.orders },
+            { label: "In progress", value: stats.open },
+            { label: "Paid to date", value: formatKsh(stats.spent) },
+          ].map((item) => (
+            <div key={item.label} className="rounded-card border border-line bg-white p-3 text-center sm:p-4">
+              <dd className="text-lg font-bold text-navy sm:text-2xl">{item.value}</dd>
+              <dt className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-muted">{item.label}</dt>
+            </div>
+          ))}
+        </dl>
+
+        <div role="tablist" aria-label="Account sections" className="mb-6 flex w-full gap-1 overflow-x-auto rounded-card border border-line bg-white p-1 sm:w-fit">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              type="button"
+              id={`tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls={`panel-${tab.id}`}
+              onClick={() => setActiveTab(tab.id)}
+              className={`min-h-11 flex-1 whitespace-nowrap rounded-[6px] px-4 py-2.5 text-sm font-semibold transition sm:flex-none ${
+                activeTab === tab.id ? "bg-navy text-white" : "text-muted hover:bg-subtle hover:text-navy"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── orders ─────────────────────────────────────── */}
+        {activeTab === "orders" && (
+          <section role="tabpanel" id="panel-orders" aria-labelledby="tab-orders" className="space-y-4">
+            {loadError && (
+              <p role="alert" className="rounded-card border border-error/30 bg-error/5 px-4 py-3 text-sm text-error">
+                {loadError}
+              </p>
+            )}
+
+            {orders.length === 0 ? (
+              <div className="rounded-card border border-line bg-white px-6 py-14 text-center">
+                <h2 className="font-playfair text-xl font-bold text-navy">No orders yet</h2>
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted">
+                  When you place an order it will appear here, with its delivery status and what you still owe.
+                </p>
+                <Link href="/books" className="btn-primary mt-6 text-sm">Browse the shelf</Link>
+              </div>
+            ) : (
+              orders.map((order) => (
+                <article key={order.id} className="overflow-hidden rounded-card border border-line bg-white">
+                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+                    <div className="min-w-0">
+                      <p className="font-mono text-xs text-muted">{orderReference(order.id)}</p>
+                      <p className="text-xs text-muted">
+                        {new Date(order.created_at).toLocaleDateString("en-KE", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <StatusPill meta={FULFILMENT_META[order.status]} fallback={order.status} />
+                      <StatusPill meta={PAYMENT_META[order.payment_status]} fallback={order.payment_status} />
+                    </div>
+                  </div>
+
+                  <div className="px-4 py-4 sm:px-5">
+                    <ul className="space-y-2">
+                      {(order.items || []).map((item, index) => (
+                        <li key={`${order.id}-${index}`} className="flex items-start gap-3">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-navy">{item.title}</p>
+                            <p className="truncate text-xs text-muted">
+                              {item.author}
+                              {item.quantity > 1 ? ` · ${item.quantity} copies` : ""}
+                            </p>
+                          </div>
+                          <p className="shrink-0 text-sm font-bold text-navy">
+                            {formatKsh((item.price || 0) * (item.quantity || 1))}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-3">
+                      <div className="text-xs text-muted">
+                        <p>
+                          {order.payment_method === "cod"
+                            ? "Cash on delivery"
+                            : order.payment_method === "mpesa"
+                              ? "M-Pesa"
+                              : order.payment_method}
+                          {order.delivery_details?.city ? ` · ${order.delivery_details.city}` : ""}
+                        </p>
+                        {paymentDue(order) && (
+                          <p className="mt-0.5 font-semibold text-navy">
+                            {formatKsh(order.total)} due on delivery
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-bold text-navy">{formatKsh(order.total)}</span>
+                        <Link
+                          href={`/orders/${order.id}`}
+                          className="inline-flex min-h-11 items-center text-sm font-semibold text-sienna underline underline-offset-2 hover:text-sienna-hover"
+                        >
+                          View order
+                          <span className="sr-only"> {orderReference(order.id)}</span>
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))
+            )}
+          </section>
+        )}
+
+        {/* ── profile ────────────────────────────────────── */}
+        {activeTab === "profile" && (
+          <section role="tabpanel" id="panel-profile" aria-labelledby="tab-profile">
+            <form onSubmit={saveProfile} className="rounded-card border border-line bg-white p-4 sm:p-6" noValidate>
+              <h2 className="font-playfair text-lg font-bold text-navy">Your details</h2>
+              <p className="mt-1 text-sm text-muted">
+                We use these to address your orders. Your email ({user?.email}) is managed by your sign-in and can’t be edited here.
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <Field id="first-name" label="First name" error={fieldErrors.firstName}>
+                  <input
+                    id="first-name"
+                    autoComplete="given-name"
+                    value={form.firstName}
+                    onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.firstName)}
+                    aria-describedby={fieldErrors.firstName ? "first-name-error" : undefined}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field id="last-name" label="Last name" error={fieldErrors.lastName}>
+                  <input
+                    id="last-name"
+                    autoComplete="family-name"
+                    value={form.lastName}
+                    onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.lastName)}
+                    aria-describedby={fieldErrors.lastName ? "last-name-error" : undefined}
+                    className={inputClass}
+                  />
+                </Field>
+                <Field
+                  id="phone"
+                  label="Phone (optional)"
+                  hint="Used by the courier if they need to reach you."
+                  error={fieldErrors.phone}
+                >
+                  <input
+                    id="phone"
+                    type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                    aria-invalid={Boolean(fieldErrors.phone)}
+                    aria-describedby={fieldErrors.phone ? "phone-error" : "phone-hint"}
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <button type="submit" disabled={saving} className="btn-primary min-h-11 text-sm disabled:opacity-60">
+                  {saving ? "Saving…" : "Save changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm({
+                      firstName: profile.first_name || "",
+                      lastName: profile.last_name || "",
+                      phone: profile.phone || "",
+                    })
+                  }
+                  className="btn-secondary min-h-11 text-sm"
+                >
+                  Reset
+                </button>
+              </div>
+            </form>
+          </section>
+        )}
+
+        {/* ── password ───────────────────────────────────── */}
+        {activeTab === "security" && (
+          <section role="tabpanel" id="panel-security" aria-labelledby="tab-security">
+            <form onSubmit={savePassword} className="rounded-card border border-line bg-white p-4 sm:p-6" noValidate>
+              <h2 className="font-playfair text-lg font-bold text-navy">
+                {recovering ? "Set a new password" : "Change your password"}
+              </h2>
+              <p className="mt-1 text-sm text-muted">
+                At least 8 characters, with one letter and one number. You’ll stay signed in on this device.
+              </p>
+
+              <div className="mt-5 grid gap-4 sm:max-w-md">
+                <Field
+                  id="new-password"
+                  label="New password"
+                  hint="Never reuse a password from another site."
+                  error={pwError && /8 characters|letter and one number|email address|don’t match/i.test(pwError) ? pwError : ""}
+                >
+                  <input
+                    id="new-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={pw.next}
+                    onChange={(e) => setPw((p) => ({ ...p, next: e.target.value }))}
+                    aria-describedby="new-password-hint"
+                    className={inputClass}
+                  />
+                </Field>
+                <Field id="confirm-password" label="Confirm new password">
+                  <input
+                    id="confirm-password"
+                    type="password"
+                    autoComplete="new-password"
+                    value={pw.confirm}
+                    onChange={(e) => setPw((p) => ({ ...p, confirm: e.target.value }))}
+                    className={inputClass}
+                  />
+                </Field>
+              </div>
+
+              {pwError && (
+                <p role="alert" className="mt-4 rounded-control border border-error/30 bg-error/5 px-3 py-2 text-sm text-error">
+                  {pwError}
+                </p>
+              )}
+
+              <div className="mt-6 flex flex-wrap items-center gap-3">
+                <button type="submit" disabled={pwBusy} className="btn-primary min-h-11 text-sm disabled:opacity-60">
+                  {pwBusy ? "Updating…" : recovering ? "Save new password" : "Update password"}
+                </button>
+                <Link href="/login?mode=reset" className="text-sm font-semibold text-sienna underline underline-offset-2 hover:text-sienna-hover">
+                  Forgot your current password?
+                </Link>
+              </div>
+            </form>
+          </section>
+        )}
+      </div>
+    </StoreLayout>
   );
 }
