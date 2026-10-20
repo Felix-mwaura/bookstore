@@ -652,6 +652,26 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
   );
 }
 
+// Minimal chrome for the states that are decided before the checkout form
+// exists: a focused page still needs a way back to the shop and to the basket.
+function CheckoutChrome({ children }) {
+  return (
+    <div className="flex min-h-screen flex-col bg-cream">
+      <header className="sticky top-0 z-40 border-b border-line bg-white">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:h-16 sm:px-6">
+          <Link href="/" className="font-playfair text-lg font-bold text-navy transition-colors hover:text-sienna">
+            Book Haven
+          </Link>
+          <Link href="/books" className="text-sm text-muted underline-offset-2 hover:text-navy hover:underline">
+            Continue shopping
+          </Link>
+        </div>
+      </header>
+      <main className="mx-auto w-full max-w-md px-4 py-12 sm:py-16">{children}</main>
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
   const [cart, setCart] = useState([]);
   const [step, setStep] = useState(1);
@@ -679,6 +699,9 @@ export default function CheckoutPage() {
   );
 
   const [basketNotice, setBasketNotice] = useState("");
+  // False until the saved basket has been read and reconciled, so an empty
+  // basket is never shown to someone who has items on their device.
+  const [cartReady, setCartReady] = useState(false);
 
   // Restore the basket, then reconcile it with the live catalogue. A customer
   // can leave items in the basket for days; prices and stock may have moved on
@@ -696,7 +719,10 @@ export default function CheckoutPage() {
       }
       if (!Array.isArray(saved) || saved.length === 0) {
         // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only state restored after mount
-        if (!cancelled) setCart([]);
+        if (!cancelled) {
+          setCart([]);
+          setCartReady(true);
+        }
         return;
       }
 
@@ -731,6 +757,7 @@ export default function CheckoutPage() {
 
       if (cancelled) return;
       setCart(next);
+      setCartReady(true);
       setBasketNotice(notes.join(" "));
       try {
         localStorage.setItem("bh_cart", JSON.stringify(next));
@@ -827,12 +854,24 @@ export default function CheckoutPage() {
     saveOrder(method, checkoutId);
   };
 
+  // An empty basket is a dead end whether or not the visitor is signed in,
+  // so answer that question first instead of asking them to sign in.
+  if (cartReady && cart.length === 0 && step < 3) {
+    return (
+      <CheckoutChrome>
+        <h1 className="font-playfair text-2xl font-bold text-navy">Your basket is empty</h1>
+        <p className="mt-2 text-sm text-muted">Add a book before checking out.</p>
+        <Link href="/books" className="btn-primary mt-6 text-sm">Browse the shelf</Link>
+      </CheckoutChrome>
+    );
+  }
+
   // The order is attached to an account, so paying before signing in could
   // take money for an order we cannot create. Ask first, and say why.
   if (signedIn === false && step < 3) {
     return (
-      <div className="min-h-screen bg-[#FAF6EE] flex items-center justify-center p-6">
-        <div className="bg-white border border-[#E3DCCB] rounded-2xl max-w-md w-full p-7 text-center">
+      <CheckoutChrome>
+        <div className="rounded-card border border-line bg-white p-6 text-center sm:p-7">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-subtle" aria-hidden="true">
             <svg className="h-6 w-6 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -861,29 +900,22 @@ export default function CheckoutPage() {
               Create an account
             </Link>
           </div>
-          <Link href="/books" className="inline-block mt-5 text-xs text-stone-400 hover:text-[#B5532F]">
+          <Link href="/books" className="mt-5 inline-block text-xs text-muted hover:text-sienna">
             ← Continue browsing
           </Link>
         </div>
-      </div>
+      </CheckoutChrome>
     );
   }
 
   if (signedIn === null && step < 3) {
     return (
-      <div className="min-h-screen bg-[#FAF6EE] flex items-center justify-center">
-        <p className="text-sm text-stone-500" role="status">Checking your session…</p>
-      </div>
+      <CheckoutChrome>
+        <p className="text-sm text-muted" role="status">Checking your session…</p>
+      </CheckoutChrome>
     );
   }
 
-  if (cart.length === 0 && step < 3) return (
-    <div className="min-h-screen bg-[#FAF6EE] flex flex-col items-center justify-center p-6 gap-6">
-      <h2 className="text-2xl font-bold text-navy">Your basket is empty</h2>
-      <p className="text-muted">Add a book before checking out.</p>
-      <Link href="/books" className="btn-primary">Browse books</Link>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-[#FAF6EE]">

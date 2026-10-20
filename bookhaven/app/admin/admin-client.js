@@ -272,7 +272,7 @@ function Topbar({ activeTab, sessionUser, onLogout, onMenu }) {
           <Avatar name={displayName} email={sessionUser?.email} size="sm"/>
           <div className="hidden sm:block max-w-[9rem]">
             <p className="text-xs font-bold text-navy leading-none truncate">{displayName}</p>
-            <p className="text-[10px] text-muted mt-0.5">{meta.role === "admin" ? "Admin" : "Administrator"}</p>
+            <p className="text-[10px] text-muted mt-0.5">Administrator</p>
           </div>
           <button onClick={onLogout} className="w-10 h-10 flex items-center justify-center rounded-lg text-muted hover:text-error hover:bg-error/5 transition" title="Sign out" aria-label="Sign out">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
