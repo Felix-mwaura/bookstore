@@ -8,10 +8,19 @@ import { orderReference } from "../lib/orders";
 import { FREE_DELIVERY_THRESHOLD, STANDARD_DELIVERY_FEE } from "../lib/site";
 
 function formatPhone(raw) {
-  const d = raw.replace(/\D/g, "");
+  const d = String(raw || "").replace(/\D/g, "");
   if (d.startsWith("0") && d.length === 10) return "254" + d.slice(1);
   if (d.startsWith("254") && d.length === 12) return d;
+  if (d.startsWith("7") && d.length === 9) return "254" + d;
+  if (d.startsWith("1") && d.length === 9) return "254" + d;
   return d;
+}
+
+/** A Kenyan mobile number: 07XXXXXXXX, 01XXXXXXXX, 2547… or +2547… */
+function isValidKenyanPhone(raw) {
+  const value = String(raw || "").trim();
+  if (!/^\+?[\d\s()-]+$/.test(value)) return false;
+  return /^254(7|1)\d{8}$/.test(formatPhone(value));
 }
 
 function StepBar({ step }) {
@@ -44,7 +53,7 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
   const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
   const grand = total + delivery;
   return (
-    <div className="bg-white rounded-2xl border border-[#E3DCCB] p-6 sticky top-24">
+    <div className="bg-white rounded-card border border-line p-5 sm:p-6 lg:sticky lg:top-24">
       <h3 className="font-bold text-[#1B2A4A] text-lg mb-5">Order Summary</h3>
       <div className="space-y-4 max-h-56 overflow-y-auto pr-1">
         {cart.map((item) => (
@@ -80,30 +89,39 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
       </div>
       <div className="border-t border-stone-100 mt-5 pt-4 space-y-2.5">
         <div className="flex justify-between text-sm"><span className="text-stone-500">Subtotal</span><span className="font-semibold">KSh {total.toLocaleString()}</span></div>
-        <div className="flex justify-between text-sm"><span className="text-stone-500">Delivery</span>{delivery === 0 ? <span className="font-semibold text-green-600">Free 🎉</span> : <span className="font-semibold">KSh {delivery.toLocaleString()}</span>}</div>
+        <div className="flex justify-between text-sm"><span className="text-stone-500">Delivery</span>{delivery === 0 ? <span className="font-semibold text-success">Free</span> : <span className="font-semibold">KSh {delivery.toLocaleString()}</span>}</div>
         {delivery > 0 && <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-1.5">Add KSh {(FREE_DELIVERY_THRESHOLD - total).toLocaleString()} more for free delivery</p>}
-        <div className="flex justify-between text-lg font-black text-[#1B2A4A] border-t border-[#E3DCCB] pt-3"><span>Total</span><span>KSh {grand.toLocaleString()}</span></div>
+        <div className="flex justify-between text-base font-bold text-navy border-t border-line pt-3"><span>Total</span><span>KSh {grand.toLocaleString()}</span></div>
       </div>
-      <div className="mt-5 pt-4 border-t border-stone-100 space-y-2">
-        {["🔒 Secure & encrypted checkout", "🔄 30-day hassle-free returns", "📦 Nationwide delivery"].map((t) => <p key={t} className="text-xs text-stone-400">{t}</p>)}
+      <div className="mt-5 pt-4 border-t border-line space-y-1.5">
+        <p className="text-xs text-muted">Delivery is free on orders of KSh 3,000 and above.</p>
+        <p className="text-xs text-muted">You will see the full total before you confirm.</p>
       </div>
     </div>
   );
 }
 
 // Defined OUTSIDE StepDetails so it doesn't remount on every keystroke
-function Field({ label, name, type = "text", placeholder, span2, value, onChange, error }) {
+function Field({ label, name, type = "text", placeholder, span2, value, onChange, error, autoComplete, inputMode }) {
+  const id = `checkout-${name}`;
+  const errorId = `${id}-error`;
   return (
-    <div className={span2 ? "col-span-2" : ""}>
-      <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">{label}</label>
+    <div className={span2 ? "sm:col-span-2" : ""}>
+      <label htmlFor={id} className="block text-xs font-bold text-muted uppercase tracking-wider mb-1.5">{label}</label>
       <input
+        id={id}
+        name={name}
         type={type}
         value={value}
         placeholder={placeholder}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
+        aria-invalid={error ? "true" : undefined}
+        aria-describedby={error ? errorId : undefined}
         onChange={(e) => onChange(name, e.target.value)}
-        className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:ring-2 focus:ring-[#B5532F]/20 ${error ? "border-red-400 bg-red-50/50" : "border-[#E3DCCB] focus:border-[#B5532F]"}`}
+        className={`w-full min-h-11 bg-white border rounded-control px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-sienna/20 ${error ? "border-error bg-error/5" : "border-line focus:border-navy"}`}
       />
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+      {error && <p id={errorId} className="text-error text-xs mt-1">{error}</p>}
     </div>
   );
 }
@@ -116,13 +134,25 @@ function StepDetails({ data, onChange, onNext }) {
     if (!data.firstName.trim()) e.firstName = "Required";
     if (!data.lastName.trim()) e.lastName = "Required";
     if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) e.email = "Valid email required";
-    if (data.phone.replace(/\D/g, "").length < 9) e.phone = "Valid phone required";
+    if (!isValidKenyanPhone(data.phone)) e.phone = "Enter a Kenyan mobile number, e.g. 0712 345 678";
     if (!data.address.trim()) e.address = "Required";
     if (!data.city) e.city = "Select a city";
     return e;
   };
 
-  const handleNext = () => { const e = validate(); if (Object.keys(e).length) { setErrors(e); return; } onNext(); };
+  const handleNext = () => {
+    const found = validate();
+    const firstKey = Object.keys(found)[0];
+    if (firstKey) {
+      setErrors(found);
+      // Send the caret to the first problem instead of leaving the reader
+      // to hunt for the red text.
+      const el = document.getElementById(`checkout-${firstKey}`);
+      el?.focus();
+      return;
+    }
+    onNext();
+  };
 
   const handleChange = (name, value) => {
     onChange(name, value);
@@ -134,14 +164,14 @@ function StepDetails({ data, onChange, onNext }) {
       <h2 className="text-xl sm:text-2xl font-bold text-[#1B2A4A] mb-1">Delivery Details</h2>
       <p className="text-stone-500 text-sm mb-5 sm:mb-7">Where should we send your books?</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-        <Field label="First Name" name="firstName" placeholder="Grace" value={data.firstName} onChange={handleChange} error={errors.firstName} />
-        <Field label="Last Name" name="lastName" placeholder="Wambui" value={data.lastName} onChange={handleChange} error={errors.lastName} />
-        <Field label="Email Address" name="email" type="email" placeholder="grace@example.com" span2 value={data.email} onChange={handleChange} error={errors.email} />
-        <Field label="Phone Number" name="phone" type="tel" placeholder="0712 345 678" span2 value={data.phone} onChange={handleChange} error={errors.phone} />
-        <Field label="Street Address" name="address" placeholder="Estate, street, building..." span2 value={data.address} onChange={handleChange} error={errors.address} />
+        <Field label="First name" name="firstName" placeholder="Grace" autoComplete="given-name" value={data.firstName} onChange={handleChange} error={errors.firstName} />
+        <Field label="Last name" name="lastName" placeholder="Wambui" autoComplete="family-name" value={data.lastName} onChange={handleChange} error={errors.lastName} />
+        <Field label="Email address" name="email" type="email" placeholder="grace@example.com" autoComplete="email" span2 value={data.email} onChange={handleChange} error={errors.email} />
+        <Field label="Phone number" name="phone" type="tel" inputMode="tel" placeholder="0712 345 678" autoComplete="tel" span2 value={data.phone} onChange={handleChange} error={errors.phone} />
+        <Field label="Street address" name="address" placeholder="Estate, street, building…" autoComplete="street-address" span2 value={data.address} onChange={handleChange} error={errors.address} />
         <div>
-          <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">City / Town</label>
-          <select value={data.city} onChange={(e) => { onChange("city", e.target.value); setErrors((p) => ({ ...p, city: "" })); }}
+          <label htmlFor="checkout-city" className="block text-xs font-bold text-muted uppercase tracking-wider mb-1.5">City / town</label>
+          <select id="checkout-city" value={data.city} onChange={(e) => { onChange("city", e.target.value); setErrors((p) => ({ ...p, city: "" })); }}
             className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#B5532F] ${errors.city ? "border-red-400" : "border-[#E3DCCB]"}`}>
             <option value="">Select city</option>
             {["Nairobi","Mombasa","Kisumu","Nakuru","Eldoret","Thika","Nyeri","Machakos","Meru","Garissa","Kakamega","Malindi","Kisii","Kericho","Naivasha"].map((c) => <option key={c}>{c}</option>)}
@@ -149,13 +179,13 @@ function StepDetails({ data, onChange, onNext }) {
           {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
         </div>
         <div>
-          <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">Notes <span className="text-stone-300 normal-case font-normal">(optional)</span></label>
-          <input type="text" value={data.notes} placeholder="Landmark, nearest stage..." onChange={(e) => onChange("notes", e.target.value)}
+          <label htmlFor="checkout-notes" className="block text-xs font-bold text-muted uppercase tracking-wider mb-1.5">Notes <span className="text-stone-300 normal-case font-normal">(optional)</span></label>
+          <input id="checkout-notes" type="text" value={data.notes} placeholder="Landmark, nearest stage..." onChange={(e) => onChange("notes", e.target.value)}
             className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#B5532F]" />
         </div>
       </div>
-      <button onClick={handleNext} className="w-full mt-8 bg-[#1B2A4A] hover:bg-[#B5532F] text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95 flex items-center justify-center gap-2">
-        Continue to Payment
+      <button type="button" onClick={handleNext} className="btn-primary w-full mt-8 text-base">
+        Continue to payment
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
       </button>
     </div>
@@ -292,7 +322,7 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
 
       {errorMsg && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
-          ⚠️ {errorMsg}
+          {errorMsg}
         </div>
       )}
 
@@ -425,9 +455,13 @@ function CodFlow({ total, onSuccess }) {
   return (
     <div className="space-y-5">
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
-        <div className="flex items-center gap-3 mb-4"><span className="text-3xl">💵</span><div><p className="font-bold text-amber-800">Cash on Delivery</p><p className="text-sm text-amber-700">Pay in cash when your books arrive</p></div></div>
+        <div className="flex items-center gap-3 mb-4"><div><p className="font-bold text-amber-800">Cash on delivery</p><p className="text-sm text-amber-700">Pay in cash when your books arrive.</p></div></div>
         <ul className="space-y-2.5">
-          {[`Have exact change ready — KSh ${total.toLocaleString()}`, "Our rider will call 30 minutes before arrival", "Available in Nairobi, Mombasa, Kisumu & Nakuru"].map((t) => (
+          {[
+            `Have KSh ${total.toLocaleString()} ready when the books arrive`,
+            "The rider will call the phone number you gave us",
+            "We confirm every order by phone before dispatch",
+          ].map((t) => (
             <li key={t} className="flex items-start gap-2 text-sm text-amber-800">
               <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>{t}
             </li>
@@ -443,18 +477,23 @@ function CodFlow({ total, onSuccess }) {
         </div>
         <span className="text-sm text-stone-600 leading-relaxed">I understand I must pay <strong className="text-[#1B2A4A]">KSh {total.toLocaleString()}</strong> in cash to the delivery rider.</span>
       </label>
-      <button onClick={() => agreed && onSuccess("cod")} disabled={!agreed} className="w-full bg-[#1B2A4A] hover:bg-[#B5532F] disabled:bg-stone-200 disabled:text-stone-400 text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95">Place Order — Pay on Delivery</button>
+      <button onClick={() => agreed && onSuccess("cod")} disabled={!agreed} className="btn-primary w-full text-base disabled:bg-stone-200 disabled:text-muted disabled:cursor-not-allowed">Place order — pay on delivery</button>
     </div>
   );
 }
 
+// M-Pesa is offered only when the Daraja credentials are configured. Until
+// then the storefront takes cash on delivery and never shows a payment method
+// that would fail at the last step.
+const MPESA_ENABLED = process.env.NEXT_PUBLIC_MPESA_ENABLED === "true";
+
 function StepPayment({ details, total, items, reference, canPay, onSuccess, onBack }) {
-  const [method, setMethod] = useState("mpesa");
+  const [method, setMethod] = useState(MPESA_ENABLED ? "mpesa" : "cod");
   const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
   const grand = total + delivery;
   const methods = [
-    { id: "mpesa", label: "M-Pesa", sub: "STK Push", icon: "M", color: "bg-green-600" },
-    { id: "cod", label: "Cash on Delivery", sub: "Pay on arrival", icon: "💵", color: "bg-amber-500" },
+    ...(MPESA_ENABLED ? [{ id: "mpesa", label: "M-Pesa", sub: "STK Push", icon: "M", color: "bg-[#2F7D4F]" }] : []),
+    { id: "cod", label: "Cash on delivery", sub: "Pay the rider", icon: "KSh", color: "bg-navy" },
   ];
 
   // Orders are attached to a verified account server-side, so payment needs
@@ -485,7 +524,7 @@ function StepPayment({ details, total, items, reference, canPay, onSuccess, onBa
     <div>
       <h2 className="text-2xl font-bold text-[#1B2A4A] mb-1">Payment</h2>
       <p className="text-stone-500 text-sm mb-7">Delivering to <span className="font-semibold text-[#1B2A4A]">{details.firstName} {details.lastName}</span> · {details.city}</p>
-      <div className="grid grid-cols-2 gap-3 mb-7">
+      <div className={`grid gap-3 mb-7 ${methods.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
         {methods.map((m) => (
           <button key={m.id} onClick={() => setMethod(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-[#B5532F] bg-[#B5532F]/5" : "border-[#E3DCCB] hover:border-stone-300 bg-white"}`}>
             <div className={`w-9 h-9 ${m.color} rounded-lg flex items-center justify-center mx-auto mb-2`}><span className="text-white font-black text-sm">{m.icon}</span></div>
@@ -774,7 +813,11 @@ export default function CheckoutPage() {
     return (
       <div className="min-h-screen bg-[#FAF6EE] flex items-center justify-center p-6">
         <div className="bg-white border border-[#E3DCCB] rounded-2xl max-w-md w-full p-7 text-center">
-          <div className="text-5xl mb-4" aria-hidden="true">🔐</div>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-subtle" aria-hidden="true">
+            <svg className="h-6 w-6 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          </div>
           <h1 className="text-xl font-bold text-[#1B2A4A]">Sign in to finish your order</h1>
           <p className="text-sm text-stone-500 mt-2">
             Orders are tied to your account so you can track delivery and keep a record of every purchase.
@@ -816,10 +859,9 @@ export default function CheckoutPage() {
 
   if (cart.length === 0 && step < 3) return (
     <div className="min-h-screen bg-[#FAF6EE] flex flex-col items-center justify-center p-6 gap-6">
-      <div className="text-7xl">📚</div>
-      <h2 className="text-2xl font-bold text-[#1B2A4A]">Your basket is empty</h2>
-      <p className="text-stone-500">Add some books before checking out.</p>
-      <Link href="/books" className="bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-8 py-3 rounded-xl font-bold transition">Browse Books</Link>
+      <h2 className="text-2xl font-bold text-navy">Your basket is empty</h2>
+      <p className="text-muted">Add a book before checking out.</p>
+      <Link href="/books" className="btn-primary">Browse books</Link>
     </div>
   );
 
@@ -827,19 +869,12 @@ export default function CheckoutPage() {
     <div className="min-h-screen bg-[#FAF6EE]">
       <header className="bg-white border-b border-[#E3DCCB] sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 group">
-            <span className="text-xl sm:text-2xl">📚</span>
-            <div>
-              <p className="text-base sm:text-lg font-black text-[#1B2A4A] leading-none group-hover:text-[#B5532F] transition">Book Haven</p>
-              <p className="text-[9px] uppercase tracking-widest text-stone-400 font-semibold hidden sm:block">Kenya</p>
-            </div>
+          <Link href="/" className="font-playfair text-lg font-bold text-navy hover:text-sienna transition-colors">
+            Book Haven
           </Link>
-          <div className="flex items-center gap-1.5 text-xs text-stone-500">
-            <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
-            Secure Checkout
-          </div>
+          <Link href="/books" className="text-sm text-muted hover:text-navy underline-offset-2 hover:underline">
+            Continue shopping
+          </Link>
         </div>
       </header>
 

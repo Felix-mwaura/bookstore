@@ -1,370 +1,470 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { signIn, signUp, useAuth, getUserName } from "../lib/auth";
 
-function Field({ label, name, type = "text", placeholder, value, onChange, error }) {
-  const [showPass, setShowPass] = useState(false);
+import { supabase } from "../lib/supabase";
+import { useAuth, signIn, signUp } from "../lib/auth";
+
+/* ── field with a real label, error wiring and a password toggle ── */
+
+function Field({
+  label, name, type = "text", placeholder, value, onChange, error, autoComplete, inputMode, hint,
+}) {
+  const [revealed, setRevealed] = useState(false);
   const isPassword = type === "password";
+  const id = `auth-${name}`;
+  const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
+  const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined;
+
   return (
     <div>
-      <label className="block text-[10px] font-bold uppercase tracking-[0.2em] text-amber-800/70 mb-1.5">{label}</label>
+      <label htmlFor={id} className="block text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">
+        {label}
+      </label>
       <div className="relative">
         <input
-          type={isPassword ? (showPass ? "text" : "password") : type}
+          id={id}
+          name={name}
+          type={isPassword && revealed ? "text" : type}
           value={value}
           placeholder={placeholder}
-          onChange={(e) => onChange(name, e.target.value)}
-          className={`w-full bg-[#1a1208] border rounded-lg px-4 py-3 text-[#e8d5a3] placeholder-[#4a3820] text-base outline-none transition-all
-            ${error ? "border-red-800/60 ring-1 ring-red-900/30" : "border-[#2a1e0e] focus:border-amber-700/60 focus:ring-1 focus:ring-amber-900/30"}
-            ${isPassword ? "pr-11" : ""}`}
+          autoComplete={autoComplete}
+          inputMode={inputMode}
+          required
+          aria-invalid={error ? "true" : undefined}
+          aria-describedby={describedBy}
+          onChange={(event) => onChange(name, event.target.value)}
+          className={`w-full min-h-11 rounded-control border bg-white px-3.5 py-2.5 text-[15px] outline-none transition focus:ring-2 focus:ring-sienna/20 ${
+            error ? "border-error" : "border-line focus:border-navy"
+          } ${isPassword ? "pr-12" : ""}`}
         />
         {isPassword && (
-          <button type="button" onClick={() => setShowPass(!showPass)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-amber-900/40 hover:text-amber-600/80 transition text-lg">
-            {showPass ? "🙈" : "👁"}
+          <button
+            type="button"
+            onClick={() => setRevealed((value) => !value)}
+            aria-label={revealed ? "Hide password" : "Show password"}
+            aria-pressed={revealed}
+            className="absolute right-1 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-control text-muted hover:text-navy"
+          >
+            {revealed ? (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.05 10.05 0 012.122-.063c4.478 0 8.268 2.943 9.543 7a10.05 10.05 0 01-4.132 5.411M3 3l18 18" />
+              </svg>
+            ) : (
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            )}
           </button>
         )}
       </div>
-      {error && <p className="text-red-700/80 text-xs mt-1 italic">{error}</p>}
+      {hint && !error && <p id={hintId} className="mt-1 text-xs text-muted">{hint}</p>}
+      {error && <p id={errorId} className="mt-1 text-xs font-medium text-error">{error}</p>}
     </div>
   );
 }
 
-function Particles() {
-  const ref = useRef(null);
-  useEffect(() => {
-    const container = ref.current;
-    if (!container) return;
-    const interval = setInterval(() => {
-      const p = document.createElement("div");
-      const size = 1 + Math.random() * 2;
-      Object.assign(p.style, {
-        position: "absolute", width: `${size}px`, height: `${size}px`,
-        borderRadius: "50%", background: "#c9a84c",
-        left: `${Math.random() * 100}%`, bottom: "0", opacity: "0",
-        pointerEvents: "none", animation: `bh-float ${4 + Math.random() * 4}s linear forwards`,
-      });
-      container.appendChild(p);
-      setTimeout(() => p.remove(), 8000);
-    }, 700);
-    return () => clearInterval(interval);
-  }, []);
-  return <div ref={ref} className="absolute inset-0 overflow-hidden pointer-events-none" />;
-}
+/* ── messages ─────────────────────────────────────────── */
 
-function celebrate(container) {
-  const emojis = ["📖", "✨", "🌟", "📚", "⭐", "🕯️"];
-  for (let i = 0; i < 20; i++) {
-    setTimeout(() => {
-      const p = document.createElement("div");
-      Object.assign(p.style, {
-        position: "absolute", fontSize: `${10 + Math.random() * 16}px`,
-        left: `${5 + Math.random() * 90}%`, bottom: "0",
-        pointerEvents: "none", animation: `bh-float ${2 + Math.random() * 3}s ease-out forwards`,
-      });
-      p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-      container.appendChild(p);
-      setTimeout(() => p.remove(), 5000);
-    }, i * 110);
+// Supabase messages are written for developers. These are written for a
+// customer, and deliberately do not reveal whether an address is registered.
+function friendlyAuthError(error) {
+  const message = String(error?.message || "").toLowerCase();
+  if (message.includes("invalid login credentials")) {
+    return "That email and password did not match. Check them and try again, or create an account.";
   }
+  if (message.includes("email not confirmed")) {
+    return "That address still needs confirming. Use the resend button below and check your inbox.";
+  }
+  if (message.includes("rate limit") || message.includes("too many")) {
+    return "Too many attempts in a short time. Please wait a minute and try again.";
+  }
+  if (message.includes("password")) {
+    return "That password is not strong enough. Use at least 8 characters.";
+  }
+  if (message.includes("fetch") || message.includes("network")) {
+    return "We could not reach the server. Check your connection and try again.";
+  }
+  return "Something went wrong on our side. Please try again in a moment.";
 }
 
-function LoginForm({ onSuccess, onError }) {
-  const [form, setForm] = useState({ email: "", password: "" });
+/* ── forms ────────────────────────────────────────────── */
+
+function SignInForm({ nextPath, onSignedIn }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [resent, setResent] = useState(false);
 
-  const handleChange = (name, value) => { setForm((p) => ({ ...p, [name]: value })); setErrors((p) => ({ ...p, [name]: "" })); };
+  const submit = async (event) => {
+    event.preventDefault();
+    const found = {};
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) found.email = "Enter a valid email address.";
+    if (!password) found.password = "Enter your password.";
+    if (Object.keys(found).length) {
+      setErrors(found);
+      document.getElementById(`auth-${Object.keys(found)[0]}`)?.focus();
+      return;
+    }
 
-  const submit = async () => {
-    const e = {};
-    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) e.email = "Valid email required";
-    if (form.password.length < 6) e.password = "At least 6 characters";
-    if (Object.keys(e).length) { setErrors(e); return; }
-    setLoading(true);
-    const { data, error } = await signIn({ email: form.email, password: form.password });
-    setLoading(false);
-    if (error) { onError(error.message); return; }
-    onSuccess(getUserName(data.user), false);
+    setBusy(true);
+    setFormError("");
+    setResent(false);
+    setUnconfirmed(false);
+
+    const { data, error } = await signIn({ email: email.trim().toLowerCase(), password });
+    if (error) {
+      setBusy(false);
+      const message = String(error.message || "").toLowerCase();
+      setUnconfirmed(message.includes("email not confirmed"));
+      setFormError(friendlyAuthError(error));
+      return;
+    }
+
+    await onSignedIn(data?.user);
+  };
+
+  const resend = async () => {
+    setBusy(true);
+    const { error } = await supabase.auth.resend({ type: "signup", email: email.trim().toLowerCase() });
+    setBusy(false);
+    if (!error) setResent(true);
   };
 
   return (
-    <div className="space-y-4">
-      <p className="text-center italic text-amber-900/50 text-sm mb-5">Welcome back, fellow reader</p>
-      <Field label="Email Address" name="email" type="email" placeholder="grace@example.com" value={form.email} onChange={handleChange} error={errors.email} />
-      <Field label="Password" name="password" type="password" placeholder="Enter your password" value={form.password} onChange={handleChange} error={errors.password} />
-      <div className="flex items-center justify-between">
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" className="accent-amber-700 w-3.5 h-3.5" />
-          <span className="italic text-xs text-amber-900/50">Remember me</span>
-        </label>
-        <button className="italic text-xs text-amber-900/50 hover:text-amber-600/80 transition">Forgot password?</button>
+    <form onSubmit={submit} noValidate className="space-y-4">
+      {formError && (
+        <div role="alert" className="rounded-control border border-error/30 bg-error/5 px-3 py-2.5 text-sm text-error">
+          {formError}
+          {unconfirmed && (
+            <button type="button" onClick={resend} disabled={busy} className="mt-2 block font-semibold underline underline-offset-2">
+              {resent ? "Verification email sent again." : "Resend the verification email"}
+            </button>
+          )}
+        </div>
+      )}
+
+      <Field
+        label="Email address" name="email" type="email" placeholder="you@example.com"
+        autoComplete="email" value={email} onChange={(_, value) => { setEmail(value); setErrors((p) => ({ ...p, email: "" })); }}
+        error={errors.email}
+      />
+      <Field
+        label="Password" name="password" type="password" placeholder="Your password"
+        autoComplete="current-password" value={password} onChange={(_, value) => { setPassword(value); setErrors((p) => ({ ...p, password: "" })); }}
+        error={errors.password}
+      />
+
+      <div className="flex justify-end">
+        <Link href="/login?mode=reset" className="text-xs font-semibold text-sienna underline underline-offset-2 hover:text-sienna-hover">
+          Forgot your password?
+        </Link>
       </div>
-      <button onClick={submit} disabled={loading}
-        className="w-full mt-2 py-3.5 rounded-lg text-sm font-semibold tracking-widest text-[#0f0b08] transition-all active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2"
-        style={{ background: "linear-gradient(135deg, #7a4f1e 0%, #c9a84c 50%, #7a4f1e 100%)", fontFamily: "'Cinzel', serif" }}>
-        {loading ? <><span className="inline-block w-4 h-4 border-2 border-[#0f0b08]/30 border-t-[#0f0b08] rounded-full animate-spin" /> Signing in…</> : "Open the Library"}
+
+      <button type="submit" disabled={busy} className="btn-primary w-full text-sm disabled:opacity-70">
+        {busy ? (
+          <>
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+            Signing in…
+          </>
+        ) : "Sign in"}
       </button>
-    </div>
+
+      <p className="text-center text-sm text-muted">
+        New here?{" "}
+        <Link href={nextPath ? `/login?tab=register&next=${encodeURIComponent(nextPath)}` : "/login?tab=register"} className="font-semibold text-sienna underline underline-offset-2">
+          Create an account
+        </Link>
+      </p>
+    </form>
   );
 }
 
-function RegisterForm({ onSuccess, onError }) {
+function RegisterForm({ nextPath, onSignedUp }) {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "", password: "", confirm: "" });
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [agreed, setAgreed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [formError, setFormError] = useState("");
 
-  const handleChange = (name, value) => { setForm((p) => ({ ...p, [name]: value })); setErrors((p) => ({ ...p, [name]: "" })); };
+  const update = (name, value) => {
+    setForm((current) => ({ ...current, [name]: value }));
+    setErrors((current) => ({ ...current, [name]: "" }));
+  };
 
-  const submit = async () => {
-    const e = {};
-    if (!form.firstName.trim()) e.firstName = "Required";
-    if (!form.lastName.trim()) e.lastName = "Required";
-    if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) e.email = "Valid email required";
-    if (form.phone.replace(/\D/g, "").length < 9) e.phone = "Valid phone required";
-    if (form.password.length < 8) e.password = "At least 8 characters";
-    if (form.password !== form.confirm) e.confirm = "Passwords don't match";
-    if (Object.keys(e).length) { setErrors(e); return; }
-    setLoading(true);
-    const { data, error } = await signUp({ email: form.email, password: form.password, firstName: form.firstName, lastName: form.lastName, phone: form.phone });
-    setLoading(false);
-    if (error) { onError(error.message); return; }
-    onSuccess(form.firstName, true);
+  const submit = async (event) => {
+    event.preventDefault();
+    const found = {};
+    if (!form.firstName.trim()) found.firstName = "Enter your first name.";
+    if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) found.email = "Enter a valid email address.";
+    if (form.phone && !/^(?:\+?254|0)(?:7|1)\d{8}$/.test(form.phone.replace(/[\s-]/g, ""))) {
+      found.phone = "Enter a Kenyan mobile number, e.g. 0712 345 678.";
+    }
+    if (form.password.length < 8) found.password = "Use at least 8 characters.";
+    if (form.password !== form.confirm) found.confirm = "The two passwords do not match.";
+
+    if (Object.keys(found).length) {
+      setErrors(found);
+      document.getElementById(`auth-${Object.keys(found)[0]}`)?.focus();
+      return;
+    }
+
+    setBusy(true);
+    setFormError("");
+    const { data, error } = await signUp({
+      email: form.email.trim().toLowerCase(),
+      password: form.password,
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      phone: form.phone.trim(),
+    });
+
+    if (error) {
+      setBusy(false);
+      setFormError(friendlyAuthError(error));
+      return;
+    }
+
+    // If email confirmation is on, there is no session yet: tell the reader
+    // to check their inbox instead of pretending they are signed in.
+    if (data?.session) {
+      await onSignedUp(data.user);
+      return;
+    }
+    setBusy(false);
+    onSignedUp(null, form.email.trim().toLowerCase());
   };
 
   return (
-    <div className="space-y-3">
-      <p className="text-center italic text-amber-900/50 text-sm mb-4">Begin your reading journey</p>
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="First Name" name="firstName" placeholder="Grace" value={form.firstName} onChange={handleChange} error={errors.firstName} />
-        <Field label="Last Name" name="lastName" placeholder="Wambui" value={form.lastName} onChange={handleChange} error={errors.lastName} />
-      </div>
-      <Field label="Email Address" name="email" type="email" placeholder="grace@example.com" value={form.email} onChange={handleChange} error={errors.email} />
-      <Field label="Phone Number" name="phone" type="tel" placeholder="0712 345 678" value={form.phone} onChange={handleChange} error={errors.phone} />
-      <Field label="Password" name="password" type="password" placeholder="At least 8 characters" value={form.password} onChange={handleChange} error={errors.password} />
-      <Field label="Confirm Password" name="confirm" type="password" placeholder="Repeat your password" value={form.confirm} onChange={handleChange} error={errors.confirm} />
-      <label className="flex items-start gap-2.5 cursor-pointer mt-1">
-        <div onClick={() => setAgreed(!agreed)}
-          className={`mt-0.5 w-4 h-4 rounded flex items-center justify-center border flex-shrink-0 transition ${agreed ? "bg-amber-700 border-amber-600" : "border-[#4a3020] hover:border-amber-800"}`}>
-          {agreed && <svg className="w-2.5 h-2.5 text-[#0f0b08]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+    <form onSubmit={submit} noValidate className="space-y-4">
+      {formError && (
+        <div role="alert" className="rounded-control border border-error/30 bg-error/5 px-3 py-2.5 text-sm text-error">
+          {formError}
         </div>
-        <span className="italic text-xs text-amber-900/50 leading-relaxed">
-          I agree to the <span className="text-amber-700/70 hover:text-amber-600 cursor-pointer">Terms of Service</span> and <span className="text-amber-700/70 hover:text-amber-600 cursor-pointer">Privacy Policy</span>
-        </span>
-      </label>
-      <button onClick={submit} disabled={loading || !agreed}
-        className="w-full py-3.5 rounded-lg text-sm font-semibold tracking-widest text-[#0f0b08] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-        style={{ background: "linear-gradient(135deg, #7a4f1e 0%, #c9a84c 50%, #7a4f1e 100%)", fontFamily: "'Cinzel', serif" }}>
-        {loading ? <><span className="inline-block w-4 h-4 border-2 border-[#0f0b08]/30 border-t-[#0f0b08] rounded-full animate-spin" /> Creating account…</> : "Join the Library"}
+      )}
+
+      <div className="grid grid-cols-2 gap-3">
+        <Field label="First name" name="firstName" placeholder="Grace" autoComplete="given-name" value={form.firstName} onChange={update} error={errors.firstName} />
+        <Field label="Last name" name="lastName" placeholder="Wambui" autoComplete="family-name" value={form.lastName} onChange={update} error={errors.lastName} />
+      </div>
+      <Field label="Email address" name="email" type="email" placeholder="you@example.com" autoComplete="email" value={form.email} onChange={update} error={errors.email} />
+      <Field label="Phone (optional)" name="phone" type="tel" inputMode="tel" placeholder="0712 345 678" autoComplete="tel" value={form.phone} onChange={update} error={errors.phone} hint="Used for delivery updates only." />
+      <Field label="Password" name="password" type="password" placeholder="At least 8 characters" autoComplete="new-password" value={form.password} onChange={update} error={errors.password} />
+      <Field label="Confirm password" name="confirm" type="password" placeholder="Repeat your password" autoComplete="new-password" value={form.confirm} onChange={update} error={errors.confirm} />
+
+      <button type="submit" disabled={busy} className="btn-primary w-full text-sm disabled:opacity-70">
+        {busy ? (
+          <>
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" aria-hidden="true" />
+            Creating account…
+          </>
+        ) : "Create account"}
       </button>
-    </div>
+
+      <p className="text-center text-sm text-muted">
+        Already have an account?{" "}
+        <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} className="font-semibold text-sienna underline underline-offset-2">
+          Sign in
+        </Link>
+      </p>
+    </form>
   );
 }
 
-function LoginInner() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { user, loading: authLoading } = useAuth();
-  const [tab, setTab] = useState(searchParams.get("tab") === "register" ? "register" : "login");
-  const [success, setSuccess] = useState(null);
-  const [authError, setAuthError] = useState("");
-  const celebrationRef = useRef(null);
-  // Set the moment a fresh sign-in succeeds, so the effect below knows
-  // handleSuccess already owns the redirect for this session and steps
-  // aside — previously BOTH fired independently on every sign-in, each
-  // running its own role query and its own router.push(). Whichever one
-  // resolved first (often the effect, firing within milliseconds of
-  // onAuthStateChange) "won" the navigation. If that first, faster query
-  // hit any transient hiccup and fell back to "/account", the correct,
-  // later result from the 2800ms success-screen check never got a chance
-  // to redirect — this component had already navigated away/unmounted.
-  // That race, not bad data, is what could send an admin to the customer
-  // dashboard: the DB role was right the whole time.
-  const freshSignInRef = useRef(false);
+/* ── password reset ───────────────────────────────────── */
 
-  // Where to go after a successful sign-in. Only same-origin absolute paths
-  // are accepted: "//evil.example" and "https://…" would otherwise turn the
-  // login screen into an open redirect.
-  const nextParam = searchParams.get("next") || "";
-  const nextPath = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : null;
+function ResetForm() {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
-  const checkRoleAndRedirect = async (u) => {
-    try {
-      const { supabase } = await import("../lib/supabase");
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", u.id)
-        .maybeSingle();
-      // Someone sent here from /checkout or an order page goes back there —
-      // dropping them on the dashboard instead loses their place.
-      if (nextPath) { router.push(nextPath); return; }
-      router.push(prof?.role === "admin" ? "/admin" : "/account");
-    } catch {
-      router.push(nextPath || "/account");
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setError("Enter the email address you signed up with.");
+      document.getElementById("auth-email")?.focus();
+      return;
     }
+    setBusy(true);
+    setError("");
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: `${window.location.origin}/account`,
+    });
+    setBusy(false);
+    if (resetError) setError(friendlyAuthError(resetError));
+    else setSent(true);
   };
 
-  // Handles ONLY the "already logged in when this page loaded" case
-  // (e.g. a signed-in user pastes /login into the address bar). A fresh
-  // sign-in is handled exclusively by handleSuccess below.
-  useEffect(() => {
-    if (!authLoading && user && !freshSignInRef.current) {
-      checkRoleAndRedirect(user);
-    }
-  }, [user, authLoading]);
-
-  const handleSuccess = (name, isNew) => {
-    freshSignInRef.current = true;
-    setSuccess({ name, isNew });
-    if (celebrationRef.current) celebrate(celebrationRef.current);
-    // Single source of truth for the redirect after a fresh sign-in —
-    // same checkRoleAndRedirect function as above, called once.
-    setTimeout(async () => {
-      const { supabase } = await import("../lib/supabase");
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        await checkRoleAndRedirect(session.user);
-      } else {
-        router.push(nextPath || "/account");
-      }
-    }, 2800);
-  };
-
-  const handleError = (msg) => {
-    setAuthError(msg);
-    setTimeout(() => setAuthError(""), 4000);
-  };
-
-  if (authLoading) return (
-    <div className="min-h-screen bg-[#050302] flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-amber-900/20 border-t-amber-700/60 rounded-full animate-spin" />
-    </div>
-  );
+  if (sent) {
+    return (
+      <div className="text-center">
+        <h2 className="text-lg font-bold text-navy">Check your email</h2>
+        <p className="mt-2 text-sm text-muted">
+          If an account exists for {email.trim()}, a reset link is on its way. The link expires after a short while.
+        </p>
+        <Link href="/login" className="btn-secondary mt-5 w-full text-sm">Back to sign in</Link>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English:ital@0;1&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap');
-        @keyframes bh-float { 0% { transform:translateY(0) rotate(0deg); opacity:0; } 10% { opacity:0.7; } 90% { opacity:0.2; } 100% { transform:translateY(-120px) rotate(360deg); opacity:0; } }
-        @keyframes bh-twinkle { 0%,100% { opacity:0.1; transform:scale(1); } 50% { opacity:0.9; transform:scale(1.4); } }
-        @keyframes bh-breathe { 0%,100% { transform:translateY(0px) rotate(-2deg); } 50% { transform:translateY(-8px) rotate(-1deg); } }
-        @keyframes bh-pop { 0% { transform:scale(0) rotate(-10deg); } 70% { transform:scale(1.1) rotate(2deg); } 100% { transform:scale(1) rotate(0deg); } }
-      `}</style>
+    <form onSubmit={submit} noValidate className="space-y-4">
+      <p className="text-sm text-muted">Enter your email address and we will send you a link to set a new password.</p>
+      {error && <p role="alert" className="rounded-control border border-error/30 bg-error/5 px-3 py-2.5 text-sm text-error">{error}</p>}
+      <Field label="Email address" name="email" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(_, value) => { setEmail(value); setError(""); }} />
+      <button type="submit" disabled={busy} className="btn-primary w-full text-sm disabled:opacity-70">
+        {busy ? "Sending…" : "Send reset link"}
+      </button>
+      <p className="text-center text-sm text-muted">
+        <Link href="/login" className="font-semibold text-sienna underline underline-offset-2">Back to sign in</Link>
+      </p>
+    </form>
+  );
+}
 
-      <div className="min-h-screen flex items-center justify-center bg-[#050302] p-4">
-        <Link href="/" className="fixed top-6 left-6 z-50 flex items-center gap-2 text-amber-900/50 hover:text-amber-600/80 transition text-sm italic" style={{ fontFamily: "'IM Fell English', serif" }}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" /></svg>
-          Back to Store
+/* ── page ─────────────────────────────────────────────── */
+
+function AuthInner() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { user, loading } = useAuth();
+
+  const mode = searchParams.get("mode") === "reset" ? "reset" : "signin";
+  const tab = searchParams.get("tab") === "register" ? "register" : "signin";
+  const nextParam = searchParams.get("next") || "";
+  // Only same-origin paths are accepted, so /login cannot be used as an
+  // open redirect.
+  const nextPath = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : null;
+
+  const [pendingEmail, setPendingEmail] = useState("");
+  const [resent, setResent] = useState(false);
+  const [resendBusy, setResendBusy] = useState(false);
+  const freshSignIn = useRef(false);
+
+  const destinationFor = async (account) => {
+    if (nextPath) return nextPath;
+    if (!account) return "/account";
+    try {
+      const { data } = await supabase.from("profiles").select("role").eq("id", account.id).maybeSingle();
+      return data?.role === "admin" ? "/admin" : "/account";
+    } catch {
+      return "/account";
+    }
+  };
+
+  const finishSignIn = async (account) => {
+    freshSignIn.current = true;
+    router.replace(await destinationFor(account));
+  };
+
+  // Already signed in when the page loads: skip the form.
+  useEffect(() => {
+    if (loading || !user || freshSignIn.current) return;
+    let cancelled = false;
+    destinationFor(user).then((destination) => {
+      if (!cancelled) router.replace(destination);
+    });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per session change
+  }, [user, loading]);
+
+  const resend = async () => {
+    setResendBusy(true);
+    const { error } = await supabase.auth.resend({ type: "signup", email: pendingEmail });
+    setResendBusy(false);
+    if (!error) setResent(true);
+  };
+
+  const heading =
+    mode === "reset" ? "Reset your password"
+    : tab === "register" ? "Create your account"
+    : "Sign in to Book Haven";
+
+  return (
+    <div className="min-h-[100dvh] bg-cream flex flex-col">
+      <header className="px-4 sm:px-6 py-4">
+        <Link href="/" className="font-playfair text-lg font-bold text-navy hover:text-sienna transition-colors">
+          Book Haven
         </Link>
+      </header>
 
-        <div className="w-full max-w-4xl flex rounded-2xl overflow-hidden"
-          style={{ boxShadow: "0 0 80px rgba(201,168,76,0.08), 0 25px 60px rgba(0,0,0,0.8)" }}>
-
-          {/* Left atmospheric panel */}
-          <div className="hidden md:flex md:w-[42%] flex-col items-center justify-center p-10 relative overflow-hidden"
-            style={{ background: "linear-gradient(160deg, #1a0f05 0%, #0d0805 50%, #1a1005 100%)", borderRight: "1px solid #2a1a08" }}>
-            {[{ t:"12%",l:"20%",d:"2.1s",dy:"0s" },{ t:"25%",l:"72%",d:"3.4s",dy:"0.5s" },{ t:"8%",l:"55%",d:"2.7s",dy:"1s" },{ t:"38%",l:"14%",d:"4.1s",dy:"0.3s" },{ t:"62%",l:"82%",d:"2.9s",dy:"1.5s" },{ t:"78%",l:"32%",d:"3.7s",dy:"0.8s" },{ t:"88%",l:"68%",d:"2.3s",dy:"0.2s" },{ t:"18%",l:"42%",d:"4.5s",dy:"1.2s" },{ t:"50%",l:"58%",d:"3.1s",dy:"0.6s" }].map((s,i)=>(
-              <div key={i} className="absolute rounded-full bg-[#e8d5a3]"
-                style={{ width:i%2===0?"2px":"1px", height:i%2===0?"2px":"1px", top:s.t, left:s.l, animation:`bh-twinkle ${s.d} ease-in-out ${s.dy} infinite` }} />
-            ))}
-            <div className="absolute rounded-full pointer-events-none" style={{ width:"200px",height:"200px",background:"#c9a84c",opacity:0.05,filter:"blur(50px)",top:"30%",left:"50%",transform:"translate(-50%,-50%)" }} />
-            <Particles />
-            <div ref={celebrationRef} className="absolute inset-0 pointer-events-none overflow-hidden" />
-            <p style={{ fontFamily:"'Cinzel',serif" }} className="text-[#e8d5a3] text-2xl font-bold tracking-[0.12em] text-center mb-1 relative z-10">Book Haven</p>
-            <p style={{ fontFamily:"'Cinzel',serif" }} className="text-[#8a6a3a] text-[9px] tracking-[0.3em] uppercase text-center mb-8 relative z-10">Kenya · Est. 2018</p>
-            <div className="relative z-10" style={{ animation:"bh-breathe 4s ease-in-out infinite" }}>
-              <svg width="150" height="170" viewBox="0 0 140 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <ellipse cx="70" cy="155" rx="45" ry="5" fill="#c9a84c" opacity="0.07"/>
-                <rect x="38" y="18" width="72" height="130" rx="4" fill="#2a1a08" stroke="#4a3018" strokeWidth="0.5"/>
-                <rect x="36" y="16" width="68" height="128" rx="3" fill="#e8d5b0" stroke="#c9a870" strokeWidth="0.5"/>
-                {[35,42,49,56,63,70,77,84].map((y,i)=><line key={i} x1="44" y1={y} x2={84+(i%3)*8} y2={y} stroke="#c9a870" strokeWidth="0.4" opacity="0.35"/>)}
-                <rect x="22" y="12" width="72" height="130" rx="4" fill="#5a2e0a" stroke="#c9a84c" strokeWidth="0.8"/>
-                <rect x="28" y="18" width="60" height="118" rx="2" fill="none" stroke="#c9a84c" strokeWidth="0.5" opacity="0.45"/>
-                <text x="52" y="75" fontSize="22" fill="#c9a84c" opacity="0.8">📚</text>
-                <rect x="32" y="90" width="52" height="3" rx="1.5" fill="#c9a84c" opacity="0.5"/>
-                <rect x="38" y="97" width="40" height="2" rx="1" fill="#c9a84c" opacity="0.3"/>
-                <rect x="42" y="103" width="32" height="2" rx="1" fill="#c9a84c" opacity="0.2"/>
-                <rect x="22" y="12" width="8" height="130" rx="4" fill="#3a1e06" stroke="#c9a84c" strokeWidth="0.5"/>
-                <path d="M22 12 L30 12 L30 20" stroke="#c9a84c" strokeWidth="1" fill="none" opacity="0.7"/>
-                <path d="M94 12 L86 12 L86 20" stroke="#c9a84c" strokeWidth="1" fill="none" opacity="0.7"/>
-                <path d="M22 142 L30 142 L30 134" stroke="#c9a84c" strokeWidth="1" fill="none" opacity="0.7"/>
-                <path d="M94 142 L86 142 L86 134" stroke="#c9a84c" strokeWidth="1" fill="none" opacity="0.7"/>
-              </svg>
-            </div>
-            <p style={{ fontFamily:"'IM Fell English',serif" }} className="italic text-amber-700/60 text-[13px] text-center mt-6 leading-relaxed relative z-10">
-              &quot;A reader lives a thousand lives<br/>before he dies.&quot;<br/>
-              <span className="text-[11px] opacity-60">— George R.R. Martin</span>
+      <main className="flex-1 flex items-start sm:items-center justify-center px-4 py-8 sm:py-12">
+        <div className="w-full max-w-[420px]">
+          <div className="rounded-card border border-line bg-white p-6 sm:p-8 shadow-card">
+            <h1 className="text-xl sm:text-2xl font-bold text-navy">{heading}</h1>
+            <p className="mt-1.5 mb-6 text-sm text-muted">
+              {mode === "reset"
+                ? "We will email you a link to choose a new one."
+                : tab === "register"
+                  ? "Save your basket, track orders and reorder in a tap."
+                  : "Your orders, saved books and delivery details."}
             </p>
-          </div>
 
-          {/* Right form panel */}
-          <div className="flex-1 bg-[#0f0b08] flex flex-col justify-center p-8 relative overflow-hidden">
-            <div className="absolute -top-16 -right-16 w-48 h-48 rounded-full bg-amber-900/5 blur-3xl pointer-events-none" />
-
-            {/* Auth error banner */}
-            {authError && (
-              <div className="mb-4 bg-red-900/20 border border-red-800/40 rounded-xl px-4 py-3 text-red-400 text-sm italic text-center">
-                {authError}
-              </div>
-            )}
-
-            {success ? (
-              <div className="text-center py-8" style={{ animation:"bh-pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275) forwards" }}>
-                <div className="text-6xl mb-5">✨</div>
-                <h2 style={{ fontFamily:"'Cinzel',serif" }} className="text-[#e8d5a3] text-2xl mb-2">
-                  {success.isNew ? `Welcome, ${success.name}!` : `Welcome back, ${success.name}!`}
-                </h2>
-                <p style={{ fontFamily:"'IM Fell English',serif" }} className="italic text-amber-900/60 text-base">
-                  {success.isNew ? "Account created. The library awaits..." : "The library awaits your return..."}
+            {pendingEmail ? (
+              <div className="text-center">
+                <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-success/10" aria-hidden="true">
+                  <svg className="h-6 w-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 8l7.9 5.3a2 2 0 002.2 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-bold text-navy">Check your email</h2>
+                <p className="mt-2 text-sm text-muted">
+                  We sent a confirmation link to <span className="font-semibold text-ink">{pendingEmail}</span>.
+                  Open it to finish creating your account.
                 </p>
-                {success.isNew && (
-                  <p className="text-amber-900/40 text-xs mt-3 italic">Check your email to verify your account</p>
-                )}
-                <p className="text-amber-900/40 text-sm mt-2">Redirecting...</p>
+                <button
+                  type="button"
+                  onClick={resend}
+                  disabled={resendBusy || resent}
+                  className="mt-5 w-full min-h-11 rounded-control border border-line bg-white text-sm font-semibold text-navy hover:border-navy disabled:text-muted"
+                >
+                  {resent ? "Email sent again" : resendBusy ? "Sending…" : "Resend the email"}
+                </button>
+                <Link href="/login" className="mt-3 inline-block text-sm font-semibold text-sienna underline underline-offset-2">
+                  Back to sign in
+                </Link>
               </div>
+            ) : mode === "reset" ? (
+              <ResetForm />
+            ) : tab === "register" ? (
+              <RegisterForm
+                nextPath={nextPath}
+                onSignedUp={(account, email) => {
+                  if (account) finishSignIn(account);
+                  else setPendingEmail(email);
+                }}
+              />
             ) : (
-              <>
-                <div className="relative flex bg-[#1a1208] border border-[#2a1e0e] rounded-lg p-0.5 mb-7">
-                  <div className="absolute top-0.5 left-0.5 h-[calc(100%-4px)] w-[calc(50%-2px)] rounded-md transition-transform duration-300 ease-in-out"
-                    style={{ background:"linear-gradient(135deg,#7a4f1e,#c9a84c)", transform:tab==="register"?"translateX(100%)":"translateX(0)" }} />
-                  {["login","register"].map((t) => (
-                    <button key={t} onClick={() => { setTab(t); setAuthError(""); }}
-                      className={`flex-1 py-2.5 text-xs tracking-[0.15em] uppercase relative z-10 transition-colors duration-300 rounded-md ${tab===t?"text-[#0f0b08] font-bold":"text-amber-900/50 hover:text-amber-800/70"}`}
-                      style={{ fontFamily:"'Cinzel',serif" }}>
-                      {t==="login"?"Sign In":"Create Account"}
-                    </button>
-                  ))}
-                </div>
-                <div className="relative">
-                  <div className={`transition-all duration-300 ${tab==="login"?"opacity-100 translate-x-0":"opacity-0 translate-x-4 absolute inset-0 pointer-events-none"}`}>
-                    <LoginForm onSuccess={handleSuccess} onError={handleError} />
-                  </div>
-                  <div className={`transition-all duration-300 ${tab==="register"?"opacity-100 translate-x-0":"opacity-0 -translate-x-4 absolute inset-0 pointer-events-none"}`}>
-                    <RegisterForm onSuccess={handleSuccess} onError={handleError} />
-                  </div>
-                </div>
-              </>
+              <SignInForm nextPath={nextPath} onSignedIn={finishSignIn} />
             )}
           </div>
+
+          <p className="mt-5 text-center text-xs text-muted">
+            By continuing you agree to us using your details to fulfil your orders.
+          </p>
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#050302] flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-amber-900/20 border-t-amber-700/60 rounded-full animate-spin" />
-      </div>
-    }>
-      <LoginInner />
+    <Suspense
+      fallback={
+        <div className="min-h-[100dvh] bg-cream flex items-center justify-center">
+          <p className="text-sm text-muted" role="status">Loading…</p>
+        </div>
+      }
+    >
+      <AuthInner />
     </Suspense>
   );
 }

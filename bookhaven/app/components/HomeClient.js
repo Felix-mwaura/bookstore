@@ -60,12 +60,11 @@ function Hero({ books }) {
           </div>
 
           {covers.length > 0 && (
-            <div className="hidden sm:flex items-end justify-center gap-4 lg:gap-6" aria-hidden="true">
+            <div className="hidden sm:flex items-end justify-center gap-4 lg:gap-6">
               {covers.map((book, index) => (
                 <Link
                   key={book.id}
                   href={bookPath(book)}
-                  tabIndex={-1}
                   className="block w-[110px] lg:w-[150px] rounded-r-md overflow-hidden book-shadow transition-transform duration-200 hover:-translate-y-1"
                   style={{ transform: index === 1 ? "translateY(-18px)" : "none" }}
                 >
