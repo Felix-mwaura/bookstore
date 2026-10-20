@@ -6,7 +6,6 @@ import { useState } from "react";
 import { BookCover } from "./BookCover";
 import ProductCard from "./ProductCard";
 import { useStore } from "./StoreShell";
-import { supabase } from "../lib/supabase";
 import { STORE_CONTACT } from "../lib/site";
 import { categories, categoryIcons, categorySlug } from "../lib/categories";
 import { bookPath } from "../lib/book-url";
@@ -219,9 +218,9 @@ function ShelfFacts({ stats }) {
 
           <dl className="grid grid-cols-2 gap-3 sm:gap-4">
             {facts.map(({ value, label }) => (
-              <div key={label} className="rounded-card border border-line bg-white p-4 sm:p-6">
-                <dd className="text-2xl sm:text-3xl font-bold text-navy">{value}</dd>
+              <div key={label} className="flex flex-col-reverse rounded-card border border-line bg-white p-4 sm:p-6">
                 <dt className="mt-1 text-xs sm:text-sm text-muted">{label}</dt>
+                <dd className="text-2xl sm:text-3xl font-bold text-navy">{value}</dd>
               </div>
             ))}
           </dl>
@@ -279,16 +278,24 @@ function Newsletter() {
     setBusy(true);
     setError("");
 
-    const { error: insertError } = await supabase
-      .from("newsletter_subscribers")
-      .insert({ email: value, source: "homepage" });
-
-    // 23505 = already subscribed, which is a success for the reader.
-    if (insertError && insertError.code !== "23505") {
-      setError("We could not save your address just now. Please try again.");
+    try {
+      const response = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: value }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        setError(payload.error || "We could not save your address just now. Please try again.");
+        setBusy(false);
+        return;
+      }
+    } catch {
+      setError("We could not reach the server. Please try again.");
       setBusy(false);
       return;
     }
+
     setSubscribed(true);
     setBusy(false);
   };
