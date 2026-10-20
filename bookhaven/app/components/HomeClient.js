@@ -59,13 +59,14 @@ function Hero({ books }) {
           </div>
 
           {covers.length > 0 && (
-            <div className="hidden sm:flex items-end justify-center gap-4 lg:gap-6">
+            <div className="hero-3d hidden sm:flex items-end justify-center gap-4 lg:gap-6">
               {covers.map((book, index) => (
                 <Link
                   key={book.id}
                   href={bookPath(book)}
-                  className="block w-[110px] lg:w-[150px] rounded-r-md overflow-hidden book-shadow transition-transform duration-200 hover:-translate-y-1"
-                  style={{ transform: index === 1 ? "translateY(-18px)" : "none" }}
+                  className={`hero-cover-3d block w-[110px] rotate-[-2deg] overflow-hidden rounded-r-md book-shadow lg:w-[150px] ${
+                    index === 1 ? "mb-4" : ""
+                  }`}
                 >
                   <BookCover book={book} className="w-full" sizes="(min-width: 1024px) 150px, 110px" priority={index === 0} />
                 </Link>

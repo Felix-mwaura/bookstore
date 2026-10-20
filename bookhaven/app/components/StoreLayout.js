@@ -29,7 +29,10 @@ export default function StoreLayout({ children }) {
         wishlist={store.wishlist}
         isOpen={store.isWishlistOpen}
         onClose={() => store.setIsWishlistOpen(false)}
-        onRemove={(id) => store.toggleWishlist(store.wishlist.find((b) => b.id === id))}
+        onRemove={(id) => {
+          const book = store.wishlist.find((b) => b.id === id);
+          if (book) store.toggleWishlist(book);
+        }}
         onAddToCart={(book) => { store.addToCart(book); store.setIsWishlistOpen(false); }}
       />
 
@@ -43,13 +46,17 @@ export default function StoreLayout({ children }) {
       />
 
       {store.toast && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-[#1B2A4A] text-white px-5 py-3 rounded-lg shadow-2xl animate-slide-up flex items-center gap-3 max-w-[90vw]"
-        >
-          <span className="text-green-400">✓</span>
-          <span className="text-sm font-medium truncate">{store.toast}</span>
+        /* The animation owns the transform, so centring happens on the
+           wrapper and the visible card is free to rise on its own. */
+        <div className="pointer-events-none fixed inset-x-0 bottom-6 z-[100] flex justify-center px-4">
+          <div
+            role="status"
+            aria-live="polite"
+            className="animate-rise-3d flex max-w-full items-center gap-3 rounded-lg bg-navy px-5 py-3 text-white shadow-2xl"
+          >
+            <span aria-hidden="true" className="text-green-400">✓</span>
+            <span className="truncate text-sm font-medium">{store.toast}</span>
+          </div>
         </div>
       )}
     </div>

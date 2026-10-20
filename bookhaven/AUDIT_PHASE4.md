@@ -239,6 +239,46 @@ README.md / .env.example               assistant setup, env vars, test commands
 AUDIT_PHASE4.md                        this report
 ```
 
+### G2. Follow-up fix: basket, mobile sign-out, compact prices, depth
+
+```
+app/components/StoreShell.js           StoreProvider + useStore() re-export; renders one toast
+app/lib/store-state.js                 new: shared cart/wishlist context (JSX-free, testable)
+app/lib/cart.js                        new: add/cap/set/step/remove/totals/reconcile rules
+app/layout.js                          StoreProvider mounted above #main-content
+app/components/ProductCard.js          store-backed Add (works with no onAddToCart prop),
+                                       compact price, 44px target, 3D cover, success tick
+app/components/StoreHeader.js          one session hook; mobile drawer shows name/email +
+                                       Sign out (previously hard-coded "Sign in")
+app/components/BuyBar.js               uses the shared store instead of writing bh_cart itself
+app/components/StoreLayout.js          wishlist remove guards a missing book; toast re-anchored
+app/lib/site.js                        compactKshNumber / formatKshCompact
+app/globals.css                        3D stage classes, badge/add pop, staggered admin tiles,
+                                       reduced-motion off-switch
+app/components/HomeClient.js           hero covers on the 3D stage
+app/books/[slug]/page.js               book cover on a 3D stage, tilts on hover
+app/admin/admin-client.js              stat tiles tilt and rise in; logo sits in 3D
+scripts/cart-smoke.mjs                 new: 25 assertions over the basket rules
+scripts/store-wiring.mjs               new: proves grid, header and drawer share one store
+package.json                           cart:smoke / store:wiring wired into npm test
+```
+
+**What was actually wrong with Add to basket.** `useStore()` was an ordinary
+hook, not a context. Every component that called it — the product grid, each
+card, the header, the drawer — got its own private cart. "Add" updated a basket
+nothing displayed, and each copy then wrote its own empty basket over the
+saved one. It is now one context created in the root layout, so the badge, the
+drawer, the totals and the toast all read the same array.
+
+**How it is verified.** `scripts/store-wiring.mjs` renders two consumers under
+one provider with `react-dom/server` and asserts they receive the same
+`addToCart` and cart reference; run against the old hook shape it prints
+`independent stores equal? false`. `scripts/cart-smoke.mjs` covers the
+arithmetic (cap, out-of-stock, rapid adds, totals, reconciliation).
+`next build` and the 24-check HTTP smoke test still pass. **Not verified:** a
+real browser click-through — no browser can be installed in this environment,
+so the visual result on a device is still owed (item 7 below).
+
 ---
 
 ## H. Remaining work

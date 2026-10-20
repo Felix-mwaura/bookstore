@@ -26,27 +26,9 @@ const CartIcon = () => (
 );
 
 /* ── account menu ─────────────────────────────────────── */
-function AccountMenu({ onNavigate }) {
-  const [user, setUser] = useState(null);
+function AccountMenu({ onNavigate, user, onSignOut, signingOut }) {
   const [open, setOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
   const ref = useRef(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    const describe = (session) => {
-      if (!session?.user) return null;
-      const meta = session.user.user_metadata || {};
-      const name = `${meta.first_name || ""}`.trim() || session.user.email?.split("@")[0] || "Reader";
-      return { name, email: session.user.email, initial: name.charAt(0).toUpperCase() };
-    };
-
-    supabase.auth.getSession().then(({ data }) => setUser(describe(data.session))).catch(() => {});
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(describe(session));
-    });
-    return () => subscription.unsubscribe();
-  }, []);
 
   useEffect(() => {
     const onPointer = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -58,18 +40,6 @@ function AccountMenu({ onNavigate }) {
       document.removeEventListener("keydown", onKey);
     };
   }, []);
-
-  const signOut = async () => {
-    setSigningOut(true);
-    await supabase.auth.signOut();
-    localStorage.removeItem("bh_user");
-    localStorage.removeItem("bh_cart");
-    localStorage.removeItem("bh_wishlist");
-    setUser(null);
-    setOpen(false);
-    setSigningOut(false);
-    router.push("/");
-  };
 
   return (
     <div className="relative" ref={ref}>
@@ -115,7 +85,7 @@ function AccountMenu({ onNavigate }) {
                 ))}
               </div>
               <div className="border-t border-line py-1.5">
-                <button type="button" onClick={signOut} disabled={signingOut} role="menuitem"
+                <button type="button" onClick={() => { setOpen(false); onSignOut?.(); }} disabled={signingOut} role="menuitem"
                   className="w-full text-left px-4 py-2.5 text-sm font-medium text-muted hover:text-navy hover:bg-subtle transition">
                   {signingOut ? "Signing out…" : "Sign out"}
                 </button>
@@ -140,8 +110,45 @@ function AccountMenu({ onNavigate }) {
 }
 
 /* ── header ───────────────────────────────────────────── */
+
+// One session subscription for the whole header. The account menu and the
+// mobile drawer are two presentations of the same state, so a signed-in
+// customer can always reach Sign out — including on a phone, where the menu
+// is the only place it fits.
+function useSessionUser() {
+  const [user, setUser] = useState(null);
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const describe = (session) => {
+      if (!session?.user) return null;
+      const meta = session.user.user_metadata || {};
+      const name = `${meta.first_name || ""}`.trim() || session.user.email?.split("@")[0] || "Reader";
+      return { name, email: session.user.email, initial: name.charAt(0).toUpperCase() };
+    };
+
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setUser(describe(data.session));
+        setReady(true);
+      })
+      .catch(() => setReady(true));
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(describe(session));
+      setReady(true);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  return { user, ready };
+}
+
 export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartClick, onWishlistClick }) {
   const router = useRouter();
+  const { user, ready: sessionReady } = useSessionUser();
+  const [signingOut, setSigningOut] = useState(false);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -158,6 +165,22 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
     router.push(`/books${params.toString() ? `?${params}` : ""}`);
     setSearchOpen(false);
     setMenuOpen(false);
+  };
+
+  const signOut = async () => {
+    setSigningOut(true);
+    try {
+      await supabase.auth.signOut();
+      // The basket belongs to whoever was signed in; do not leave it on a
+      // shared device.
+      localStorage.removeItem("bh_user");
+      localStorage.removeItem("bh_cart");
+      localStorage.removeItem("bh_wishlist");
+      window.dispatchEvent(new CustomEvent("bh:cart-changed", { detail: { source: "sign-out" } }));
+    } catch {}
+    setSigningOut(false);
+    setMenuOpen(false);
+    router.push("/");
   };
 
   useEffect(() => {
@@ -262,7 +285,13 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
                 <SearchIcon />
               </button>
 
-              <div className="hidden sm:block"><AccountMenu /></div>
+              <div className="hidden sm:block">
+                <AccountMenu
+                  user={user}
+                  onSignOut={signOut}
+                  signingOut={signingOut}
+                />
+              </div>
 
               <button
                 type="button"
@@ -286,7 +315,10 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
               >
                 <CartIcon />
                 {cartCount > 0 && (
-                  <span className="absolute top-1.5 right-1 bg-[#B5532F] text-white text-[10px] font-bold h-4 min-w-4 px-1 rounded-full flex items-center justify-center">
+                  <span
+                    key={cartCount}
+                    className="animate-badge-pop absolute right-1 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sienna px-1 text-[10px] font-bold text-white"
+                  >
                     {cartCount}
                   </span>
                 )}
@@ -336,18 +368,62 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
               ))}
 
               <div className="mt-3 pt-3 border-t border-line">
-                <p className="px-5 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted">Account</p>
-                <button
-                  type="button"
-                  onClick={() => { setMenuOpen(false); onWishlistClick?.(); }}
-                  className="flex w-full items-center justify-between px-5 py-3 text-left text-sm text-ink hover:bg-subtle transition"
-                >
-                  Saved books
-                  <span className="text-xs text-muted">{wishlistCount}</span>
-                </button>
-                <Link href="/account" onClick={() => setMenuOpen(false)} className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">My orders</Link>
-                <Link href="/login" onClick={() => setMenuOpen(false)} className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">Sign in</Link>
-                <Link href="/#contact" onClick={() => setMenuOpen(false)} className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">Contact</Link>
+                <p className="px-5 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted">
+                  Account
+                </p>
+
+                {user ? (
+                  <>
+                    <div className="flex items-center gap-3 px-5 pb-2 pt-1">
+                      <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sienna text-sm font-bold text-white">
+                        {user.initial}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-navy">{user.name}</p>
+                        <p className="truncate text-xs text-muted">{user.email}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setMenuOpen(false); onWishlistClick?.(); }}
+                      className="flex w-full min-h-11 items-center justify-between px-5 py-3 text-left text-sm text-ink hover:bg-subtle transition"
+                    >
+                      Saved books
+                      <span className="text-xs text-muted">{wishlistCount}</span>
+                    </button>
+                    <Link href="/account" onClick={() => setMenuOpen(false)} className="block min-h-11 px-5 py-3 text-sm text-ink hover:bg-subtle transition">My orders</Link>
+                    <button
+                      type="button"
+                      onClick={signOut}
+                      disabled={signingOut}
+                      className="flex w-full min-h-11 items-center gap-2 px-5 py-3 text-left text-sm font-semibold text-error hover:bg-error/5 transition disabled:opacity-60"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      {signingOut ? "Signing out…" : "Sign out"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => { setMenuOpen(false); onWishlistClick?.(); }}
+                      className="flex w-full min-h-11 items-center justify-between px-5 py-3 text-left text-sm text-ink hover:bg-subtle transition"
+                    >
+                      Saved books
+                      <span className="text-xs text-muted">{wishlistCount}</span>
+                    </button>
+                    {sessionReady && (
+                      <>
+                        <Link href="/login" onClick={() => setMenuOpen(false)} className="block min-h-11 px-5 py-3 text-sm text-ink hover:bg-subtle transition">Sign in</Link>
+                        <Link href="/login?tab=register" onClick={() => setMenuOpen(false)} className="block min-h-11 px-5 py-3 text-sm text-ink hover:bg-subtle transition">Create an account</Link>
+                      </>
+                    )}
+                  </>
+                )}
+
+                <Link href="/#contact" onClick={() => setMenuOpen(false)} className="block min-h-11 px-5 py-3 text-sm text-ink hover:bg-subtle transition">Contact</Link>
               </div>
             </nav>
 
