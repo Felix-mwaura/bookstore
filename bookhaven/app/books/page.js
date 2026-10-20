@@ -6,6 +6,7 @@ import Link from "next/link";
 import { supabase } from "../lib/supabase";
 import { useLiveBooks } from "../lib/useLiveBooks";
 import { BookCover } from "../components/BookCard";
+import { bookPath } from "../lib/book-url";
 import BookDetailPage from "../components/BookCard";
 import FilterPanel from "../components/FilterPanel";
 import { useStore, StoreHeader, StoreFooter, categoryIcons, categories, CartDrawer } from "../components/StoreShell";
@@ -44,8 +45,11 @@ function BookCard({ book, isWishlisted, onToggleWishlist, onAddToCart, onViewDet
           <span className="text-xs text-stone-500 ml-1">({book.reviews.toLocaleString()})</span>
         </div>
         <p className="text-xs text-stone-500 font-medium uppercase tracking-wider mb-1">{book.category}</p>
-        <h3 className="text-base font-bold text-[#1C1917] leading-snug line-clamp-2 group-hover:text-[#991B1B] transition cursor-pointer"
-          onClick={() => onViewDetail(book)}>{book.title}</h3>
+        {/* A real link, not just an onClick, so crawlers can reach every
+            book page and the title works with keyboard and middle-click. */}
+        <Link href={bookPath(book)} className="text-base font-bold text-[#1C1917] leading-snug line-clamp-2 group-hover:text-[#991B1B] transition">
+          {book.title}
+        </Link>
         <p className="text-sm text-stone-500 mt-1">{book.author}</p>
         <p className="text-xs text-stone-400 mt-1">{book.format}</p>
         {book.stock !== "In Stock" && <p className="text-xs text-amber-600 font-semibold mt-1">{book.stock}</p>}
@@ -75,6 +79,7 @@ function BooksInner() {
   const store = useStore();
   const [books, setBooks] = useState([]);
   const [booksLoading, setBooksLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [searchQuery, setSearchQuery] = useState(initialQ);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [sortBy, setSortBy] = useState("popular");
@@ -83,8 +88,14 @@ function BooksInner() {
 
   const loadBooks = useCallback(async () => {
     try {
-      const { data } = await supabase.from("books").select("*").order("id");
+      const { data, error } = await supabase.from("books").select("*").eq("is_archived", false).order("id");
+      if (error) throw error;
       setBooks(data || []);
+      setLoadError(null);
+    } catch (err) {
+      // "No books found" and "the catalogue failed to load" are different
+      // problems with different fixes; don't show one as the other.
+      setLoadError(err?.message || "Could not load the catalogue.");
     } finally {
       setBooksLoading(false);
     }
@@ -92,6 +103,12 @@ function BooksInner() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadBooks(); }, [loadBooks]);
+
+  // The header search pushes /books?q=… . Without this the query is only read
+  // once on mount, so searching again from the listing page did nothing.
+  const queryParam = searchParams.get("q") || "";
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- mirroring the URL into the search box is the point of this effect
+  useEffect(() => { setSearchQuery(queryParam); }, [queryParam]);
   // Admin edits (price, stock, new titles) appear without a refresh.
   useLiveBooks(loadBooks);
 
@@ -205,6 +222,13 @@ function BooksInner() {
                 <option value="rating">Highest Rated</option>
               </select>
             </div>
+
+            {loadError && (
+              <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-800" role="alert">
+                {loadError}{" "}
+                <button type="button" onClick={loadBooks} className="font-bold underline hover:no-underline">Try again</button>
+              </div>
+            )}
 
             {filteredBooks.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">

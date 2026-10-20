@@ -4,6 +4,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { BookCover } from "../components/BookCard";
 import { supabase } from "../lib/supabase";
+import { orderReference } from "../lib/orders";
+import { FREE_DELIVERY_THRESHOLD, STANDARD_DELIVERY_FEE } from "../lib/site";
 
 function formatPhone(raw) {
   const d = raw.replace(/\D/g, "");
@@ -36,8 +38,10 @@ function StepBar({ step }) {
   );
 }
 
-function OrderSummary({ cart, total }) {
-  const delivery = total >= 3000 ? 0 : 300;
+function OrderSummary({ cart, total, onChangeQty, onRemove }) {
+  // Same rule the server applies in place_order, imported rather than
+  // duplicated so the displayed total cannot disagree with the charged one.
+  const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
   const grand = total + delivery;
   return (
     <div className="bg-white rounded-2xl border border-stone-200 p-6 sticky top-24">
@@ -51,10 +55,25 @@ function OrderSummary({ cart, total }) {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[#1C1917] line-clamp-1">{item.title}</p>
               <p className="text-xs text-stone-400">{item.author}</p>
-              <div className="flex justify-between mt-1">
-                <span className="text-xs text-stone-400">Qty: {item.quantity}</span>
+              <div className="flex justify-between items-center mt-1">
+                {onChangeQty ? (
+                  <div className="flex items-center border border-stone-300 rounded-lg">
+                    <button type="button" aria-label={`Decrease quantity of ${item.title}`} onClick={() => onChangeQty(item.id, -1)}
+                      className="w-7 h-7 flex items-center justify-center hover:bg-stone-100 font-bold text-sm">−</button>
+                    <span className="w-7 text-center text-xs font-semibold" aria-live="polite">{item.quantity}</span>
+                    <button type="button" aria-label={`Increase quantity of ${item.title}`} onClick={() => onChangeQty(item.id, 1)}
+                      className="w-7 h-7 flex items-center justify-center hover:bg-stone-100 font-bold text-sm">+</button>
+                  </div>
+                ) : (
+                  <span className="text-xs text-stone-400">Qty: {item.quantity}</span>
+                )}
                 <span className="text-sm font-bold text-[#1C1917]">KSh {(item.price * item.quantity).toLocaleString()}</span>
               </div>
+              {onRemove && (
+                <button type="button" onClick={() => onRemove(item.id)} className="text-[11px] text-stone-400 hover:text-red-600 underline mt-1">
+                  Remove
+                </button>
+              )}
             </div>
           </div>
         ))}
@@ -62,7 +81,7 @@ function OrderSummary({ cart, total }) {
       <div className="border-t border-stone-100 mt-5 pt-4 space-y-2.5">
         <div className="flex justify-between text-sm"><span className="text-stone-500">Subtotal</span><span className="font-semibold">KSh {total.toLocaleString()}</span></div>
         <div className="flex justify-between text-sm"><span className="text-stone-500">Delivery</span>{delivery === 0 ? <span className="font-semibold text-green-600">Free 🎉</span> : <span className="font-semibold">KSh {delivery.toLocaleString()}</span>}</div>
-        {delivery > 0 && <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-1.5">Add KSh {(3000 - total).toLocaleString()} more for free delivery</p>}
+        {delivery > 0 && <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-1.5">Add KSh {(FREE_DELIVERY_THRESHOLD - total).toLocaleString()} more for free delivery</p>}
         <div className="flex justify-between text-lg font-black text-[#1C1917] border-t border-stone-200 pt-3"><span>Total</span><span>KSh {grand.toLocaleString()}</span></div>
       </div>
       <div className="mt-5 pt-4 border-t border-stone-100 space-y-2">
@@ -431,7 +450,7 @@ function CodFlow({ total, onSuccess }) {
 
 function StepPayment({ details, total, items, reference, canPay, onSuccess, onBack }) {
   const [method, setMethod] = useState("mpesa");
-  const delivery = total >= 3000 ? 0 : 300;
+  const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
   const grand = total + delivery;
   const methods = [
     { id: "mpesa", label: "M-Pesa", sub: "STK Push", icon: "M", color: "bg-green-600" },
@@ -490,11 +509,14 @@ function StepPayment({ details, total, items, reference, canPay, onSuccess, onBa
 }
 
 function StepConfirmation({ order, reference, details, method, cart, total, saveError, stockError, saving, onRetry }) {
-  const delivery = total >= 3000 ? 0 : 300;
+  const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
   const grand = order?.total ?? total + delivery;
   const methodLabels = { mpesa: "M-Pesa", cod: "Cash on Delivery" };
   const eta = details.city === "Nairobi" ? "1–2 business days" : "2–4 business days";
-  const shownRef = order?.id || reference;
+  // The reference customers quote to support is derived from the saved order
+  // id. Before the order exists there is nothing real to quote, so we show
+  // the M-Pesa transaction instead of inventing a code.
+  const shownRef = order ? orderReference(order.id) : (reference || "—");
   const paidAlready = method === "mpesa";
 
   return (
@@ -535,7 +557,7 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
 
       <div className="bg-stone-50 rounded-2xl p-6 text-left max-w-sm mx-auto space-y-3 mb-6">
         {[
-          { label: order ? "Order ID" : "Reference", value: shownRef, mono: true },
+          { label: order ? "Order reference" : "Payment reference", value: shownRef, mono: true },
           { label: "Delivering to", value: `${details.address}, ${details.city}` },
           { label: "Payment", value: methodLabels[method] || method },
           { label: order ? "Amount due" : "Amount", value: `KSh ${grand.toLocaleString()}` },
@@ -559,7 +581,9 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
       </div>
 
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-700 max-w-sm mx-auto mb-8">
-        Keep this reference. Email notifications are not switched on yet, so this page and your account page are the record of this order.
+        {order
+          ? "We have emailed nothing yet — order email delivery is not switched on. This page and your account page are the record of this order."
+          : "Keep the reference above. If money left your account, contact us before trying again."}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -582,9 +606,11 @@ export default function CheckoutPage() {
   const [signedIn, setSignedIn] = useState(null); // null = still checking
   const [details, setDetails] = useState({ firstName: "", lastName: "", email: "", phone: "", address: "", city: "", notes: "" });
 
-  // Human-readable reference for support conversations. The real, saved
-  // reference shown after checkout is the order's database id.
-  const [reference] = useState(() => "BH-" + Math.random().toString(36).substring(2, 7).toUpperCase());
+
+  // There is deliberately no invented "order reference" here. Before the
+  // order exists the only real identifier is the M-Pesa checkout request id,
+  // and that is what the confirmation shows if saving the order fails.
+  const reference = checkoutRequestId;
 
   // Stable per checkout attempt: a double click or a retry with the same
   // key returns the original order instead of creating a duplicate.
@@ -594,13 +620,86 @@ export default function CheckoutPage() {
       : `bh-${Date.now()}-${Math.random().toString(36).slice(2)}`
   );
 
+  const [basketNotice, setBasketNotice] = useState("");
+
+  // Restore the basket, then reconcile it with the live catalogue. A customer
+  // can leave items in the basket for days; prices and stock may have moved on
+  // since. Showing yesterday's total and only failing at submit is the
+  // behaviour this replaces.
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("bh_cart");
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- restoring browser-only state after mount avoids a hydration mismatch
-      if (saved) setCart(JSON.parse(saved));
-    } catch {}
+    let cancelled = false;
+
+    (async () => {
+      let saved = [];
+      try {
+        saved = JSON.parse(localStorage.getItem("bh_cart") || "[]");
+      } catch {
+        saved = [];
+      }
+      if (!Array.isArray(saved) || saved.length === 0) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only state restored after mount
+        if (!cancelled) setCart([]);
+        return;
+      }
+
+      const { data } = await supabase
+        .from("books")
+        .select("id,title,price,stock_quantity,is_archived")
+        .in("id", saved.map((i) => i.id));
+
+      const live = new Map((data || []).map((row) => [row.id, row]));
+      const notes = [];
+
+      const next = saved.flatMap((item) => {
+        const row = live.get(item.id);
+        if (!row || row.is_archived) {
+          notes.push(`“${item.title}” is no longer available and was removed.`);
+          return [];
+        }
+        const cap = Math.max(0, Number(row.stock_quantity) || 0);
+        if (cap === 0) {
+          notes.push(`“${item.title}” sold out and was removed.`);
+          return [];
+        }
+        const quantity = Math.min(Number(item.quantity) || 1, cap);
+        if (quantity !== item.quantity) {
+          notes.push(`Only ${cap} copies of “${item.title}” remain — quantity reduced.`);
+        }
+        if (Number(row.price) !== Number(item.price)) {
+          notes.push(`The price of “${item.title}” changed to KSh ${Number(row.price).toLocaleString("en-KE")}.`);
+        }
+        return [{ ...item, price: row.price, stock_quantity: cap, quantity }];
+      });
+
+      if (cancelled) return;
+      setCart(next);
+      setBasketNotice(notes.join(" "));
+      try {
+        localStorage.setItem("bh_cart", JSON.stringify(next));
+      } catch {}
+    })();
+
+    return () => { cancelled = true; };
   }, []);
+
+  // Quantity edits made here must survive a refresh and stay in step with the
+  // drawer on the other pages, which reads the same key.
+  const commitCart = (next) => {
+    setCart(next);
+    try {
+      localStorage.setItem("bh_cart", JSON.stringify(next));
+    } catch {}
+  };
+
+  const changeQty = (id, delta) => {
+    commitCart(cart.map((item) => {
+      if (item.id !== id) return item;
+      const cap = Number.isFinite(Number(item.stock_quantity)) ? Number(item.stock_quantity) : 99;
+      return { ...item, quantity: Math.min(cap, Math.max(0, item.quantity + delta)) };
+    }).filter((item) => item.quantity > 0));
+  };
+
+  const removeItem = (id) => commitCart(cart.filter((item) => item.id !== id));
 
   useEffect(() => {
     let cancelled = false;
@@ -669,6 +768,52 @@ export default function CheckoutPage() {
     saveOrder(method, checkoutId);
   };
 
+  // The order is attached to an account, so paying before signing in could
+  // take money for an order we cannot create. Ask first, and say why.
+  if (signedIn === false && step < 3) {
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center p-6">
+        <div className="bg-white border border-stone-200 rounded-2xl max-w-md w-full p-7 text-center">
+          <div className="text-5xl mb-4" aria-hidden="true">🔐</div>
+          <h1 className="text-xl font-bold text-[#1C1917]">Sign in to finish your order</h1>
+          <p className="text-sm text-stone-500 mt-2">
+            Orders are tied to your account so you can track delivery and keep a record of every purchase.
+          </p>
+          <p className="text-xs text-stone-400 mt-3">
+            {cart.length === 0
+              ? "Your basket is empty."
+              : `Your ${cart.reduce((n, i) => n + i.quantity, 0)} item basket is saved on this device — nothing is lost.`}
+          </p>
+          <div className="mt-6 space-y-2">
+            <Link
+              href="/login?next=%2Fcheckout"
+              className="block w-full bg-[#991B1B] hover:bg-[#7F1D1D] text-white py-3 rounded-xl font-bold transition"
+            >
+              Sign in
+            </Link>
+            <Link
+              href="/login?tab=register&next=%2Fcheckout"
+              className="block w-full border-2 border-stone-200 hover:border-[#991B1B] text-stone-700 py-3 rounded-xl font-bold transition"
+            >
+              Create an account
+            </Link>
+          </div>
+          <Link href="/books" className="inline-block mt-5 text-xs text-stone-400 hover:text-[#991B1B]">
+            ← Continue browsing
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (signedIn === null && step < 3) {
+    return (
+      <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
+        <p className="text-sm text-stone-500" role="status">Checking your session…</p>
+      </div>
+    );
+  }
+
   if (cart.length === 0 && step < 3) return (
     <div className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center p-6 gap-6">
       <div className="text-7xl">📚</div>
@@ -702,7 +847,7 @@ export default function CheckoutPage() {
         <div className="lg:hidden bg-white border-b border-stone-200 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-stone-600">Order total</span>
-            <span className="text-sm font-black text-[#1C1917]">KSh {(total + (total >= 3000 ? 0 : 300)).toLocaleString()}</span>
+            <span className="text-sm font-black text-[#1C1917]">KSh {(total + (total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE)).toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-1.5">
             {cart.slice(0, 3).map((item, i) => (
@@ -719,6 +864,11 @@ export default function CheckoutPage() {
         <StepBar step={step} />
         <div className="grid lg:grid-cols-[1fr_360px] gap-6 lg:gap-8 items-start">
           <div className="bg-white rounded-2xl border border-stone-200 p-4 sm:p-6 lg:p-8">
+            {basketNotice && step < 3 && (
+              <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800" role="status">
+                {basketNotice}
+              </div>
+            )}
             {step === 1 && <StepDetails data={details} onChange={updateDetail} onNext={() => setStep(2)} />}
             {step === 2 && (
               <StepPayment
@@ -748,7 +898,7 @@ export default function CheckoutPage() {
           </div>
           {step < 3 && (
             <div className="hidden lg:block">
-              <OrderSummary cart={cart} total={total} />
+              <OrderSummary cart={cart} total={total} onChangeQty={changeQty} onRemove={removeItem} />
             </div>
           )}
         </div>

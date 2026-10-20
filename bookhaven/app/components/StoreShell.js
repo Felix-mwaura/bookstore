@@ -341,7 +341,7 @@ export function StoreHeader({ cartCount, wishlistCount, onCartClick, onWishlistC
   return (
     <>
       <div className="bg-[#1C1917] text-white text-center py-2 text-xs sm:text-sm font-medium px-4">
-        Free delivery in Nairobi on orders over KSh 3,000 · Nationwide shipping available
+        Free delivery on orders over KSh 3,000 · KSh 300 flat rate below that
       </div>
 
       <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
@@ -587,17 +587,64 @@ export function useStore() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Keeps every mounted copy of the cart in step. The server-rendered book
+  // page writes to the same localStorage key from a separate client island,
+  // so a cart change there has to reach the header badge and drawer here.
+  useEffect(() => {
+    const reload = (e) => {
+      if (e && e.detail && e.detail.source === "self") return;
+      try {
+        const c = localStorage.getItem("bh_cart");
+        const w = localStorage.getItem("bh_wishlist");
+        if (c) setCart(JSON.parse(c));
+        if (w) setWishlist(JSON.parse(w));
+      } catch {}
+    };
+    window.addEventListener("bh:cart-changed", reload);
+    return () => window.removeEventListener("bh:cart-changed", reload);
+  }, []);
+
+  const capFor = (book) => {
+    // stock_quantity is the real number; fall back to +Infinity for older
+    // cart rows saved before the field existed so nothing is silently zeroed.
+    const q = Number(book?.stock_quantity);
+    return Number.isFinite(q) && q >= 0 ? q : Infinity;
+  };
+
   const addToCart = (book) => {
+    const cap = capFor(book);
+    if (cap <= 0) {
+      showToast(`"${book.title}" is out of stock`);
+      return;
+    }
+    let capped = false;
     setCart((prev) => {
       const exists = prev.find((i) => i.id === book.id);
-      if (exists) return prev.map((i) => i.id === book.id ? { ...i, quantity: i.quantity + 1 } : i);
+      if (exists) {
+        if (exists.quantity >= cap) { capped = true; return prev; }
+        return prev.map((i) => i.id === book.id ? { ...i, quantity: i.quantity + 1, stock_quantity: book.stock_quantity } : i);
+      }
       return [...prev, { ...book, quantity: 1 }];
     });
-    showToast(`"${book.title}" added to basket`);
+    showToast(capped ? `Only ${cap} of "${book.title}" in stock` : `"${book.title}" added to basket`);
   };
 
   const removeFromCart = (id) => setCart((prev) => prev.filter((i) => i.id !== id));
-  const updateQty = (id, delta) => setCart((prev) => prev.map((i) => i.id === id ? { ...i, quantity: Math.max(1, i.quantity + delta) } : i));
+
+  const updateQty = (id, delta) => setCart((prev) => prev.map((i) => {
+    if (i.id !== id) return i;
+    const cap = capFor(i);
+    const next = Math.min(cap, Math.max(0, i.quantity + delta));
+    return { ...i, quantity: next };
+  }).filter((i) => i.quantity > 0));
+
+  // Absolute quantity, used by the checkout review where a customer types it.
+  const setQty = (id, value) => setCart((prev) => prev.map((i) => {
+    if (i.id !== id) return i;
+    const cap = capFor(i);
+    const next = Math.min(cap, Math.max(0, Math.floor(Number(value) || 0)));
+    return { ...i, quantity: next };
+  }).filter((i) => i.quantity > 0));
 
   const toggleWishlist = (book) => {
     setWishlist((prev) => {
@@ -615,10 +662,12 @@ export function useStore() {
   const cartTotal = cart.reduce((s, i) => s + i.price * i.quantity, 0);
   const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
+  // Anything that removes every line item has effectively emptied the basket;
+  // the checkout page relies on this to stop showing a stale review.
   return {
     cart, wishlist, isCartOpen, isWishlistOpen, toast, selectedBook,
     setIsCartOpen, setIsWishlistOpen, setSelectedBook,
-    addToCart, removeFromCart, updateQty, toggleWishlist, cartTotal, cartCount,
+    addToCart, removeFromCart, updateQty, setQty, toggleWishlist, cartTotal, cartCount,
   };
 }
 
