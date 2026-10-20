@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { formatKsh } from "../lib/site";
+import { stockState } from "../lib/stock";
 
 // Cart controls for the server-rendered book page.
 //
@@ -49,6 +50,7 @@ export default function BuyBar({ book }) {
   const stock = Number(book.stock_quantity ?? 0);
   const outOfStock = stock <= 0;
   const capped = quantity >= stock;
+  const label = stockState(book).label;
 
   const step = (delta) => {
     setError("");
@@ -134,8 +136,8 @@ export default function BuyBar({ book }) {
           {outOfStock
             ? "This title is out of stock."
             : capped
-              ? `Only ${stock} on the shelf.`
-              : `${stock} in stock`}
+              ? `${label} — that is all we have.`
+              : `${label} — ready to ship.`}
         </p>
       </div>
 
@@ -189,7 +191,7 @@ export default function BuyBar({ book }) {
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-cream/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] lg:hidden">
         <div className="flex items-center gap-3">
           <div className="min-w-0">
-            <p className="text-[11px] text-muted">{outOfStock ? "Out of stock" : `${stock} in stock`}</p>
+            <p className="text-[11px] text-muted">{label}</p>
             <p className="text-base font-bold text-navy">{formatKsh(book.price)}</p>
           </div>
           <button

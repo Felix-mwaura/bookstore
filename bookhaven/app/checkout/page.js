@@ -126,19 +126,21 @@ function Field({ label, name, type = "text", placeholder, span2, value, onChange
   );
 }
 
+function validateDetails(data) {
+  const found = {};
+  if (!data.firstName.trim()) found.firstName = "Enter your first name.";
+  if (!data.lastName.trim()) found.lastName = "Enter your last name.";
+  if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) found.email = "Enter a valid email address.";
+  if (!isValidKenyanPhone(data.phone)) found.phone = "Enter a Kenyan mobile number, e.g. 0712 345 678.";
+  if (!data.address.trim()) found.address = "Enter a delivery address.";
+  if (!data.city) found.city = "Choose your town or city.";
+  return found;
+}
+
 function StepDetails({ data, onChange, onNext }) {
   const [errors, setErrors] = useState({});
 
-  const validate = () => {
-    const e = {};
-    if (!data.firstName.trim()) e.firstName = "Required";
-    if (!data.lastName.trim()) e.lastName = "Required";
-    if (!data.email.trim() || !/\S+@\S+\.\S+/.test(data.email)) e.email = "Valid email required";
-    if (!isValidKenyanPhone(data.phone)) e.phone = "Enter a Kenyan mobile number, e.g. 0712 345 678";
-    if (!data.address.trim()) e.address = "Required";
-    if (!data.city) e.city = "Select a city";
-    return e;
-  };
+  const validate = () => validateDetails(data);
 
   const handleNext = () => {
     const found = validate();
@@ -161,8 +163,9 @@ function StepDetails({ data, onChange, onNext }) {
 
   return (
     <div>
-      <h2 className="text-xl sm:text-2xl font-bold text-[#1B2A4A] mb-1">Delivery Details</h2>
-      <p className="text-stone-500 text-sm mb-5 sm:mb-7">Where should we send your books?</p>
+      <p className="text-[11px] font-bold uppercase tracking-widest text-sienna">Step 1 of 3</p>
+      <h2 className="mt-1 text-xl sm:text-2xl font-bold text-navy">Delivery details</h2>
+      <p className="text-muted text-sm mt-1 mb-5">Where should we send your books?</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Field label="First name" name="firstName" placeholder="Grace" autoComplete="given-name" value={data.firstName} onChange={handleChange} error={errors.firstName} />
         <Field label="Last name" name="lastName" placeholder="Wambui" autoComplete="family-name" value={data.lastName} onChange={handleChange} error={errors.lastName} />
@@ -450,7 +453,7 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
   );
 }
 
-function CodFlow({ total, onSuccess }) {
+function CodFlow({ total, onSuccess, disabled = false }) {
   const [agreed, setAgreed] = useState(false);
   return (
     <div className="space-y-5">
@@ -477,7 +480,17 @@ function CodFlow({ total, onSuccess }) {
         </div>
         <span className="text-sm text-stone-600 leading-relaxed">I understand I must pay <strong className="text-[#1B2A4A]">KSh {total.toLocaleString()}</strong> in cash to the delivery rider.</span>
       </label>
-      <button onClick={() => agreed && onSuccess("cod")} disabled={!agreed} className="btn-primary w-full text-base disabled:bg-stone-200 disabled:text-muted disabled:cursor-not-allowed">Place order — pay on delivery</button>
+      <button
+        type="button"
+        onClick={() => agreed && !disabled && onSuccess("cod")}
+        disabled={!agreed || disabled}
+        className="btn-primary w-full text-base disabled:bg-stone-200 disabled:text-muted disabled:cursor-not-allowed"
+      >
+        Place order — pay on delivery
+      </button>
+      {disabled && (
+        <p className="text-center text-xs text-muted">Add your delivery details above to place the order.</p>
+      )}
     </div>
   );
 }
@@ -487,7 +500,7 @@ function CodFlow({ total, onSuccess }) {
 // that would fail at the last step.
 const MPESA_ENABLED = process.env.NEXT_PUBLIC_MPESA_ENABLED === "true";
 
-function StepPayment({ details, total, items, reference, canPay, onSuccess, onBack }) {
+function StepPayment({ details, total, items, reference, canPay, ready = true, onSuccess, onBack }) {
   const [method, setMethod] = useState(MPESA_ENABLED ? "mpesa" : "cod");
   const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
   const grand = total + delivery;
@@ -522,8 +535,13 @@ function StepPayment({ details, total, items, reference, canPay, onSuccess, onBa
 
   return (
     <div>
-      <h2 className="text-2xl font-bold text-[#1B2A4A] mb-1">Payment</h2>
-      <p className="text-stone-500 text-sm mb-7">Delivering to <span className="font-semibold text-[#1B2A4A]">{details.firstName} {details.lastName}</span> · {details.city}</p>
+      <p className="text-[11px] font-bold uppercase tracking-widest text-sienna">Step 2 of 3</p>
+      <h2 className="mt-1 text-2xl font-bold text-navy">Payment</h2>
+      <p className="text-muted text-sm mt-1 mb-6">
+        {details.firstName || details.city
+          ? <>Delivering to <span className="font-semibold text-ink">{[details.firstName, details.lastName].filter(Boolean).join(" ")}</span>{details.city ? ` · ${details.city}` : ""}</>
+          : "Choose how you would like to pay."}
+      </p>
       <div className={`grid gap-3 mb-7 ${methods.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
         {methods.map((m) => (
           <button key={m.id} onClick={() => setMethod(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-[#B5532F] bg-[#B5532F]/5" : "border-[#E3DCCB] hover:border-stone-300 bg-white"}`}>
@@ -536,13 +554,14 @@ function StepPayment({ details, total, items, reference, canPay, onSuccess, onBa
       <div className="bg-stone-50/50 rounded-2xl p-1">
         <div className="bg-white rounded-xl p-5 border border-stone-100">
           {method === "mpesa" && <MpesaFlow phone={details.phone} total={grand} reference={reference} items={items} onSuccess={onSuccess} />}
-          {method === "cod" && <CodFlow total={grand} onSuccess={onSuccess} />}
+          {method === "cod" && <CodFlow total={grand} onSuccess={onSuccess} disabled={!ready} />}
         </div>
       </div>
-      <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-600 transition mt-5">
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-        Back to details
-      </button>
+      {onBack && (
+        <button type="button" onClick={onBack} className="mt-5 text-sm text-muted hover:text-navy underline underline-offset-2">
+          Back to delivery details
+        </button>
+      )}
     </div>
   );
 }
@@ -750,7 +769,8 @@ export default function CheckoutPage() {
   }, []);
 
   const updateDetail = (key, val) => setDetails((p) => ({ ...p, [key]: val }));
-  const total = cart.reduce((s, i) => s + i.price * i.quantity, 0);
+  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const detailsValid = Object.keys(validateDetails(details)).length === 0;
 
   const saveOrder = async (method, checkoutId) => {
     setSaving(true);
@@ -896,25 +916,34 @@ export default function CheckoutPage() {
       )}
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <StepBar step={step} />
+        <StepBar step={step === 3 ? 3 : detailsValid ? 2 : 1} />
         <div className="grid lg:grid-cols-[1fr_360px] gap-6 lg:gap-8 items-start">
-          <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 sm:p-6 lg:p-8">
+          <div className="bg-white rounded-card border border-line p-4 sm:p-6 lg:p-8">
             {basketNotice && step < 3 && (
               <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800" role="status">
                 {basketNotice}
               </div>
             )}
-            {step === 1 && <StepDetails data={details} onChange={updateDetail} onNext={() => setStep(2)} />}
-            {step === 2 && (
-              <StepPayment
-                details={details}
-                total={total}
-                items={cart.map(({ id, quantity }) => ({ id, quantity }))}
-                reference={reference}
-                canPay={signedIn === true}
-                onSuccess={handlePaymentSuccess}
-                onBack={() => setStep(1)}
-              />
+            {step < 3 && (
+              <>
+                <StepDetails
+                  data={details}
+                  onChange={updateDetail}
+                  onNext={() => document.getElementById("payment-block")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                />
+
+                <section id="payment-block" aria-labelledby="payment-heading" className="mt-8 border-t border-line pt-8 scroll-mt-24">
+                  <StepPayment
+                    details={details}
+                    total={total}
+                    items={cart.map(({ id, quantity }) => ({ id, quantity }))}
+                    reference={reference}
+                    canPay={signedIn === true}
+                    ready={detailsValid}
+                    onSuccess={handlePaymentSuccess}
+                  />
+                </section>
+              </>
             )}
             {step === 3 && (
               <StepConfirmation
