@@ -93,7 +93,10 @@ function CategoryTiles({ books }) {
               <div>
                 <p className="font-black text-sm sm:text-base">{cat}</p>
                 <p className="text-white/60 text-xs mt-0.5">
-                  {books.filter((b) => b.category === cat).length} books →
+                  {(() => {
+                    const count = books.filter((b) => b.category === cat).length;
+                    return `${count} ${count === 1 ? "book" : "books"} →`;
+                  })()}
                 </p>
               </div>
             </Link>
@@ -352,7 +355,7 @@ function Newsletter() {
     <section className="bg-[#1C1917] text-white py-10 sm:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center">
         <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-3 sm:mb-4">Join Our Reading Community</h2>
-        <p className="text-stone-400 max-w-xl mx-auto mb-6 sm:mb-8 text-sm sm:text-base">Get weekly book recommendations, author interviews, and exclusive member discounts.</p>
+        <p className="text-stone-400 max-w-xl mx-auto mb-6 sm:mb-8 text-sm sm:text-base">Occasional news about new arrivals and offers. No fixed schedule, no spam — and you can ask us to remove you at any time.</p>
         {subscribed ? (
           <p className="text-green-400 font-semibold">✓ You&apos;re on the list. We&apos;ll email you when new titles arrive.</p>
         ) : (
