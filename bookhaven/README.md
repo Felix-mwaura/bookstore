@@ -30,6 +30,8 @@ Node 20+ is required.
 | `MPESA_PASSKEY` | **server only** | STK push passkey |
 | `MPESA_CALLBACK_URL` | **server only** | Public HTTPS callback URL |
 | `MPESA_ENV` | **server only** | `sandbox` (default) or `production` |
+| `ANTHROPIC_API_KEY` | **server only** | Optional. Enables the read-only assistant in `/admin` |
+| `ANTHROPIC_MODEL` | **server only** | Optional model override (default `claude-sonnet-4-5`) |
 
 If the two `NEXT_PUBLIC_*` values are missing, the app falls back to the
 project's public URL and anon key so an existing deployment keeps working.
@@ -97,3 +99,27 @@ UI): free over KSh 3,000, otherwise KSh 300. There is no COD surcharge.
   offered.
 - `app/books.js` contains the original static demo catalogue. Pages read from
   Supabase; the file is not imported by any route.
+
+## Admin assistant
+
+`/admin` → **Assistant** is a read-only natural-language interface over the
+store. It answers questions about orders, stock, customers and sales, and it
+cannot change anything: every tool in `app/lib/admin-agent-tools.js` is a
+SELECT, and the tab states that in the UI. Order edits, stock adjustments and
+role changes stay in their own screens, behind confirmation and the audit log.
+
+- Auth: the route reuses `requireAdmin()` (verified JWT → `profiles.role`).
+  There is no unauthenticated path and no key in the browser.
+- Grounding: the system prompt requires every number to come from a tool
+  result, and the response shows which tools were read. Tool output is treated
+  as data, never as instruction.
+- Limits: 5 tool rounds, 10 calls, 20 questions per admin per 10 minutes.
+- No key: the tab still renders a real 7-day snapshot and setup steps, and
+  chat stays disabled rather than inventing answers.
+
+Checks that need no credentials:
+
+```bash
+node scripts/agent-smoke.mjs   # mocked provider + stub DB: tool loop, clamping, errors
+node scripts/smoke.mjs http://127.0.0.1:3000   # status codes, headers, auth guards
+```
