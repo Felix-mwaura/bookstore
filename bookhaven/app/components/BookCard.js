@@ -196,7 +196,7 @@ export default function BookDetailPage({ book, isWishlisted, onToggleWishlist, o
                   <svg className="w-4 h-4 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  Free delivery in Nairobi on orders over KSh 3,000
+                  Free delivery on orders over KSh 3,000
                 </div>
               </div>
             </div>

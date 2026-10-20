@@ -7,6 +7,7 @@ import { notFound } from "next/navigation";
 import { supabase } from "../../lib/supabase";
 import { useLiveBooks } from "../../lib/useLiveBooks";
 import { BookCover } from "../../components/BookCard";
+import { bookPath } from "../../lib/book-url";
 import BookDetailPage from "../../components/BookCard";
 import FilterPanel from "../../components/FilterPanel";
 import { useStore, StoreHeader, StoreFooter, categoryIcons, categories, CartDrawer } from "../../components/StoreShell";
@@ -69,8 +70,11 @@ function BookCard({ book, isWishlisted, onToggleWishlist, onAddToCart, onViewDet
           ))}
           <span className="text-xs text-stone-500 ml-1">({book.reviews.toLocaleString()})</span>
         </div>
-        <h3 className="text-base font-bold text-[#1C1917] leading-snug line-clamp-2 group-hover:text-[#991B1B] transition cursor-pointer"
-          onClick={() => onViewDetail(book)}>{book.title}</h3>
+        {/* A real link, not just an onClick, so crawlers can reach every
+            book page and the title works with keyboard and middle-click. */}
+        <Link href={bookPath(book)} className="text-base font-bold text-[#1C1917] leading-snug line-clamp-2 group-hover:text-[#991B1B] transition">
+          {book.title}
+        </Link>
         <p className="text-sm text-stone-500 mt-1">{book.author}</p>
         <p className="text-xs text-stone-400 mt-1">{book.format}</p>
         {book.stock !== "In Stock" && <p className="text-xs text-amber-600 font-semibold mt-1">{book.stock}</p>}

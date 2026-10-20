@@ -186,6 +186,12 @@ function LoginInner() {
   // dashboard: the DB role was right the whole time.
   const freshSignInRef = useRef(false);
 
+  // Where to go after a successful sign-in. Only same-origin absolute paths
+  // are accepted: "//evil.example" and "https://…" would otherwise turn the
+  // login screen into an open redirect.
+  const nextParam = searchParams.get("next") || "";
+  const nextPath = nextParam.startsWith("/") && !nextParam.startsWith("//") ? nextParam : null;
+
   const checkRoleAndRedirect = async (u) => {
     try {
       const { supabase } = await import("../lib/supabase");
@@ -194,9 +200,12 @@ function LoginInner() {
         .select("role")
         .eq("id", u.id)
         .maybeSingle();
+      // Someone sent here from /checkout or an order page goes back there —
+      // dropping them on the dashboard instead loses their place.
+      if (nextPath) { router.push(nextPath); return; }
       router.push(prof?.role === "admin" ? "/admin" : "/account");
     } catch {
-      router.push("/account");
+      router.push(nextPath || "/account");
     }
   };
 
@@ -221,7 +230,7 @@ function LoginInner() {
       if (session) {
         await checkRoleAndRedirect(session.user);
       } else {
-        router.push("/account");
+        router.push(nextPath || "/account");
       }
     }, 2800);
   };

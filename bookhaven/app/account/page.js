@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
+import { FULFILMENT_META, PAYMENT_META, orderReference, toneClass } from "../lib/orders";
 
 const BookLoader = () => (
   <div className="min-h-screen bg-[#FAF8F5] flex items-center justify-center">
@@ -276,21 +277,18 @@ function AccountInner() {
     router.push("/");
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      Processing: "bg-amber-100 text-amber-800 border-amber-200",
-      Shipped: "bg-blue-100 text-blue-800 border-blue-200",
-      Delivered: "bg-green-100 text-green-800 border-green-200",
-      Cancelled: "bg-red-100 text-red-800 border-red-200",
-    };
-    return colors[status] || "bg-stone-100 text-stone-600 border-stone-200";
-  };
+  const getStatusColor = (status) =>
+    toneClass((FULFILMENT_META[status] || {}).tone);
 
   if (loading) {
     return <BookLoader />;
   }
 
-  const totalSpent = orders.reduce((s, o) => s + (o.total || 0), 0);
+  // Money actually paid, excluding cancellations. Summing every order would
+  // count unpaid COD baskets and cancelled orders as "spent".
+  const totalSpent = orders
+    .filter((o) => o.payment_status === "paid" && o.status !== "Cancelled")
+    .reduce((s, o) => s + (o.total || 0), 0);
   const totalOrders = orders.length;
   const deliveredOrders = orders.filter(o => o.status === "Delivered").length;
 
@@ -387,12 +385,17 @@ function AccountInner() {
                 <div key={order.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
                   <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between flex-wrap gap-2">
                     <div>
-                      <p className="text-xs text-stone-400 font-mono">{order.id.slice(0, 8).toUpperCase()}</p>
+                      <p className="text-xs text-stone-400 font-mono">{orderReference(order.id)}</p>
                       <p className="text-xs text-stone-400">{new Date(order.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric" })}</p>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(order.status)}`}>
-                      {order.status}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(order.status)}`}>
+                        {(FULFILMENT_META[order.status] || {}).label || order.status}
+                      </span>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${toneClass((PAYMENT_META[order.payment_status] || {}).tone)}`}>
+                        {(PAYMENT_META[order.payment_status] || {}).label || order.payment_status}
+                      </span>
+                    </div>
                   </div>
                   <div className="px-5 py-4">
                     <div className="space-y-2 mb-4">
@@ -409,8 +412,11 @@ function AccountInner() {
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-stone-100">
                       <div>
-                        <p className="text-xs text-stone-400">Payment: <span className="text-stone-600 font-medium">{order.payment_method}</span></p>
+                        <p className="text-xs text-stone-400">Payment: <span className="text-stone-600 font-medium">{order.payment_method === "cod" ? "Cash on delivery" : order.payment_method}</span></p>
                         <p className="text-xs text-stone-400">Delivery: <span className="text-stone-600 font-medium">{order.delivery_details?.city}</span></p>
+                        <Link href={`/orders/${order.id}`} className="inline-block text-xs font-bold text-[#991B1B] hover:underline mt-2">
+                          View order details →
+                        </Link>
                       </div>
                       <p className="text-lg font-black text-[#1C1917]">KSh {(order.total || 0).toLocaleString()}</p>
                     </div>
