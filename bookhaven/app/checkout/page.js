@@ -26,7 +26,7 @@ function isValidKenyanPhone(raw) {
 function StepBar({ step }) {
   const steps = ["Your Details", "Payment", "Confirmation"];
   return (
-    <div className="flex items-center justify-center mb-10">
+    <div className="flex items-center justify-center mb-8 sm:mb-10">
       {steps.map((label, i) => {
         const idx = i + 1;
         const done = step > idx;
@@ -34,12 +34,12 @@ function StepBar({ step }) {
         return (
           <div key={label} className="flex items-center">
             <div className="flex flex-col items-center">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-all duration-300 ${done ? "bg-[#B5532F] border-[#B5532F] text-white" : active ? "bg-white border-[#B5532F] text-[#B5532F]" : "bg-white border-stone-300 text-stone-400"}`}>
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm border-2 transition-colors ${done ? "bg-[#B5532F] border-[#B5532F] text-white" : active ? "bg-white border-[#B5532F] text-[#B5532F]" : "bg-white border-stone-300 text-stone-400"}`}>
                 {done ? (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>) : idx}
               </div>
-              <span className={`text-xs font-semibold mt-1.5 whitespace-nowrap ${active ? "text-[#B5532F]" : done ? "text-stone-500" : "text-stone-400"}`}>{label}</span>
+              <span className={`text-[10px] sm:text-xs font-semibold mt-1.5 whitespace-nowrap ${active ? "text-[#B5532F]" : done ? "text-stone-500" : "text-stone-400"}`}>{label}</span>
             </div>
-            {i < steps.length - 1 && <div className={`w-20 sm:w-32 h-0.5 mx-2 mb-5 transition-all duration-500 ${done ? "bg-[#B5532F]" : "bg-stone-200"}`} />}
+            {i < steps.length - 1 && <div className={`w-8 sm:w-24 h-0.5 mx-1.5 sm:mx-3 mb-5 transition-colors ${done ? "bg-sienna" : "bg-line"}`} />}
           </div>
         );
       })}

@@ -313,7 +313,7 @@ function Newsletter() {
           ) : (
             <form onSubmit={subscribe} className="w-full">
               <label htmlFor="newsletter-email" className="sr-only">Email address</label>
-              <div className="flex flex-col xs:flex-row gap-2 sm:justify-end">
+              <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
                 <input
                   id="newsletter-email"
                   type="email"
