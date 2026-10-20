@@ -1415,7 +1415,7 @@ function PlaceholderTab({ icon, title, description }) {
 // ─────────────────────────────────────────────────────────
 // MAIN CLIENT COMPONENT
 // ─────────────────────────────────────────────────────────
-export default function AdminClient({ initialOrders, initialUsers, initialBooksCount, sessionUser }) {
+export default function AdminClient({ initialOrders, initialUsers, initialBooksCount, sessionUser, canMutate = true }) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("overview");
   const [orders, setOrders] = useState(initialOrders);
@@ -1552,6 +1552,19 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
         <Topbar activeTab={activeTab} sessionUser={sessionUser} onLogout={handleLogout}/>
 
         <main className="flex-1 overflow-y-auto p-5 sm:p-6">
+          {!canMutate && (
+            <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
+              <span className="text-lg leading-none">⚠️</span>
+              <div className="text-sm text-amber-800">
+                <p className="font-bold">Read-only mode on this deployment</p>
+                <p className="text-xs mt-0.5">
+                  <code className="font-mono">SUPABASE_SERVICE_ROLE_KEY</code> is not set here, so
+                  saving books, changing order status and changing roles will fail. Add it to this
+                  environment in Vercel, or use the production deployment.
+                </p>
+              </div>
+            </div>
+          )}
           {activeTab==="overview"&&<OverviewTab orders={orders} users={users} books={books} loading={booksLoading} onNavigate={setActiveTab}/>}
           {activeTab==="orders"&&<OrdersTab orders={orders} onUpdateStatus={handleUpdateStatus} showToast={showToast}/>}
           {activeTab==="books"&&<BooksTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}

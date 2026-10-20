@@ -129,6 +129,28 @@ the proxy are compiled.
 - **Phase 2 items** (realtime UI subscriptions, bulk operations, email
   notifications, richer metrics) are intentionally out of scope.
 
+## Post-deploy fix (2026-10-20)
+
+The first deployment of Phase 1 made `/admin` return a server error on any
+environment without `SUPABASE_SERVICE_ROLE_KEY`.
+
+- **Cause:** the page threw an explicit configuration error when that variable
+  was missing. Every variable in the Vercel project is scoped to **Production
+  only**, so preview deployments always lacked it.
+- **Fix:** the dashboard now renders using the admin's own JWT and Row Level
+  Security. A new `is_admin()` SECURITY DEFINER helper backs an
+  "Admins can read all profiles" policy, which is what previously forced the
+  service-role dependency. The service role is now needed only for mutations.
+- **Also fixed:** `sync_user_email()` updated `profiles.email`, a column that
+  did not exist, so any email change failed inside the auth trigger. Added and
+  backfilled the column.
+- **UX:** added `app/admin/error.js` so a future failure shows a readable
+  message plus the log digest instead of a blank error page, and a read-only
+  banner when mutations are unavailable.
+
+Verified by simulating both roles against RLS: admin sees 6 orders / 5
+profiles / 13 books, customer sees 2 orders and only their own profile.
+
 ## Recommended next step
 
 Deploy this branch to a Vercel preview with the production environment
