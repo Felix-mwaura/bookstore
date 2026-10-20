@@ -718,7 +718,6 @@ export default function CheckoutPage() {
         saved = [];
       }
       if (!Array.isArray(saved) || saved.length === 0) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- browser-only state restored after mount
         if (!cancelled) {
           setCart([]);
           setCartReady(true);
