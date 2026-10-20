@@ -4,10 +4,11 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { BookCover } from "../../components/BookCover";
 import BookDescription from "../../components/BookDescription";
 import BuyBar from "../../components/BuyBar";
-import ProductCard, { stockState } from "../../components/ProductCard";
+import ProductCard from "../../components/ProductCard";
 import StoreLayout from "../../components/StoreLayout";
 import { getBookById, getRelatedBooks, bookPath, bookSlug, parseBookSlug } from "../../lib/catalogue";
 import { categorySlug } from "../../lib/categories";
+import { stockState } from "../../lib/stock";
 import { SITE_NAME, SITE_URL, formatKsh, absoluteUrl } from "../../lib/site";
 
 // Rendered per request rather than cached.

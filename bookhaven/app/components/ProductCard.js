@@ -5,22 +5,7 @@ import { BookCover } from "./BookCover";
 import { bookPath } from "../lib/book-url";
 import { formatKsh } from "../lib/site";
 
-/**
- * Stock language used everywhere a book is shown.
- * Text + colour, never colour alone: the label carries the meaning.
- */
-export function stockState(book) {
-  const quantity = Number(book?.stock_quantity);
-  const threshold = Number(book?.low_stock_threshold) || 3;
-
-  if (!Number.isFinite(quantity) || quantity <= 0) {
-    return { key: "out", label: "Out of stock", canBuy: false, className: "bg-[#B3261E]/10 text-[#B3261E]" };
-  }
-  if (quantity <= threshold) {
-    return { key: "low", label: `Only ${quantity} left`, canBuy: true, className: "bg-[#B7791F]/12 text-[#8A5A15]" };
-  }
-  return { key: "in", label: "In stock", canBuy: true, className: "bg-[#2F7D4F]/10 text-[#2F7D4F]" };
-}
+import { stockState } from "../lib/stock";
 
 export function StockBadge({ book, className = "" }) {
   const state = stockState(book);

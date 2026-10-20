@@ -14,7 +14,7 @@ export const SITE_NAME = "Book Haven";
 export const SITE_TAGLINE = "Kenya's online bookstore";
 
 export const SITE_DESCRIPTION =
-  "Buy books online in Kenya. Paperbacks and hardcovers across fiction, finance, self-help and biography — free delivery in Nairobi on orders over KSh 3,000.";
+  "Buy books online in Kenya. Paperbacks and hardcovers across fiction, finance, self-help and biography — free delivery on orders of KSh 3,000 and above.";
 
 export const FREE_DELIVERY_THRESHOLD = 3000;
 export const STANDARD_DELIVERY_FEE = 300;
