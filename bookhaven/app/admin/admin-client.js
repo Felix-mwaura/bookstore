@@ -3159,6 +3159,9 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   const [metricsLoading, setMetricsLoading] = useState(true);
   const [metricsError, setMetricsError] = useState(null);
   const [range, setRange] = useState("30d");
+  // Whether the shop can actually take an order right now. Null until known,
+  // so no banner flashes on a healthy deployment.
+  const [checkout, setCheckout] = useState(null);
 
   // Guards against an older, slower request overwriting a newer one's
   // result if the admin reloads quickly (e.g. Save → immediate manual
@@ -3204,6 +3207,26 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   // request resolves, which is the intended fetch-on-mount pattern.
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { loadBooks(); }, [loadBooks]);
+
+  // A paused checkout is a revenue emergency, not a detail: check it on load
+  // and put it at the top of every tab.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const res = await fetch("/api/admin/checkout-status", {
+          headers: { authorization: `Bearer ${session.access_token}` },
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setCheckout(json);
+      } catch { /* the banner is an extra; never break the dashboard for it */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const loadOrders = useCallback(async () => {
     try {
@@ -3356,6 +3379,21 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
         />
 
         <main className="flex-1 overflow-y-auto p-3 sm:p-6">
+          {checkout?.checkoutPaused && (
+            <div className="mb-5 rounded-control border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-sm font-bold text-red-900">Checkout is paused — no order can be saved</p>
+              <p className="mt-1 text-xs leading-relaxed text-red-800">
+                The database and the app disagree about delivery pricing, so every order is being
+                refused rather than charged a fee the customer never saw.{" "}
+                {checkout.mpesa?.reason === "pricing-migration" ? (
+                  <>Run <code className="font-mono">supabase/migrations/20261021090000_free_delivery.sql</code> in
+                  the Supabase SQL editor. Checkout resumes as soon as it finishes; nothing needs redeploying.</>
+                ) : (
+                  <>Run the migration again and check it returned <code className="font-mono">0</code>.</>
+                )}
+              </p>
+            </div>
+          )}
           {!canMutate && (
             <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
               <span className="text-lg leading-none">⚠️</span>

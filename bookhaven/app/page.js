@@ -1,7 +1,7 @@
 import HomeClient from "./components/HomeClient";
 import StoreLayout from "./components/StoreLayout";
 import { getCatalogueStats, getStorefrontBooks } from "./lib/catalogue";
-import { mpesaConfig } from "./lib/mpesa";
+import { mpesaAvailability } from "./lib/mpesa-availability";
 
 // The homepage is rendered on the server so the shelf, the hero covers and
 // the real catalogue counts are in the HTML a crawler (or a slow phone)
@@ -10,11 +10,15 @@ import { mpesaConfig } from "./lib/mpesa";
 export const revalidate = 60;
 
 export default async function Home() {
-  const [books, stats] = await Promise.all([getStorefrontBooks(60), getCatalogueStats()]);
+  const [books, stats, mpesa] = await Promise.all([
+    getStorefrontBooks(60),
+    getCatalogueStats(),
+    mpesaAvailability(),
+  ]);
 
   return (
     <StoreLayout>
-      <HomeClient initialBooks={books} stats={stats} mpesaEnabled={!mpesaConfig().error} />
+      <HomeClient initialBooks={books} stats={stats} mpesaEnabled={mpesa.enabled} />
     </StoreLayout>
   );
 }

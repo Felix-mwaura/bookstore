@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
-import { serviceClient } from "../../../lib/server";
-import { mpesaConfig } from "../../../lib/mpesa";
-import { DELIVERY_FEE } from "../../../lib/site";
+import { mpesaAvailability } from "../../../lib/mpesa-availability";
 
 // GET /api/admin/payments — recent M-Pesa attempts, for the Payments tab.
 //
@@ -107,58 +105,9 @@ export async function GET(request) {
         };
       }),
       summary,
-      configuration: await configuration(),
+      configuration: await mpesaAvailability(),
       filter: status,
     },
     { headers: { "Cache-Control": "no-store" } }
   );
-}
-
-/**
- * The same checks /api/mpesa/status runs, with the reason spelled out. The
- * owner is the one person who needs to know "M-Pesa is switched off because
- * the pricing migration has not been applied yet".
- */
-async function configuration() {
-  const config = mpesaConfig();
-  if (config.error) {
-    return {
-      enabled: false,
-      environment: null,
-      reason: "not-configured",
-      detail: config.error,
-    };
-  }
-
-  let db;
-  try {
-    db = serviceClient();
-  } catch {
-    return { enabled: false, environment: null, reason: "server", detail: "SUPABASE_SERVICE_ROLE_KEY is not set" };
-  }
-
-  const { data: rule, error } = await db.rpc("delivery_fee_rule");
-  if (error) {
-    return {
-      enabled: false,
-      environment: config.base.includes("sandbox") ? "sandbox" : "production",
-      reason: "pricing-migration",
-      detail: "Apply 20261021090000_free_delivery.sql so the database charges no delivery.",
-    };
-  }
-  if (Number(rule) !== DELIVERY_FEE) {
-    return {
-      enabled: false,
-      environment: config.base.includes("sandbox") ? "sandbox" : "production",
-      reason: "pricing-mismatch",
-      detail: `The database charges KSh ${Number(rule).toLocaleString()} delivery; the app expects KSh ${DELIVERY_FEE}.`,
-    };
-  }
-
-  return {
-    enabled: true,
-    environment: config.base.includes("sandbox") ? "sandbox" : "production",
-    reason: null,
-    detail: null,
-  };
 }
