@@ -1,29 +1,34 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
-import { mpesaConfig, mpesaAccessToken } from "../../../lib/mpesa";
+import { mpesaDiagnostics } from "../../../lib/mpesa";
 
-// GET /api/mpesa/token — admin-only connectivity check.
+// GET /api/mpesa/token — admin-only "is this configured correctly?" check.
 //
-// This used to return the raw Daraja access token to any anonymous caller,
-// which let anyone spend the merchant's API quota. The token now never
-// leaves the server: this endpoint only reports whether credentials work.
+// It used to report only whether a token could be fetched, which is true for
+// four different problems (wrong key, regenerated secret, sandbox credentials
+// against the live host, live credentials against the sandbox host) and
+// therefore diagnoses none of them.
+//
+// It now probes BOTH Daraja hosts and says which one these credentials
+// actually work on. That turns the most common cause of "M-Pesa is temporarily
+// unavailable" — an unset MPESA_ENV defaulting to sandbox while the shop holds
+// live credentials — into a one-line instruction.
+//
+// No credential, secret or access token is ever returned. Only Daraja's own
+// error code and message, which are about authentication, not identity.
+export const dynamic = "force-dynamic";
+
 export async function GET(request) {
   const auth = await requireAdmin(request);
   if (auth instanceof NextResponse) return auth;
 
-  const config = mpesaConfig();
-  if (config.error) {
-    return NextResponse.json({ ok: false, error: config.error }, { status: 503 });
-  }
+  const diagnostics = await mpesaDiagnostics();
 
-  const result = await mpesaAccessToken(config);
-  if (result.error) {
-    return NextResponse.json({ ok: false, error: "Daraja authentication failed" }, { status: 502 });
-  }
-
-  return NextResponse.json({
-    ok: true,
-    environment: config.base.includes("sandbox") ? "sandbox" : "production",
-    expiresIn: result.expiresIn ?? null,
-  });
+  return NextResponse.json(
+    {
+      ok: diagnostics.configured && !diagnostics.problem,
+      ...diagnostics,
+    },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
