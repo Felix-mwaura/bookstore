@@ -2701,8 +2701,12 @@ function PaymentsTab({ onNavigate, showToast }) {
                 <dd className="font-semibold text-ink">{test.environment}{test.environmentAssumed ? " (assumed)" : ""}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Shortcode</dt>
-                <dd className="font-mono font-semibold text-ink">{test.shortcode || "—"}</dd>
+                <dt className="text-muted">Short code</dt>
+                <dd className="text-right font-mono font-semibold text-ink">
+                  {test.shortcode || "—"}
+                  {test.shortcodeKind === "till" && <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">Buy Goods (till)</span>}
+                  {test.shortcodeKind === "paybill" && <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">paybill</span>}
+                </dd>
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-muted">Transaction type</dt>
@@ -2713,6 +2717,13 @@ function PaymentsTab({ onNavigate, showToast }) {
                 <dd className="max-w-[60%] truncate font-mono text-ink" title={test.callbackHost}>{test.callbackHost}</dd>
               </div>
             </dl>
+          )}
+
+          {test.problem === "transaction-type" && (
+            <p className="mt-3 rounded-control border border-current/20 p-3 text-xs leading-relaxed">
+              Safaricom will accept the login and then refuse the payment prompt, so this does not
+              show up until a customer tries to pay. Fix it before taking a live order.
+            </p>
           )}
 
           {test.shortcodeLooksLikeSandboxTest && test.environment === "production" && (

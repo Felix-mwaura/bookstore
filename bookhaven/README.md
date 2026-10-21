@@ -47,6 +47,7 @@ themselves:
 | rejected by both hosts | The consumer key or secret is wrong, or the secret was regenerated in the portal. Copy both again. |
 | no response | The server could not reach Safaricom at all. Both Daraja hosts answer anonymous requests, so this is a deployment egress problem, not an outage. |
 | shortcode `••••174379` with production | 174379 is Safaricom's sandbox test shortcode; use your paybill or till number. |
+| short code shown as "Buy Goods (till)" but type is `CustomerPayBillOnline` | A till cannot be charged as a paybill. Set `MPESA_TRANSACTION_TYPE=CustomerBuyGoodsOnline` and redeploy. The login still succeeds, so this only fails when a customer tries to pay. |
 
 The checkout only shows the M-Pesa tab when a push can actually be sent, so a
 configuration problem never takes a customer's money and leaves them without
