@@ -2575,6 +2575,16 @@ function PaymentsTab({ onNavigate, showToast }) {
     }
   };
 
+  // Opening this tab is already an explicit request for M-Pesa's state, so
+  // probe it once on arrival rather than making the owner find the button.
+  // The failure they are trying to explain is the reason they came here.
+  const autoTested = useRef(false);
+  useEffect(() => {
+    if (autoTested.current) return;
+    autoTested.current = true;
+    runConnectionTest();
+  }, []);
+
   const summary = data?.summary;
   const config = data?.configuration;
   const payments = data?.payments || [];
@@ -2623,7 +2633,7 @@ function PaymentsTab({ onNavigate, showToast }) {
             disabled={testing}
             className="min-h-9 rounded-control border border-navy bg-navy px-3 text-xs font-semibold text-white transition hover:bg-sienna disabled:opacity-60"
           >
-            {testing ? "Testing…" : "Test connection"}
+            {testing ? "Testing…" : test ? "Test again" : "Test connection"}
           </button>
         </div>
       </div>

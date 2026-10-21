@@ -134,7 +134,9 @@ export async function mpesaDiagnostics() {
 
   if (!primary.ok && secondary.ok) {
     problem = "wrong-environment";
-    advice = `These credentials are valid on ${otherEnv}, but the app is talking to ${config.environment}. Set MPESA_ENV=${otherEnv} in the deployment and redeploy.`;
+    advice = config.environmentAssumed
+      ? `These credentials are valid on ${otherEnv}, but MPESA_ENV is unset so the app was using ${config.environment}. Each payment now retries the working host automatically, so checkout is not blocked — set MPESA_ENV=${otherEnv} and redeploy to make that permanent.`
+      : `These credentials are valid on ${otherEnv}, but MPESA_ENV says ${config.environment}. Change MPESA_ENV to ${otherEnv} and redeploy — payments are not retried automatically while MPESA_ENV is set.`;
   } else if (!primary.ok && !secondary.ok) {
     problem = "invalid-credentials";
     advice =
@@ -168,6 +170,56 @@ export async function mpesaDiagnostics() {
       { environment: otherEnv, base: otherBase, ...secondary },
     ],
   };
+}
+
+/**
+ * Get a token, healing the one misconfiguration the app can detect by itself.
+ *
+ * `mpesaConfig()` assumes sandbox when MPESA_ENV is unset. For a shop holding
+ * live credentials that assumption is wrong, and the only symptom is an
+ * authentication failure that looks exactly like a bad key — the failure this
+ * codebase could not explain, and the one a customer sees as "we couldn't
+ * reach M-Pesa".
+ *
+ * So: when the environment was *assumed* rather than declared, and Safaricom
+ * actually answered (it rejected the credentials — a network error says
+ * nothing about environments), retry once against the other host. If the same
+ * key and secret are accepted there, that is where this shop belongs.
+ *
+ * An explicit MPESA_ENV is never second-guessed: if the owner said production,
+ * production is what we use, and a failure is reported as a failure.
+ */
+export async function resolveAccessToken(config) {
+  const primary = await mpesaAccessToken(config);
+  if (!primary.error) {
+    return { ...primary, base: config.base, environment: config.environment, switched: false };
+  }
+
+  if (!config.environmentAssumed || primary.code === "network") return primary;
+
+  const otherEnv = config.environment === "production" ? "sandbox" : "production";
+  const otherBase = otherEnv === "production" ? PRODUCTION_BASE : SANDBOX_BASE;
+  const secondary = await mpesaAccessToken({ ...config, base: otherBase });
+
+  if (secondary.error) {
+    return {
+      ...primary,
+      alsoTried: {
+        environment: otherEnv,
+        status: secondary.status ?? null,
+        code: secondary.code ?? null,
+        message: secondary.message ?? null,
+      },
+    };
+  }
+
+  // Correct, but only because we guessed. Say so loudly enough to be fixed.
+  console.warn(
+    `mpesa: MPESA_ENV is unset, so ${config.environment} was assumed, but these credentials belong to ${otherEnv}. ` +
+      `They were accepted there and payment will proceed. Set MPESA_ENV=${otherEnv} in the deployment to remove the guess.`
+  );
+
+  return { ...secondary, base: otherBase, environment: otherEnv, switched: true };
 }
 
 export function mpesaTimestamp(date = new Date()) {

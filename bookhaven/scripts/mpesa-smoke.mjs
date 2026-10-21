@@ -10,7 +10,14 @@
 // unavailable"), which tells nobody anything. This pins the behaviour that
 // makes them distinguishable.
 
-import { mpesaConfig, probeDaraja, normalisePhone, mpesaTimestamp, mpesaPassword } from "../app/lib/mpesa.js";
+import {
+  mpesaConfig,
+  probeDaraja,
+  resolveAccessToken,
+  normalisePhone,
+  mpesaTimestamp,
+  mpesaPassword,
+} from "../app/lib/mpesa.js";
 
 const failures = [];
 const check = (label, actual, expected) => {
@@ -123,6 +130,21 @@ withEnv({ ...creds, MPESA_TRANSACTION_TYPE: " CustomerBuyGoodsOnline " }, () => 
   ok("…with a message", typeof result.message === "string" && result.message.length > 0);
 }
 
+// ── host resolution: when it may and may not guess ──────────────
+// A dead host makes both attempts fail fast, so these exercise the decision
+// logic without ever contacting Safaricom.
+{
+  const dead = { key: "k", secret: "s", base: "http://127.0.0.1:9", environment: "sandbox", environmentAssumed: true };
+  const result = await resolveAccessToken(dead);
+  ok("an unreachable host is reported, not thrown", Boolean(result.error));
+  check("…as a network failure", result.code, "network");
+  ok("…and is never answered by guessing the other environment", result.alsoTried === undefined);
+
+  const declared = { ...dead, environmentAssumed: false };
+  const declaredResult = await resolveAccessToken(declared);
+  ok("a declared MPESA_ENV is never second-guessed", declaredResult.alsoTried === undefined);
+}
+
 // ── request signing ─────────────────────────────────────────────
 check(
   "the STK password is base64(shortcode + passkey + timestamp)",
@@ -148,4 +170,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("mpesa test passed — environment detection, value cleaning, probe reporting and request signing");
+console.log("mpesa test passed — environment detection, value cleaning, probe reporting, host resolution and request signing");

@@ -197,13 +197,17 @@ function StepDetails({ data, onChange, onNext }) {
   );
 }
 
-function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess }) {
+function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, onFallback }) {
   const [stage, setStage] = useState("idle"); // idle | sending | waiting | polling | success | failed | cancelled
   const [mpesaPhone, setMpesaPhone] = useState(phone || "");
   const [phoneError, setPhoneError] = useState("");
   const [countdown, setCountdown] = useState(60);
   const [checkoutRequestId, setCheckoutRequestId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  // True when the failure was on our side (no M-Pesa prompt ever reached
+  // the phone), so the customer can switch to pay-on-delivery instead of
+  // being stuck on a dead end.
+  const [canFallBack, setCanFallBack] = useState(false);
   const [chargedAmount, setChargedAmount] = useState(total);
   const timerRef = useRef(null);
   const pollRef = useRef(null);
@@ -278,6 +282,7 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess }) 
 
     setStage("sending");
     setErrorMsg("");
+    setCanFallBack(false);
     setCountdown(60);
 
     try {
@@ -302,10 +307,14 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess }) 
         setStage("waiting");
       } else {
         setErrorMsg(data.error || "Failed to send M-Pesa request. Please try again.");
+        // 5xx means the request never reached Safaricom; 429 means we stopped
+        // it ourselves. Either way the customer can still order.
+        setCanFallBack(res.status >= 500 || res.status === 429);
         setStage("idle");
       }
     } catch (err) {
       setErrorMsg("Network error. Please check your connection and try again.");
+      setCanFallBack(true);
       setStage("idle");
     }
   };
@@ -335,9 +344,23 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess }) 
       </div>
 
       {errorMsg && (
-        <p className="rounded-control border border-error/30 bg-error/5 p-3 text-sm text-error" role="alert">
-          {errorMsg}
-        </p>
+        <div className="rounded-control border border-error/30 bg-error/5 p-3" role="alert">
+          <p className="text-sm text-error">{errorMsg}</p>
+          {canFallBack && onFallback && (
+            <>
+              <p className="mt-1.5 text-xs leading-relaxed text-ink/70">
+                Nothing was sent to your phone, so you can order now and pay the rider instead.
+              </p>
+              <button
+                type="button"
+                onClick={() => { setErrorMsg(""); setCanFallBack(false); onFallback(); }}
+                className="mt-2.5 min-h-11 w-full rounded-control border border-navy bg-white px-4 text-sm font-semibold text-navy transition hover:bg-navy hover:text-white"
+              >
+                Continue with cash on delivery
+              </button>
+            </>
+          )}
+        </div>
       )}
 
       <div>
@@ -568,7 +591,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, m
       </div>
       <div className="bg-stone-50/50 rounded-2xl p-1">
         <div className="bg-white rounded-xl p-5 border border-stone-100">
-          {method === "mpesa" && <MpesaFlow phone={details.phone} total={grand} reference={reference} items={items} ready={ready} onSuccess={onSuccess} />}
+          {method === "mpesa" && <MpesaFlow phone={details.phone} total={grand} reference={reference} items={items} ready={ready} onSuccess={onSuccess} onFallback={() => setChosen("cod")} />}
           {method === "cod" && <CodFlow total={grand} onSuccess={onSuccess} disabled={!ready} />}
         </div>
       </div>

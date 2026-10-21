@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { userFromRequest, serviceClient } from "../../../lib/server";
-import { mpesaConfig, mpesaAccessToken, mpesaTimestamp, mpesaPassword } from "../../../lib/mpesa";
+import { mpesaConfig, resolveAccessToken, mpesaTimestamp, mpesaPassword } from "../../../lib/mpesa";
 
 // POST /api/mpesa/query — poll the status of the caller's own STK request.
 //
@@ -57,15 +57,25 @@ export async function POST(request) {
     });
   }
 
-  const tokenResult = await mpesaAccessToken(config);
+  // Same host resolution as the STK push: if that call had to fall back to
+  // the other Daraja host, the status query has to follow it there or a paid
+  // order would never be confirmed.
+  const tokenResult = await resolveAccessToken(config);
   if (tokenResult.error) {
-    return NextResponse.json({ error: "M-Pesa is temporarily unavailable." }, { status: 502 });
+    console.error("/api/mpesa/query: OAuth failed", {
+      environment: config.environment,
+      environmentAssumed: config.environmentAssumed,
+      status: tokenResult.status ?? null,
+      code: tokenResult.code ?? null,
+      message: tokenResult.message ?? null,
+    });
+    return NextResponse.json({ error: "We couldn't reach M-Pesa just now." }, { status: 502 });
   }
 
   const timestamp = mpesaTimestamp();
   const password = mpesaPassword(config.shortcode, config.passkey, timestamp);
 
-  const queryRes = await fetch(`${config.base}/mpesa/stkpushquery/v1/query`, {
+  const queryRes = await fetch(`${tokenResult.base ?? config.base}/mpesa/stkpushquery/v1/query`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${tokenResult.token}`,
