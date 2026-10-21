@@ -258,14 +258,14 @@ p {
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
   .card-3d:hover,
   .card-3d:focus-within {
-    transform: perspective(1100px) translateY(-4px) rotateX(1.2deg);
-    box-shadow: 0 18px 38px rgba(27, 42, 74, 0.16);
+    transform: perspective(1100px) translateY(-3px) rotateX(1deg);
+    box-shadow: 0 14px 30px rgba(27, 42, 74, 0.14);
   }
 
   .card-3d:hover .book-3d,
   .card-3d:focus-within .book-3d {
-    transform: rotateY(-16deg) rotateX(6deg) translateZ(18px);
-    box-shadow: -16px 20px 34px rgba(27, 42, 74, 0.28);
+    transform: rotateY(-12deg) rotateX(5deg) translateZ(12px);
+    box-shadow: -12px 16px 28px rgba(27, 42, 74, 0.24);
   }
 
   /* Hero covers drift, but only while the page is idle-hovered. */

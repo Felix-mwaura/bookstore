@@ -5,9 +5,10 @@ import { useState } from "react";
 
 import { BookCover } from "./BookCover";
 import ProductCard from "./ProductCard";
+import SectionHeading from "./SectionHeading";
 import { useStore } from "./StoreShell";
 import { STORE_CONTACT } from "../lib/site";
-import { categories, categoryIcons, categorySlug } from "../lib/categories";
+import { categories, categorySlug } from "../lib/categories";
 import { bookPath } from "../lib/book-url";
 
 /* ── hero ─────────────────────────────────────────────── */
@@ -17,27 +18,28 @@ function Hero({ books }) {
 
   return (
     <section className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-14 lg:py-20">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_auto] gap-10 lg:gap-16 items-center">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">
+            <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">
+              <span aria-hidden="true" className="h-px w-6 bg-sienna" />
               Book Haven · Books in Kenyan shillings
             </p>
-            <h1 className="mt-3 text-[2rem] leading-[1.1] sm:text-5xl lg:text-6xl font-bold text-navy">
+            <h1 className="mt-3 text-[2rem] font-bold leading-[1.08] tracking-[-0.01em] text-navy sm:text-[2.75rem] lg:text-[3.25rem]">
               Books worth keeping,
               <br />
               <span className="italic text-sienna">delivered</span> to your door.
             </h1>
-            <p className="mt-4 sm:mt-5 max-w-xl text-base sm:text-lg text-muted leading-relaxed">
+            <p className="mt-4 max-w-lg text-base leading-relaxed text-muted sm:mt-5 sm:text-lg">
               Paperbacks and hardcovers across fiction, finance, self-help and biography.
               Stock shown is the real shelf quantity, and delivery is priced before you pay.
             </p>
 
-            <form action="/books" method="get" role="search" className="mt-6 sm:mt-8 max-w-xl">
+            <form action="/books" method="get" role="search" className="mt-6 max-w-lg sm:mt-8">
               <label htmlFor="hero-search" className="sr-only">Search books by title or author</label>
               <div className="flex items-stretch gap-2 rounded-card border border-line bg-white p-1.5 shadow-card focus-within:border-navy">
                 <span className="flex items-center pl-2 text-muted" aria-hidden="true">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                   </svg>
                 </span>
@@ -48,7 +50,7 @@ function Hero({ books }) {
                   placeholder="Title or author…"
                   className="min-w-0 flex-1 bg-transparent py-2.5 text-[15px] outline-none placeholder:text-muted/80"
                 />
-                <button type="submit" className="btn-primary px-4 py-2.5 text-sm shrink-0">Search</button>
+                <button type="submit" className="btn-primary shrink-0 px-4 py-2.5 text-sm">Search</button>
               </div>
             </form>
 
@@ -59,7 +61,7 @@ function Hero({ books }) {
           </div>
 
           {covers.length > 0 && (
-            <div className="hero-3d hidden sm:flex items-end justify-center gap-4 lg:gap-6">
+            <div className="hero-3d hidden items-end justify-center gap-4 sm:flex lg:gap-6">
               {covers.map((book, index) => (
                 <Link
                   key={book.id}
@@ -67,6 +69,7 @@ function Hero({ books }) {
                   className={`hero-cover-3d block w-[110px] rotate-[-2deg] overflow-hidden rounded-r-md book-shadow lg:w-[150px] ${
                     index === 1 ? "mb-4" : ""
                   }`}
+                  aria-label={`${book.title} by ${book.author}`}
                 >
                   <BookCover book={book} className="w-full" sizes="(min-width: 1024px) 150px, 110px" priority={index === 0} />
                 </Link>
@@ -79,30 +82,57 @@ function Hero({ books }) {
   );
 }
 
-/* ── genre chips ──────────────────────────────────────── */
+/* ── genre tiles ──────────────────────────────────────── */
 
-function GenreStrip({ counts }) {
+// A cluster of covers already on the shelf says more about a genre than an
+// emoji does, and it is real catalogue data rather than decoration. A genre
+// with nothing in it falls back to a plain monogram — never an invented image.
+function GenreStrip({ counts, books }) {
+  const byCategory = books.reduce((acc, book) => {
+    (acc[book.category] ||= []).push(book);
+    return acc;
+  }, {});
+
   return (
     <section id="genres" className="border-b border-line bg-white">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-10">
-        <div className="flex items-end justify-between gap-4 mb-4">
-          <h2 className="text-lg sm:text-xl font-bold text-navy">Browse by genre</h2>
-          <Link href="/books" className="text-sm font-semibold text-sienna underline-offset-2 hover:underline">
-            All books →
-          </Link>
-        </div>
-        <ul role="list" className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-3">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+        <SectionHeading
+          eyebrow="Browse"
+          title="Find your next read by genre"
+          className="mb-5"
+          action={{ href: "/books", label: "All books" }}
+        />
+
+        <ul role="list" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-8">
           {categories.filter((c) => c !== "All").map((category) => {
             const count = counts[category] || 0;
+            const covers = (byCategory[category] || []).slice(0, 2);
+
             return (
               <li key={category}>
                 <Link
                   href={`/category/${categorySlug(category)}`}
-                  className="flex h-full flex-col justify-between gap-3 rounded-card border border-line bg-cream p-3 sm:p-4 transition-colors hover:border-navy hover:bg-subtle"
+                  className="flex h-full flex-col justify-between gap-4 rounded-card border border-line bg-cream p-3 transition-colors hover:border-navy hover:bg-subtle sm:p-4"
                 >
-                  <span className="text-xl" aria-hidden="true">{categoryIcons[category]}</span>
+                  <span aria-hidden="true" className="flex h-14 items-end">
+                    {covers.length > 0 ? (
+                      covers.map((book, index) => (
+                        <span
+                          key={book.id}
+                          className={`block w-9 overflow-hidden rounded-r-sm book-shadow ${
+                            index === 1 ? "-ml-2 rotate-[2deg]" : ""
+                          }`}
+                        >
+                          <BookCover book={book} className="w-full" sizes="36px" />
+                        </span>
+                      ))
+                    ) : (
+                      <span className="font-playfair text-2xl text-navy/30">{category.charAt(0)}</span>
+                    )}
+                  </span>
+
                   <span>
-                    <span className="block text-sm font-semibold text-navy leading-tight">{category}</span>
+                    <span className="block text-sm font-semibold leading-tight text-navy">{category}</span>
                     <span className="mt-0.5 block text-xs text-muted">
                       {count} {count === 1 ? "book" : "books"}
                     </span>
@@ -126,18 +156,16 @@ function NewArrivals({ books }) {
 
   return (
     <section className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-14">
-        <div className="flex items-end justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-navy">New arrivals</h2>
-            <p className="mt-1 text-sm text-muted">The latest titles added to the shelf.</p>
-          </div>
-          <Link href="/books?sort=newest" className="text-sm font-semibold text-sienna underline-offset-2 hover:underline whitespace-nowrap">
-            See all →
-          </Link>
-        </div>
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+        <SectionHeading
+          eyebrow="Just in"
+          title="New arrivals"
+          description="The latest titles added to the shelf."
+          action={{ href: "/books?sort=newest", label: "See all" }}
+          className="mb-6"
+        />
 
-        <ul role="list" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <ul role="list" className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
           {latest.map((book) => (
             <li key={book.id} className="min-w-0">
               <ProductCard book={book} onAddToCart={store.addToCart} />
@@ -169,16 +197,17 @@ function HowItWorks() {
 
   return (
     <section className="border-b border-line bg-white">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-14">
-        <h2 className="text-xl sm:text-2xl font-bold text-navy mb-6">How ordering works</h2>
-        <ol className="grid gap-4 sm:grid-cols-3 sm:gap-6">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+        <SectionHeading eyebrow="Ordering" title="How ordering works" className="mb-6" />
+
+        <ol className="grid gap-6 sm:grid-cols-3 sm:gap-8">
           {steps.map((step, index) => (
-            <li key={step.title} className="rounded-card border border-line bg-cream p-5">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-navy text-white text-xs font-bold">
-                {index + 1}
+            <li key={step.title} className="border-t border-line pt-4">
+              <span className="font-playfair text-2xl font-bold text-sienna" aria-hidden="true">
+                {String(index + 1).padStart(2, "0")}
               </span>
-              <h3 className="mt-3 text-base font-semibold text-navy">{step.title}</h3>
-              <p className="mt-1.5 text-sm text-muted leading-relaxed">{step.body}</p>
+              <h3 className="mt-2 text-base font-semibold text-navy">{step.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">{step.body}</p>
             </li>
           ))}
         </ol>
@@ -199,15 +228,15 @@ function ShelfFacts({ stats }) {
 
   return (
     <section id="about" className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-14">
-        <div className="grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-navy">A bookshop for Kenyan readers</h2>
-            <p className="mt-3 text-sm sm:text-base text-muted leading-relaxed">
+            <SectionHeading eyebrow="About the shop" title="A bookshop for Kenyan readers" />
+            <p className="mt-4 text-sm leading-relaxed text-muted sm:text-base">
               Prices are in Kenyan shillings and delivery is worked out up front: free above KSh 3,000,
               a flat KSh 300 below it. You see the total before you confirm — no charges added at the door.
             </p>
-            <p className="mt-3 text-sm sm:text-base text-muted leading-relaxed">
+            <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
               We deliver countrywide and every order can be followed from your account.
               If something is not on the shelf, write to us and we will tell you honestly whether we can get it.
             </p>
@@ -217,11 +246,11 @@ function ShelfFacts({ stats }) {
             </div>
           </div>
 
-          <dl className="grid grid-cols-2 gap-3 sm:gap-4">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-5">
             {facts.map(({ value, label }) => (
-              <div key={label} className="flex flex-col-reverse rounded-card border border-line bg-white p-4 sm:p-6">
-                <dt className="mt-1 text-xs sm:text-sm text-muted">{label}</dt>
-                <dd className="text-2xl sm:text-3xl font-bold text-navy">{value}</dd>
+              <div key={label} className="border-t border-line pt-3">
+                <dt className="text-xs text-muted sm:text-sm">{label}</dt>
+                <dd className="mt-1 text-2xl font-bold text-navy sm:text-3xl">{value}</dd>
               </div>
             ))}
           </dl>
@@ -241,12 +270,12 @@ function TrustStrip() {
   ];
 
   return (
-    <section className="border-b border-line bg-white">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
+    <section className="border-b border-line bg-cream">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <ul role="list" className="grid gap-3 sm:grid-cols-3 sm:gap-6">
           {items.map((item) => (
             <li key={item.title} className="flex items-start gap-2.5">
-              <svg className="mt-0.5 w-5 h-5 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <svg className="mt-0.5 h-5 w-5 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
               <p className="text-sm text-ink">
@@ -303,15 +332,14 @@ function Newsletter() {
 
   return (
     <section className="bg-navy text-white">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-14">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <div className="grid gap-6 sm:grid-cols-2 sm:items-center sm:gap-10">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-white">New titles, occasionally</h2>
-            <p className="mt-2 text-sm sm:text-base text-white/70 leading-relaxed">
-              One email when there is something worth telling you. No fixed schedule, no spam,
-              and you can ask us to remove you at any time.
-            </p>
-          </div>
+          <SectionHeading
+            tone="dark"
+            eyebrow="Newsletter"
+            title="New titles, occasionally"
+            description="One email when there is something worth telling you. No fixed schedule, no spam, and you can ask us to remove you at any time."
+          />
 
           {subscribed ? (
             <p className="text-sm font-semibold text-white" role="status">
@@ -321,7 +349,7 @@ function Newsletter() {
           ) : (
             <form onSubmit={subscribe} className="w-full">
               <label htmlFor="newsletter-email" className="sr-only">Email address</label>
-              <div className="flex flex-col sm:flex-row gap-2 sm:justify-end">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <input
                   id="newsletter-email"
                   type="email"
@@ -332,9 +360,9 @@ function Newsletter() {
                   required
                   aria-describedby={error ? "newsletter-error" : undefined}
                   aria-invalid={error ? "true" : undefined}
-                  className="min-h-11 flex-1 rounded-control border border-white/25 bg-white/10 px-3 py-2.5 text-sm text-white placeholder:text-white/50 outline-none focus:border-white"
+                  className="min-h-11 flex-1 rounded-control border border-white/25 bg-white/10 px-3 py-2.5 text-sm text-white outline-none placeholder:text-white/50 focus:border-white"
                 />
-                <button type="submit" disabled={busy} className="btn-primary text-sm disabled:opacity-60 shrink-0">
+                <button type="submit" disabled={busy} className="btn-primary shrink-0 text-sm disabled:opacity-60">
                   {busy ? "Saving…" : "Subscribe"}
                 </button>
               </div>
@@ -351,15 +379,15 @@ function Newsletter() {
 
 function Contact() {
   return (
-    <section id="contact" className="bg-cream border-b border-line">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-10">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <section id="contact" className="border-b border-line bg-cream">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-navy">Questions about an order?</h2>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <a href={`mailto:${STORE_CONTACT.email}`} className="text-ink hover:text-sienna underline-offset-2 hover:underline">
+            <a href={`mailto:${STORE_CONTACT.email}`} className="text-ink underline-offset-2 hover:text-sienna hover:underline">
               {STORE_CONTACT.email}
             </a>
-            <a href={STORE_CONTACT.phoneHref} className="text-ink hover:text-sienna underline-offset-2 hover:underline">
+            <a href={STORE_CONTACT.phoneHref} className="text-ink underline-offset-2 hover:text-sienna hover:underline">
               {STORE_CONTACT.phone}
             </a>
           </div>
@@ -390,7 +418,7 @@ export default function HomeClient({ initialBooks = [], stats: catalogueStats })
   return (
     <>
       <Hero books={[...books].sort((a, b) => Number(b.id) - Number(a.id))} />
-      <GenreStrip counts={counts} />
+      <GenreStrip counts={counts} books={books} />
       <NewArrivals books={books} />
       <HowItWorks />
       <ShelfFacts stats={stats} />

@@ -27,23 +27,23 @@ export default function AccessDeniedPage() {
 
         <h1 className="text-3xl font-black text-[#1B2A4A] mb-3">Access Denied</h1>
         <p className="text-stone-500 mb-2">You don&apos;t have permission to access this page.</p>
-        <p className="text-stone-400 text-sm mb-8">This area is restricted to administrators only. If you believe this is a mistake, please contact the site administrator.</p>
+        <p className="text-muted text-sm mb-8">This area is restricted to administrators only. If you believe this is a mistake, please contact the site administrator.</p>
 
         <div className="bg-stone-100 rounded-2xl px-6 py-4 mb-8 text-left space-y-2.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="text-stone-400 font-medium">Error code</span>
+            <span className="text-muted font-medium">Error code</span>
             <span className="font-mono font-bold text-stone-600">403 FORBIDDEN</span>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-stone-400 font-medium">Required role</span>
+            <span className="text-muted font-medium">Required role</span>
             <span className="font-mono font-bold text-purple-600">admin</span>
           </div>
           <div className="flex items-center justify-between text-xs">
-            <span className="text-stone-400 font-medium">Your role</span>
+            <span className="text-muted font-medium">Your role</span>
             <span className="font-mono font-bold text-stone-600">customer</span>
           </div>
           <div className="flex items-center justify-between text-xs border-t border-[#E3DCCB] pt-2.5 mt-1">
-            <span className="text-stone-400 font-medium">Redirecting in</span>
+            <span className="text-muted font-medium">Redirecting in</span>
             <span className="font-mono font-bold text-[#B5532F]">{countdown}s</span>
           </div>
         </div>

@@ -47,16 +47,19 @@ export function BookGridSkeleton({ count = 10 }) {
   return (
     <ul role="list" aria-hidden="true" className={GRID}>
       {Array.from({ length: count }).map((_, index) => (
-        <li key={index} className="rounded-card border border-line bg-white overflow-hidden">
-          <div className="p-4">
-            <div className="mx-auto w-full max-w-[9.5rem] aspect-[2/3] rounded-r-md bg-subtle animate-pulse" />
+        // Same boxes as a real card: cream cover stage, quiet lines, hairline
+        // above the price row. A skeleton that does not match the card makes
+        // the page jump when the data lands.
+        <li key={index} className="flex flex-col rounded-card border border-line bg-white">
+          <div className="rounded-t-card bg-cream/70 px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5">
+            <div className="mx-auto aspect-[2/3] w-full max-w-[9.5rem] rounded-r-md bg-subtle animate-pulse" />
           </div>
-          <div className="px-4 pb-4 space-y-2">
+          <div className="space-y-2 px-3.5 pb-3.5 pt-3 sm:px-4">
             <div className="h-2.5 w-1/3 rounded bg-subtle animate-pulse" />
             <div className="h-3.5 w-full rounded bg-subtle animate-pulse" />
             <div className="h-3.5 w-2/3 rounded bg-subtle animate-pulse" />
             <div className="h-3 w-1/2 rounded bg-subtle animate-pulse" />
-            <div className="h-5 w-2/5 rounded bg-subtle animate-pulse mt-3" />
+            <div className="mt-3 h-9 w-full rounded bg-subtle animate-pulse border-t border-line" />
           </div>
         </li>
       ))}
