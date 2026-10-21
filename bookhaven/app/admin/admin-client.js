@@ -13,6 +13,7 @@ import AssistantTab from "./assistant-tab";
 function Badge({ status }) {
   const map = {
     Processing:"bg-amber-50 text-amber-700 border border-amber-200",
+    Packed:"bg-sky-50 text-sky-700 border border-sky-200",
     Shipped:"bg-blue-50 text-blue-700 border border-blue-200",
     Delivered:"bg-green-50 text-green-700 border border-green-200",
     Cancelled:"bg-red-50 text-red-700 border border-red-200",
@@ -32,7 +33,7 @@ function Badge({ status }) {
   };
   // The label carries the meaning; the mark and the colour only reinforce it.
   const marks = {
-    Processing: "•", Pending: "•", Shipped: "→", Delivered: "✓", Cancelled: "×",
+    Processing: "•", Pending: "•", Packed: "▪", Shipped: "→", Delivered: "✓", Cancelled: "×",
     Paid: "✓", Refunded: "↺", Failed: "!", Active: "✓", Suspended: "!",
     admin: "★", customer: "•", "In Stock": "✓", "Out of Stock": "×",
     "Only 3 left": "•", "Only 1 left": "•", "Pre-order": "•",
@@ -121,28 +122,88 @@ function Skeleton({ className="" }) {
   return <div className={`bg-stone-100 rounded-lg animate-pulse ${className}`}/>;
 }
 
-function StatCard({ icon, label, value, delta, deltaUp, sub, accent }) {
+// One small stroke icon per metric, instead of an emoji. Emoji render
+// differently on every phone and read as decoration next to a number that
+// an operator actually has to trust.
+const STAT_PATHS = {
+  revenue: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V6m0 12v-2",
+  receipt: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+  clock: "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z",
+  truck: "M9 17a2 2 0 11-4 0 2 2 0 014 0zm10 0a2 2 0 11-4 0 2 2 0 014 0zM13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10h10zm0-5h4l3 3v2h-7v-5z",
+  package: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+  check: "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z",
+  cancel: "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z",
+  card: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+  book: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+  alert: "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z",
+  ban: "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636",
+  refund: "M9 14l-4-4m0 0l4-4m-4 4h11a4 4 0 010 8h-3",
+};
+
+function StatIcon({ name, className = "" }) {
   return (
-    <div className={`tilt-card rounded-2xl border p-5 flex flex-col gap-3 ${accent?"bg-[#1B2A4A] border-[#1B2A4A]":"bg-white border-[#E3DCCB] hover:shadow-sm transition-shadow"}`}>
-      <div className="flex items-start justify-between">
-        <div>
-          <p className={`text-xs font-bold uppercase tracking-widest ${accent?"text-stone-400":"text-stone-400"}`}>{label}</p>
-          <p className={`text-2xl font-black mt-1 leading-none ${accent?"text-amber-400":"text-[#1B2A4A]"}`}>{value}</p>
-          {sub && <p className={`text-xs mt-1 ${accent?"text-stone-500":"text-stone-400"}`}>{sub}</p>}
-        </div>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accent?"bg-white/10":"bg-stone-50"}`}>
-          <span className="text-xl">{icon}</span>
-        </div>
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d={STAT_PATHS[name] || STAT_PATHS.book} />
+    </svg>
+  );
+}
+
+/**
+ * A metric tile. `onClick` turns it into a button that opens the matching
+ * slice of the order list — a count an operator cannot act on is just trivia.
+ */
+function StatCard({ icon, label, value, delta, deltaUp, sub, accent, onClick }) {
+  const Tag = onClick ? "button" : "div";
+
+  return (
+    <Tag
+      {...(onClick ? { type: "button", onClick } : {})}
+      className={`tilt-card group flex h-full flex-col rounded-card border p-4 text-left transition-colors ${
+        accent ? "border-navy bg-navy" : "border-line bg-white"
+      } ${onClick ? "hover:border-navy" : ""}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <p className={`text-[10px] font-bold uppercase tracking-wider ${accent ? "text-white/70" : "text-muted"}`}>
+          {label}
+        </p>
+        <StatIcon name={icon} className={`h-4 w-4 shrink-0 ${accent ? "text-[#E9B79F]" : "text-stone-300"}`} />
       </div>
-      {delta && (
-        <div className={`flex items-center gap-1 text-xs font-semibold ${deltaUp?"text-green-600":"text-red-500"}`}>
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={deltaUp?"M13 7h8m0 0v8m0-8l-8 8-4-4-6 6":"M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"}/>
-          </svg>
-          {delta}
+
+      <p className={`mt-2 text-2xl font-black leading-none ${accent ? "text-white" : "text-navy"}`}>{value}</p>
+
+      <div className="mt-1.5 flex min-h-[1rem] items-end justify-between gap-2">
+        <div>
+          {sub && <p className={`text-[11px] leading-snug ${accent ? "text-white/70" : "text-muted"}`}>{sub}</p>}
+          {delta && (
+            <p className={`text-[11px] font-semibold ${deltaUp ? "text-success" : "text-error"}`}>{delta}</p>
+          )}
         </div>
-      )}
-    </div>
+        {onClick && (
+          <svg
+            className={`h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5 ${accent ? "text-white/70" : "text-muted"}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 5l7 7-7 7" />
+          </svg>
+        )}
+      </div>
+    </Tag>
+  );
+}
+
+/** A named group of metrics. Three bands beat twelve equal tiles. */
+function StatBand({ title, description, columns = "sm:grid-cols-4", children }) {
+  return (
+    <section>
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted">{title}</h2>
+        {description && <p className="text-[11px] text-muted">{description}</p>}
+      </div>
+      <div className={`stat-grid grid grid-cols-2 gap-3 ${columns}`}>{children}</div>
+    </section>
   );
 }
 
@@ -161,25 +222,52 @@ function MiniChart({ data, color="#B5532F" }) {
 // ─────────────────────────────────────────────────────────
 // SIDEBAR
 // ─────────────────────────────────────────────────────────
+// Sidebar icons, drawn in one stroke style. Emoji were readable but rendered
+// differently on every device and read as decoration next to a 13px label.
+const NAV_ICONS = {
+  dashboard: "M4 5h6v6H4V5zm10 0h6v10h-6V5zM4 15h6v4H4v-4zm10 4h6v2h-6v-2z",
+  assistant: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z",
+  orders: "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4",
+  products: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+  customers: "M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4zm6-4a3 3 0 11-3-3",
+  payments: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
+  reports: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+  inventory: "M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6",
+  reviews: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
+  coupons: "M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z",
+  users: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
+  activity: "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2",
+  notifications: "M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+  settings: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z",
+};
+
+function NavIcon({ name, className = "h-4 w-4" }) {
+  return (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d={NAV_ICONS[name] || NAV_ICONS.dashboard} />
+    </svg>
+  );
+}
+
 const NAV = [
   { section:"Main" },
-  { id:"overview", label:"Dashboard", icon:"📊" },
-  { id:"assistant", label:"Assistant", icon:"✨" },
-  { id:"orders", label:"Orders", icon:"📦", badge:true },
-  { id:"books", label:"Products", icon:"📚" },
-  { id:"customers", label:"Customers", icon:"👥" },
+  { id:"overview", label:"Dashboard", icon:"dashboard" },
+  { id:"assistant", label:"Assistant", icon:"assistant" },
+  { id:"orders", label:"Orders", icon:"orders", badge:true },
+  { id:"books", label:"Products", icon:"products" },
+  { id:"customers", label:"Customers", icon:"customers" },
   { section:"Finance" },
-  { id:"payments", label:"Payments", icon:"💳" },
-  { id:"reports", label:"Reports", icon:"📈" },
+  { id:"payments", label:"Payments", icon:"payments" },
+  { id:"reports", label:"Reports", icon:"reports" },
   { section:"Store" },
-  { id:"inventory", label:"Inventory", icon:"🏪" },
-  { id:"reviews", label:"Reviews", icon:"⭐" },
-  { id:"coupons", label:"Coupons", icon:"🏷️" },
+  { id:"inventory", label:"Inventory", icon:"inventory" },
+  { id:"reviews", label:"Reviews", icon:"reviews" },
+  { id:"coupons", label:"Coupons", icon:"coupons" },
   { section:"System" },
-  { id:"users", label:"Users & Roles", icon:"🛡️" },
-  { id:"activity", label:"Activity Logs", icon:"📋" },
-  { id:"notifications", label:"Emails", icon:"✉️" },
-  { id:"settings", label:"Settings", icon:"⚙️" },
+  { id:"users", label:"Users & Roles", icon:"users" },
+  { id:"activity", label:"Activity Logs", icon:"activity" },
+  { id:"notifications", label:"Emails", icon:"notifications" },
+  { id:"settings", label:"Settings", icon:"settings" },
 ];
 
 function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
@@ -197,15 +285,15 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {NAV.map((item, i) => {
           if (item.section) return !collapsed ? (
-            <p key={i} className="px-2 pt-4 pb-1 text-[10px] font-bold text-stone-400 uppercase tracking-widest">{item.section}</p>
+            <p key={i} className="px-2 pt-4 pb-1 text-[10px] font-bold text-muted uppercase tracking-widest">{item.section}</p>
           ) : <div key={i} className="my-2 border-t border-stone-100"/>;
 
           const isActive = activeTab === item.id;
           return (
             <button key={item.id} onClick={()=>setTab(item.id)}
-              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm transition-all ${isActive?"bg-[#1B2A4A] text-white":"text-stone-600 hover:bg-stone-50 hover:text-[#1B2A4A]"}`}
+              className={`relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm transition-all ${isActive?"bg-[#1B2A4A] text-white":"text-stone-600 hover:bg-stone-50 hover:text-[#1B2A4A]"}`}
               title={collapsed?item.label:""}>
-              <span className="text-base flex-shrink-0">{item.icon}</span>
+              <NavIcon name={item.icon} className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : "text-stone-500"}`} />
               {!collapsed && (
                 <>
                   <span className="flex-1 text-left font-medium whitespace-nowrap text-[13px]">{item.label}</span>
@@ -343,7 +431,7 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-bold text-navy">Dashboard</h1>
-          <p className="text-stone-400 text-xs mt-0.5">
+          <p className="text-muted text-xs mt-0.5">
             Every figure below is computed in the database for the selected period.
           </p>
         </div>
@@ -364,36 +452,37 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
         </div>
       </div>
 
-      <div className="stat-grid grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      {/* Three bands, not twelve equal tiles: what needs doing today, what
+          the money did, and what is on the shelf. Every pipeline count opens
+          the matching view of the order list. */}
+      <StatBand
+        title="Today's work"
+        description="Each count opens the order list, where you can filter by status."
+        columns="sm:grid-cols-5"
+      >
         <StatCard
-          icon="💰"
-          label="Net revenue"
-          value={fmt(money.net_revenue)}
-          sub="Paid orders, cancellations excluded"
-          accent
-        />
-        <StatCard
-          icon="🧾"
-          label="Gross order value"
-          value={fmt(money.gross_order_value)}
-          sub="All non-cancelled orders, paid or not"
-        />
-        <StatCard
-          icon="⏳"
+          icon="clock"
           label="Awaiting processing"
           value={counts.awaiting_processing ?? 0}
           sub="Pending or processing"
-          deltaUp={false}
+          onClick={() => onNavigate?.("orders")}
         />
         <StatCard
-          icon="🚚"
+          icon="truck"
           label="Awaiting dispatch"
           value={counts.awaiting_dispatch ?? 0}
           sub="Not yet shipped"
+          onClick={() => onNavigate?.("orders")}
         />
-        <StatCard icon="📦" label="Shipped" value={counts.shipped ?? 0} sub="In transit" />
         <StatCard
-          icon="✅"
+          icon="package"
+          label="Shipped"
+          value={counts.shipped ?? 0}
+          sub="In transit"
+          onClick={() => onNavigate?.("orders")}
+        />
+        <StatCard
+          icon="check"
           label="Delivered"
           value={counts.delivered ?? 0}
           delta={
@@ -402,61 +491,91 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
               : ""
           }
           deltaUp
+          onClick={() => onNavigate?.("orders")}
         />
         <StatCard
-          icon="❌"
+          icon="cancel"
           label="Cancelled"
           value={counts.cancelled ?? 0}
           sub="Never counted as sales"
+          onClick={() => onNavigate?.("orders")}
+        />
+      </StatBand>
+
+      <StatBand
+        title="Money"
+        description="Paid orders only for net revenue; cancellations and refunds excluded."
+      >
+        <StatCard
+          icon="revenue"
+          label="Net revenue"
+          value={fmt(money.net_revenue)}
+          sub="Paid orders, cancellations excluded"
+          accent
         />
         <StatCard
-          icon="💸"
+          icon="receipt"
+          label="Gross order value"
+          value={fmt(money.gross_order_value)}
+          sub="All non-cancelled orders, paid or not"
+        />
+        <StatCard
+          icon="card"
           label="Awaiting payment"
           value={fmt(money.pending_value)}
           sub="COD or unpaid orders"
         />
-        <StatCard icon="📚" label="Titles" value={inventory.titles ?? 0} sub="Active catalogue" />
         <StatCard
-          icon="⚠️"
-          label="Low stock"
-          value={inventory.low_stock ?? 0}
-          deltaUp={false}
-        />
-        <StatCard
-          icon="🚫"
-          label="Out of stock"
-          value={inventory.out_of_stock ?? 0}
-          deltaUp={false}
-        />
-        <StatCard
-          icon="🔄"
+          icon="refund"
           label="Refunded"
           value={fmt(money.refunded_value)}
           sub="Refund pending or refunded"
         />
-      </div>
+      </StatBand>
+
+      <StatBand
+        title="Catalogue"
+        description="What is on the shelf right now."
+        columns="sm:grid-cols-3"
+      >
+        <StatCard icon="book" label="Titles" value={inventory.titles ?? 0} sub="Active catalogue" onClick={() => onNavigate?.("inventory")} />
+        <StatCard
+          icon="alert"
+          label="Low stock"
+          value={inventory.low_stock ?? 0}
+          sub="At or below the reorder threshold"
+          onClick={() => onNavigate?.("inventory")}
+        />
+        <StatCard
+          icon="ban"
+          label="Out of stock"
+          value={inventory.out_of_stock ?? 0}
+          sub="Customers cannot buy these"
+          onClick={() => onNavigate?.("inventory")}
+        />
+      </StatBand>
 
       <div className="grid lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E3DCCB] p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-[#1B2A4A] text-sm">Net revenue by day</h3>
-            <span className="text-xs text-stone-400">
+            <span className="text-xs text-muted">
               {daily.length ? `${daily.length} trading day${daily.length !== 1 ? "s" : ""}` : "No activity"}
             </span>
           </div>
           {dailyValues.length ? (
             <>
               <MiniChart data={dailyValues} color="#B5532F" />
-              <div className="flex justify-between mt-2 text-[10px] text-stone-400">
+              <div className="flex justify-between mt-2 text-[10px] text-muted">
                 <span>{daily[0]?.date}</span>
                 <span>{daily[daily.length - 1]?.date}</span>
               </div>
-              <p className="text-[10px] text-stone-400 mt-2">
+              <p className="text-[10px] text-muted mt-2">
                 Peak day: {fmt(busiest)} · only paid, non-cancelled orders count.
               </p>
             </>
           ) : (
-            <p className="text-xs text-stone-400 py-8 text-center">
+            <p className="text-xs text-muted py-8 text-center">
               No orders in this period.
             </p>
           )}
@@ -467,21 +586,21 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
           <div className="space-y-3">
             {bestSellers.map((b, i) => (
               <div key={b.book_id} className="flex items-center gap-3">
-                <span className="text-xs text-stone-400 w-4">{i + 1}</span>
+                <span className="text-xs text-muted w-4">{i + 1}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold text-[#1B2A4A] truncate">{b.title}</p>
-                  <p className="text-[10px] text-stone-400">{fmt(b.revenue)}</p>
+                  <p className="text-[10px] text-muted">{fmt(b.revenue)}</p>
                 </div>
                 <span className="text-xs font-bold text-[#1B2A4A]">{b.units} sold</span>
               </div>
             ))}
             {bestSellers.length === 0 && (
-              <p className="text-xs text-stone-400 text-center py-4">
+              <p className="text-xs text-muted text-center py-4">
                 Nothing delivered in this period yet.
               </p>
             )}
           </div>
-          <p className="text-[10px] text-stone-400 mt-4 pt-3 border-t border-stone-100">
+          <p className="text-[10px] text-muted mt-4 pt-3 border-t border-stone-100">
             Counted from delivered orders only, so an unfulfilled order cannot inflate this list.
           </p>
         </div>
@@ -495,12 +614,38 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
               View all
             </button>
           </div>
-          <div className="overflow-x-auto">
+          {/* Six columns do not fit a phone; the same rows are shown as a
+              list there, and the full table from lg up. */}
+          <ul className="divide-y divide-stone-50 lg:hidden">
+            {recent.map((o) => (
+              <li key={o.id} className="px-4 py-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="font-mono text-xs font-semibold text-sienna">{String(o.id).slice(0, 8).toUpperCase()}</span>
+                  <span className="text-xs font-bold text-navy">{fmt(o.total)}</span>
+                </div>
+                <p className="mt-0.5 text-xs text-ink">{o.first_name} {o.last_name}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <Badge status={o.status} />
+                  <span className={`text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-[#8A5A15]"}`}>
+                    {payLabel[o.payment_status] || o.payment_status}
+                  </span>
+                  <span className="text-[10px] text-muted">
+                    {new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}
+                  </span>
+                </div>
+              </li>
+            ))}
+            {recent.length === 0 && (
+              <li className="px-4 py-10 text-center text-sm text-muted">No orders in this period</li>
+            )}
+          </ul>
+
+          <div className="hidden overflow-x-auto lg:block">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
                 <tr>
                   {["Order", "Customer", "Total", "Payment", "Fulfilment", "Date"].map((h) => (
-                    <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">
+                    <th key={h} className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">
                       {h}
                     </th>
                   ))}
@@ -524,14 +669,14 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
                       </span>
                     </td>
                     <td className="px-4 py-3"><Badge status={o.status} /></td>
-                    <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">
+                    <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">
                       {new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}
                     </td>
                   </tr>
                 ))}
                 {recent.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-10 text-center text-stone-400 text-sm">
+                    <td colSpan={6} className="px-4 py-10 text-center text-muted text-sm">
                       No orders in this period
                     </td>
                   </tr>
@@ -572,12 +717,12 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
               </button>
             )}
             {(counts.awaiting_dispatch ?? 0) === 0 && (inventory.low_stock ?? 0) === 0 && (inventory.out_of_stock ?? 0) === 0 && (
-              <p className="text-xs text-stone-400 text-center py-4">Nothing needs attention right now</p>
+              <p className="text-xs text-muted text-center py-4">Nothing needs attention right now</p>
             )}
           </div>
 
           <div className="mt-5 pt-4 border-t border-stone-100">
-            <h4 className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">How these are counted</h4>
+            <h4 className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">How these are counted</h4>
             <ul className="text-[10px] text-stone-500 space-y-1 list-disc pl-4">
               <li>Net revenue: paid orders only, cancellations and refunds excluded.</li>
               <li>Gross order value: every non-cancelled order, paid or not.</li>
@@ -786,7 +931,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <h1 className="text-lg font-bold text-navy">Orders</h1>
-          <p className="text-stone-400 text-xs mt-0.5">
+          <p className="text-muted text-xs mt-0.5">
             {orders.length} total · {orders.filter((o) => o.status === "Delivered").length} delivered ·{" "}
             {orders.filter((o) => o.status !== "Cancelled").reduce((s, o) => s + (o.total || 0), 0).toLocaleString()} KSh ordered
           </p>
@@ -800,7 +945,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
               placeholder="Search orders…"
               className="bg-white border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition w-56"
             />
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
@@ -1037,7 +1182,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                   />
                 </th>
                 {["", "Order ID", "Customer", "Address", "Books", "Total", "Payment", "Fulfilment", "Date", "Actions"].map((h) => (
-                  <th key={h} className="text-left px-3 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-3 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
@@ -1057,7 +1202,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                         />
                       </td>
                       <td className="px-3 py-3">
-                        <button onClick={() => setExpanded(expanded === o.id ? null : o.id)} className="text-stone-400 hover:text-[#1B2A4A] transition" aria-label="Toggle order details">
+                        <button onClick={() => setExpanded(expanded === o.id ? null : o.id)} className="text-muted hover:text-[#1B2A4A] transition" aria-label="Toggle order details">
                           <svg className={`w-4 h-4 transition-transform ${expanded === o.id ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
@@ -1069,13 +1214,13 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                           <Avatar name={`${o.delivery_details?.firstName || ""} ${o.delivery_details?.lastName || ""}`} email="" size="sm" />
                           <div>
                             <p className="text-xs font-semibold text-[#1B2A4A]">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
-                            <p className="text-[10px] text-stone-400">{o.delivery_details?.phone}</p>
+                            <p className="text-[10px] text-muted">{o.delivery_details?.phone}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-3">
                         <p className="text-xs text-stone-600 max-w-[120px] truncate">{o.delivery_details?.address}</p>
-                        <p className="text-[10px] text-stone-400">{o.delivery_details?.city}</p>
+                        <p className="text-[10px] text-muted">{o.delivery_details?.city}</p>
                       </td>
                       <td className="px-3 py-3 text-xs text-stone-500">{(o.items || []).length} book{(o.items || []).length !== 1 ? "s" : ""}</td>
                       <td className="px-3 py-3 text-xs font-bold text-[#1B2A4A]">KSh {(o.total || 0).toLocaleString()}</td>
@@ -1083,10 +1228,10 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                         <p className={`text-[10px] font-semibold ${o.payment_status === "paid" ? "text-green-600" : o.payment_status === "failed" ? "text-red-600" : o.payment_status === "refunded" ? "text-purple-600" : "text-amber-600"}`}>
                           {PAYMENT_LABEL[o.payment_status] || o.payment_status}
                         </p>
-                        <p className="text-[10px] text-stone-400">{o.payment_method}</p>
+                        <p className="text-[10px] text-muted">{o.payment_method}</p>
                       </td>
                       <td className="px-3 py-3"><Badge status={o.status} /></td>
-                      <td className="px-3 py-3 text-[10px] text-stone-400 whitespace-nowrap">
+                      <td className="px-3 py-3 text-[10px] text-muted whitespace-nowrap">
                         {new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "2-digit" })}
                       </td>
                       <td className="px-3 py-3">
@@ -1110,7 +1255,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                         <td colSpan={11} className="px-5 py-5 bg-stone-50 border-t border-stone-100">
                           <div className="grid lg:grid-cols-3 gap-5">
                             <div className="lg:col-span-2">
-                              <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-3">Items</p>
+                              <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-3">Items</p>
                               <div className="space-y-2">
                                 {(o.items || []).map((item, i) => {
                                   const book = bookById.get(String(item.id));
@@ -1124,7 +1269,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <p className="text-xs font-semibold text-[#1B2A4A] truncate">{item.title}</p>
-                                        <p className="text-[10px] text-stone-400">
+                                        <p className="text-[10px] text-muted">
                                           {item.author} · Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}
                                         </p>
                                       </div>
@@ -1138,7 +1283,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
 
                               <div className="mt-4 grid sm:grid-cols-2 gap-3 text-xs">
                                 <div className="bg-white rounded-xl border border-stone-100 p-4">
-                                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">Delivery</p>
+                                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Delivery</p>
                                   <p className="text-stone-700 font-semibold">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
                                   <p className="text-stone-500">{o.delivery_details?.phone}</p>
                                   <p className="text-stone-500">{o.delivery_details?.address}</p>
@@ -1150,24 +1295,24 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                                   )}
                                 </div>
                                 <div className="bg-white rounded-xl border border-stone-100 p-4">
-                                  <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-2">Money & dispatch</p>
+                                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Money & dispatch</p>
                                   <p className="text-stone-500">Subtotal: <span className="font-semibold text-[#1B2A4A]">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
                                   <p className="text-stone-500">Delivery: <span className="font-semibold text-[#1B2A4A]">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
                                   <p className="text-stone-500">Total: <span className="font-bold text-[#1B2A4A]">KSh {(o.total ?? 0).toLocaleString()}</span></p>
                                   {o.payment_ref && <p className="text-stone-500 mt-1">Receipt: <span className="font-mono font-bold">{o.payment_ref}</span></p>}
                                   {o.courier && <p className="text-stone-500 mt-1">Courier: {o.courier}</p>}
                                   {o.tracking_ref && <p className="text-stone-500">Tracking: <span className="font-mono">{o.tracking_ref}</span></p>}
-                                  {o.dispatched_at && <p className="text-stone-400 mt-1 text-[10px]">Dispatched {new Date(o.dispatched_at).toLocaleString("en-KE")}</p>}
-                                  {o.delivered_at && <p className="text-stone-400 text-[10px]">Delivered {new Date(o.delivered_at).toLocaleString("en-KE")}</p>}
+                                  {o.dispatched_at && <p className="text-muted mt-1 text-[10px]">Dispatched {new Date(o.dispatched_at).toLocaleString("en-KE")}</p>}
+                                  {o.delivered_at && <p className="text-muted text-[10px]">Delivered {new Date(o.delivered_at).toLocaleString("en-KE")}</p>}
                                 </div>
                               </div>
                             </div>
 
                             <div>
-                              <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider mb-3">Payment</p>
+                              <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-3">Payment</p>
                               <div className="bg-white rounded-xl border border-stone-100 p-4">
                                 <p className="text-sm font-bold text-[#1B2A4A]">{PAYMENT_LABEL[o.payment_status] || o.payment_status}</p>
-                                <p className="text-[10px] text-stone-400 mt-0.5">via {o.payment_method}</p>
+                                <p className="text-[10px] text-muted mt-0.5">via {o.payment_method}</p>
 
                                 {payFlow.length > 0 ? (
                                   <div className="flex flex-wrap gap-1.5 mt-3">
@@ -1183,9 +1328,9 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="text-[10px] text-stone-400 mt-3">No further payment changes.</p>
+                                  <p className="text-[10px] text-muted mt-3">No further payment changes.</p>
                                 )}
-                                <p className="text-[10px] text-stone-400 mt-3 pt-2 border-t border-stone-100">
+                                <p className="text-[10px] text-muted mt-3 pt-2 border-t border-stone-100">
                                   A COD order stays unpaid until the courier collects the cash.
                                 </p>
                               </div>
@@ -1210,7 +1355,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                 <tr>
                   <td colSpan={11} className="px-4 py-12 text-center">
                     <div className="text-3xl mb-2">📦</div>
-                    <p className="text-stone-400 text-sm">No orders found</p>
+                    <p className="text-muted text-sm">No orders found</p>
                   </td>
                 </tr>
               )}
@@ -1220,7 +1365,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-5 py-3 border-t border-stone-100">
-            <p className="text-xs text-stone-400">
+            <p className="text-xs text-muted">
               Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length}
             </p>
             <div className="flex gap-1">
@@ -1429,7 +1574,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <h1 className="text-lg font-bold text-navy">Products</h1>
-          <p className="text-stone-400 text-xs mt-0.5">{books.filter(b=>!b.is_archived).length} active · {books.filter(b=>b.is_archived).length} archived</p>
+          <p className="text-muted text-xs mt-0.5">{books.filter(b=>!b.is_archived).length} active · {books.filter(b=>b.is_archived).length} archived</p>
         </div>
         <button onClick={openAdd} className="flex items-center gap-2 bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> Add book
@@ -1441,9 +1586,9 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="font-bold text-[#1B2A4A]">{editBook?`Editing: ${editBook.title}`:"Add new book"}</h3>
-              <p className="text-xs text-stone-400 mt-0.5">{editBook?"Update the book details below":"Fill in the details for the new title"}</p>
+              <p className="text-xs text-muted mt-0.5">{editBook?"Update the book details below":"Fill in the details for the new title"}</p>
             </div>
-            <button onClick={()=>setShowForm(false)} aria-label="Close the book form" className="p-2 hover:bg-stone-100 rounded-full transition text-stone-400">
+            <button onClick={()=>setShowForm(false)} aria-label="Close the book form" className="p-2 hover:bg-stone-100 rounded-full transition text-muted">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
@@ -1493,7 +1638,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                       <button type="button" onClick={onCoverRemoved} disabled={saving} className="px-4 py-2 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition disabled:opacity-50">Remove</button>
                     )}
                   </div>
-                  <p className="text-xs text-stone-400 mt-2">JPG, PNG or WebP, up to 2 MB. Without an image the store shows the styled text cover.</p>
+                  <p className="text-xs text-muted mt-2">JPG, PNG or WebP, up to 2 MB. Without an image the store shows the styled text cover.</p>
                   {formErrors.cover && <p className="text-red-500 text-xs mt-1">{formErrors.cover}</p>}
                 </div>
               </div>
@@ -1520,7 +1665,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
         <div className="relative flex-1">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search books…"
             className="w-full bg-white border border-[#E3DCCB] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"/>
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
         <label className="flex items-center gap-2 text-sm text-stone-500 whitespace-nowrap">
           <input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)} className="w-4 h-4 accent-[#B5532F]"/>
@@ -1543,13 +1688,13 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
                 <tr>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Title</th>
-                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">Category</th>
-                  <th className="hidden sm:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Price</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Stock</th>
-                  <th className="hidden lg:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Featured</th>
-                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Rating</th>
-                  <th className="text-right px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Actions</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Title</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">Category</th>
+                  <th className="hidden sm:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Price</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Stock</th>
+                  <th className="hidden lg:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Featured</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Rating</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
@@ -1559,8 +1704,8 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                       <div className="flex items-center gap-3">
                         {book.cover_url && <img src={book.cover_url} alt="" loading="lazy" className="w-8 h-12 object-cover rounded border border-[#E3DCCB] flex-shrink-0"/>}
                         <div>
-                          <p className="text-sm font-semibold text-[#1B2A4A]">{book.title} {book.is_archived && <span className="text-[10px] text-stone-400 font-normal">(archived)</span>}</p>
-                          <p className="text-xs text-stone-400">{book.author}</p>
+                          <p className="text-sm font-semibold text-[#1B2A4A]">{book.title} {book.is_archived && <span className="text-[10px] text-muted font-normal">(archived)</span>}</p>
+                          <p className="text-xs text-muted">{book.author}</p>
                           <p className="sm:hidden mt-0.5 text-xs font-bold text-[#1B2A4A]">KSh {book.price.toLocaleString()}</p>
                         </div>
                       </div>
@@ -1568,7 +1713,7 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                     <td className="hidden md:table-cell px-4 py-3"><Badge status={book.category}/></td>
                     <td className="hidden sm:table-cell px-4 py-3">
                       <p className="text-xs font-bold text-[#1B2A4A]">KSh {book.price.toLocaleString()}</p>
-                      {book.original_price&&<p className="text-[10px] text-stone-400 line-through">KSh {book.original_price.toLocaleString()}</p>}
+                      {book.original_price&&<p className="text-[10px] text-muted line-through">KSh {book.original_price.toLocaleString()}</p>}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="text-xs font-semibold" style={{color:book.stock_quantity<=0?"#dc2626":book.stock_quantity<=(book.low_stock_threshold||5)?"#d97706":"#16a34a"}}>
@@ -1580,18 +1725,18 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                       <div className="flex items-center gap-1">
                         <span className="text-amber-400 text-xs">★</span>
                         <span className="text-xs font-semibold text-stone-600">{book.rating}</span>
-                        <span className="text-[10px] text-stone-400">({book.reviews||0})</span>
+                        <span className="text-[10px] text-muted">({book.reviews||0})</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
                         <button onClick={()=>openEdit(book)} className="text-xs text-[#B5532F] font-semibold hover:underline">Edit</button>
-                        <button onClick={()=>setDeleteConfirm(book.id)} className="text-xs text-stone-400 hover:text-red-600 font-semibold">Delete</button>
+                        <button onClick={()=>setDeleteConfirm(book.id)} className="text-xs text-muted hover:text-red-600 font-semibold">Delete</button>
                       </div>
                     </td>
                   </tr>
                 ))}
-                {filtered.length===0&&<tr><td colSpan={7} className="px-4 py-12 text-center"><div className="text-3xl mb-2">📚</div><p className="text-stone-400 text-sm">No books found</p></td></tr>}
+                {filtered.length===0&&<tr><td colSpan={7} className="px-4 py-12 text-center"><div className="text-3xl mb-2">📚</div><p className="text-muted text-sm">No books found</p></td></tr>}
               </tbody>
             </table>
           </div>
@@ -1740,7 +1885,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <h1 className="text-lg font-bold text-navy">Inventory</h1>
-          <p className="text-stone-400 text-xs mt-0.5">{active.length} active titles · every change is recorded</p>
+          <p className="text-muted text-xs mt-0.5">{active.length} active titles · every change is recorded</p>
         </div>
       </div>
 
@@ -1753,7 +1898,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
             placeholder="Search inventory…"
             className="w-full bg-white border border-[#E3DCCB] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"
           />
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </div>
@@ -1794,14 +1939,14 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
                 <tr>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Book</th>
-                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">Category</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">In stock</th>
-                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Threshold</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Status</th>
-                  <th className="hidden lg:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">Last updated</th>
-                  <th className="text-right px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Adjust</th>
-                  <th className="text-right px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider sr-only">History</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Book</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">Category</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">In stock</th>
+                  <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Threshold</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Status</th>
+                  <th className="hidden lg:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">Last updated</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Adjust</th>
+                  <th className="text-right px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider sr-only">History</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
@@ -1812,13 +1957,13 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                     <tr key={book.id} className="hover:bg-stone-50/50 transition-colors">
                       <td className="px-4 py-3">
                         <p className="text-sm font-semibold text-[#1B2A4A]">{book.title}</p>
-                        <p className="text-xs text-stone-400">{book.author}</p>
+                        <p className="text-xs text-muted">{book.author}</p>
                       </td>
                       <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-500">{book.category}</td>
                       <td className="px-4 py-3 font-bold text-[#1B2A4A] text-sm whitespace-nowrap">{book.stock_quantity ?? 0}</td>
                       <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-500">{book.low_stock_threshold ?? 5}</td>
                       <td className="px-4 py-3"><span className={`text-xs font-semibold ${statusColor}`}>{status}</span></td>
-                      <td className="hidden lg:table-cell px-4 py-3 text-xs text-stone-400 whitespace-nowrap">
+                      <td className="hidden lg:table-cell px-4 py-3 text-xs text-muted whitespace-nowrap">
                         {book.updated_at ? new Date(book.updated_at).toLocaleDateString("en-KE", { day: "numeric", month: "short" }) : "—"}
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -1844,7 +1989,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                   <tr>
                     <td colSpan={8} className="px-4 py-12 text-center">
                       <div className="text-3xl mb-2">🏪</div>
-                      <p className="text-stone-400 text-sm">No books match these filters</p>
+                      <p className="text-muted text-sm">No books match these filters</p>
                     </td>
                   </tr>
                 )}
@@ -1859,7 +2004,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
         {modal && (
           <div>
             <h3 id="adjust-title" className="font-black text-[#1B2A4A]">Adjust stock</h3>
-            <p className="text-xs text-stone-400 mt-0.5 mb-4">{modal.book.title}</p>
+            <p className="text-xs text-muted mt-0.5 mb-4">{modal.book.title}</p>
 
             <label className="block text-xs font-semibold text-stone-600 mb-1" htmlFor="inv-qty">
               New stock level (currently {modal.book.stock_quantity ?? 0})
@@ -1915,9 +2060,9 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
             <div className="flex items-start justify-between mb-3">
               <div>
                 <h3 id="history-title" className="font-black text-[#1B2A4A]">Stock history</h3>
-                <p className="text-xs text-stone-400 mt-0.5">{history.book.title}</p>
+                <p className="text-xs text-muted mt-0.5">{history.book.title}</p>
               </div>
-              <button onClick={() => setHistory(null)} className="text-stone-400 hover:text-[#1B2A4A] text-xl leading-none" aria-label="Close">×</button>
+              <button onClick={() => setHistory(null)} className="text-muted hover:text-[#1B2A4A] text-xl leading-none" aria-label="Close">×</button>
             </div>
 
             <div className="overflow-y-auto overflow-x-auto -mx-2 px-2">
@@ -1926,13 +2071,13 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
               ) : history.error ? (
                 <p className="text-xs text-red-600">{history.error}</p>
               ) : history.rows.length === 0 ? (
-                <p className="text-xs text-stone-400 text-center py-8">
+                <p className="text-xs text-muted text-center py-8">
                   No movements recorded yet. Changes made from now on will appear here.
                 </p>
               ) : (
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-stone-400 text-[10px] uppercase tracking-wider">
+                    <tr className="text-muted text-[10px] uppercase tracking-wider">
                       <th className="text-left py-2">When</th>
                       <th className="text-left py-2">Change</th>
                       <th className="text-left py-2">Result</th>
@@ -1943,7 +2088,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                   <tbody className="divide-y divide-stone-100">
                     {history.rows.map((m) => (
                       <tr key={m.id}>
-                        <td className="py-2 text-stone-400 whitespace-nowrap">
+                        <td className="py-2 text-muted whitespace-nowrap">
                           {new Date(m.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                         </td>
                         <td className={`py-2 font-bold ${m.delta > 0 ? "text-green-600" : "text-red-600"}`}>
@@ -1953,8 +2098,8 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                         <td className="py-2 text-stone-600 capitalize">{String(m.reason).replace(/_/g, " ")}</td>
                         <td className="py-2 text-stone-500">
                           {m.note || "—"}
-                          {m.admin_email && <span className="block text-[10px] text-stone-400">{m.admin_email}</span>}
-                          {m.order_id && <span className="block text-[10px] text-stone-400 font-mono">order {String(m.order_id).slice(0, 8)}</span>}
+                          {m.admin_email && <span className="block text-[10px] text-muted">{m.admin_email}</span>}
+                          {m.order_id && <span className="block text-[10px] text-muted font-mono">order {String(m.order_id).slice(0, 8)}</span>}
                         </td>
                       </tr>
                     ))}
@@ -1983,12 +2128,12 @@ function CustomersTab({ users, orders }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <h1 className="text-lg font-bold text-navy">Customers</h1>
-          <p className="text-stone-400 text-xs mt-0.5">{users.length} registered users</p>
+          <p className="text-muted text-xs mt-0.5">{users.length} registered users</p>
         </div>
         <div className="relative">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customers…"
             className="bg-white border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition w-56"/>
-          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
       </div>
 
@@ -1996,15 +2141,15 @@ function CustomersTab({ users, orders }) {
       <div className="grid gap-3 mb-5 sm:grid-cols-3 sm:gap-4">
         <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 text-center">
           <p className="text-2xl font-black text-[#1B2A4A]">{users.length}</p>
-          <p className="text-xs text-stone-400 mt-0.5">Total users</p>
+          <p className="text-xs text-muted mt-0.5">Total users</p>
         </div>
         <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 text-center">
           <p className="text-2xl font-black text-green-600">{users.filter(u=>getUserOrders(u.id).length>0).length}</p>
-          <p className="text-xs text-stone-400 mt-0.5">Have ordered</p>
+          <p className="text-xs text-muted mt-0.5">Have ordered</p>
         </div>
         <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 text-center">
           <p className="text-2xl font-black text-[#B5532F]">KSh {Math.round(users.reduce((s,u)=>s+getLTV(u.id),0)/Math.max(users.filter(u=>getLTV(u.id)>0).length,1)).toLocaleString()}</p>
-          <p className="text-xs text-stone-400 mt-0.5">Avg lifetime value</p>
+          <p className="text-xs text-muted mt-0.5">Avg lifetime value</p>
         </div>
       </div>
 
@@ -2149,7 +2294,7 @@ function CustomersTab({ users, orders }) {
           <table className="w-full text-sm">
             <thead className="bg-stone-50 border-b border-stone-100">
               <tr>{["Customer","Email","Phone","Orders","Lifetime value","Joined","Role"].map(h=>(
-                <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                <th key={h} className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">{h}</th>
               ))}</tr>
             </thead>
             <tbody className="divide-y divide-stone-50">
@@ -2159,8 +2304,8 @@ function CustomersTab({ users, orders }) {
                     <div className="flex items-center gap-3">
                       <Avatar name={`${u.first_name} ${u.last_name}`} email={u.email}/>
                       <div>
-                        <p className="text-xs font-semibold text-[#1B2A4A]">{u.first_name||""} {u.last_name||""||<span className="text-stone-400 italic">No name</span>}</p>
-                        <p className="text-[10px] text-stone-400">{u.id.slice(0,8)}</p>
+                        <p className="text-xs font-semibold text-[#1B2A4A]">{u.first_name||""} {u.last_name||""||<span className="text-muted italic">No name</span>}</p>
+                        <p className="text-[10px] text-muted">{u.id.slice(0,8)}</p>
                       </div>
                     </div>
                   </td>
@@ -2168,11 +2313,11 @@ function CustomersTab({ users, orders }) {
                   <td className="px-4 py-3 text-xs text-stone-500">{u.phone||"—"}</td>
                   <td className="px-4 py-3 text-xs font-bold text-[#1B2A4A]">{getUserOrders(u.id).length}</td>
                   <td className="px-4 py-3 text-xs font-bold text-green-600">{getLTV(u.id)>0?`KSh ${getLTV(u.id).toLocaleString()}`:"—"}</td>
-                  <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
+                  <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{new Date(u.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
                   <td className="px-4 py-3"><Badge status={u.role}/></td>
                 </tr>
               ))}
-              {filtered.length===0&&<tr><td colSpan={7} className="px-4 py-12 text-center"><div className="text-3xl mb-2">👥</div><p className="text-stone-400 text-sm">No customers found</p></td></tr>}
+              {filtered.length===0&&<tr><td colSpan={7} className="px-4 py-12 text-center"><div className="text-3xl mb-2">👥</div><p className="text-muted text-sm">No customers found</p></td></tr>}
             </tbody>
           </table>
         </div>
@@ -2240,12 +2385,12 @@ function UsersTab({ users, orders, session, showToast }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <h2 className="text-lg font-bold text-[#1B2A4A]">Users & Roles</h2>
-          <p className="text-stone-400 text-xs mt-0.5">{localUsers.length} users · {localUsers.filter(u=>u.role==="admin").length} admins</p>
+          <p className="text-muted text-xs mt-0.5">{localUsers.length} users · {localUsers.filter(u=>u.role==="admin").length} admins</p>
         </div>
         <div className="relative">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search users…"
             className="bg-white border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition w-56"/>
-          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
       </div>
 
@@ -2390,7 +2535,7 @@ function UsersTab({ users, orders, session, showToast }) {
           <table className="w-full text-sm">
             <thead className="bg-stone-50 border-b border-stone-100">
               <tr>{["User","Email","Phone","Role","Orders","Total Spent","Joined","Actions"].map(h=>(
-                <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                <th key={h} className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">{h}</th>
               ))}</tr>
             </thead>
             <tbody className="divide-y divide-stone-50">
@@ -2415,11 +2560,11 @@ function UsersTab({ users, orders, session, showToast }) {
                     <td className="px-4 py-3"><Badge status={u.role||"customer"}/></td>
                     <td className="px-4 py-3 text-xs font-bold text-[#1B2A4A]">{userOrders.length}</td>
                     <td className="px-4 py-3 text-xs font-bold text-green-600">{spent>0?`KSh ${spent.toLocaleString()}`:"—"}</td>
-                    <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{new Date(u.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
+                    <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{new Date(u.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
                     <td className="px-4 py-3">
                       {!isYou&&(
                         <button onClick={()=>setRoleConfirm({ id:u.id, role:u.role, label: `${u.first_name||""} ${u.last_name||""}`.trim() || u.email || "This user" })} disabled={updating===u.id}
-                          className={`text-xs font-semibold transition disabled:opacity-50 ${u.role==="admin"?"text-purple-600 hover:text-red-600":"text-stone-400 hover:text-[#B5532F]"}`}>
+                          className={`text-xs font-semibold transition disabled:opacity-50 ${u.role==="admin"?"text-purple-600 hover:text-red-600":"text-muted hover:text-[#B5532F]"}`}>
                           {updating===u.id?"…":u.role==="admin"?"Remove admin":"Make admin"}
                         </button>
                       )}
@@ -2427,7 +2572,7 @@ function UsersTab({ users, orders, session, showToast }) {
                   </tr>
                 );
               })}
-              {filtered.length===0&&<tr><td colSpan={8} className="px-4 py-12 text-center"><div className="text-3xl mb-2">🛡️</div><p className="text-stone-400 text-sm">No users found</p></td></tr>}
+              {filtered.length===0&&<tr><td colSpan={8} className="px-4 py-12 text-center"><div className="text-3xl mb-2">🛡️</div><p className="text-muted text-sm">No users found</p></td></tr>}
             </tbody>
           </table>
         </div>
@@ -2471,7 +2616,7 @@ function ActivityLogTab() {
     <div>
       <div className="mb-5">
         <h2 className="text-lg font-bold text-[#1B2A4A]">Activity Log</h2>
-        <p className="text-stone-400 text-xs mt-0.5">Every admin change — books, stock, and order status — recorded automatically</p>
+        <p className="text-muted text-xs mt-0.5">Every admin change — books, stock, and order status — recorded automatically</p>
       </div>
       {loading ? (
         <div className="space-y-2">{[...Array(5)].map((_,i)=><Skeleton key={i} className="h-12"/>)}</div>
@@ -2494,7 +2639,7 @@ function ActivityLogTab() {
             {log.length === 0 && (
               <li className="px-4 py-12 text-center">
                 <p className="text-3xl mb-2" aria-hidden="true">📋</p>
-                <p className="text-stone-400 text-sm">No admin actions recorded yet</p>
+                <p className="text-muted text-sm">No admin actions recorded yet</p>
               </li>
             )}
           </ul>
@@ -2503,7 +2648,7 @@ function ActivityLogTab() {
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
                 <tr>{["Admin","What happened","When"].map(h=>(
-                  <th key={h} className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  <th key={h} className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}</tr>
               </thead>
               <tbody className="divide-y divide-stone-50">
@@ -2511,10 +2656,10 @@ function ActivityLogTab() {
                   <tr key={entry.id} className="hover:bg-stone-50/50 transition-colors">
                     <td className="px-4 py-3 text-xs text-stone-600 whitespace-nowrap">{entry.admin_email}</td>
                     <td className="px-4 py-3 text-xs font-medium text-[#1B2A4A]">{describeActivity(entry)}</td>
-                    <td className="px-4 py-3 text-xs text-stone-400 whitespace-nowrap">{new Date(entry.created_at).toLocaleString("en-KE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</td>
+                    <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{new Date(entry.created_at).toLocaleString("en-KE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</td>
                   </tr>
                 ))}
-                {log.length===0&&<tr><td colSpan={3} className="px-4 py-12 text-center"><div className="text-3xl mb-2">📋</div><p className="text-stone-400 text-sm">No admin actions recorded yet</p></td></tr>}
+                {log.length===0&&<tr><td colSpan={3} className="px-4 py-12 text-center"><div className="text-3xl mb-2">📋</div><p className="text-muted text-sm">No admin actions recorded yet</p></td></tr>}
               </tbody>
             </table>
           </div>
@@ -2532,7 +2677,7 @@ function PlaceholderTab({ icon, title, description }) {
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <div className="text-6xl mb-4">{icon}</div>
       <h2 className="text-xl font-bold text-[#1B2A4A] mb-2">{title}</h2>
-      <p className="text-stone-400 text-sm max-w-sm">{description}</p>
+      <p className="text-muted text-sm max-w-sm">{description}</p>
     </div>
   );
 }
@@ -2608,7 +2753,7 @@ function NotificationsTab({ showToast }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
           <h2 className="text-lg font-bold text-[#1B2A4A]">Customer emails</h2>
-          <p className="text-stone-400 text-xs mt-0.5">
+          <p className="text-muted text-xs mt-0.5">
             Queued in the same transaction as the order, so nothing is lost if the mail provider is down.
           </p>
         </div>
@@ -2634,7 +2779,7 @@ function NotificationsTab({ showToast }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {["queued", "sent", "failed", "skipped"].map((k) => (
               <div key={k} className="bg-white border border-[#E3DCCB] rounded-2xl p-4">
-                <p className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{k}</p>
+                <p className="text-[10px] font-bold text-muted uppercase tracking-wider">{k}</p>
                 <p className={`text-2xl font-black ${tone[k]}`}>{data?.summary?.[k] ?? 0}</p>
               </div>
             ))}
@@ -2645,23 +2790,23 @@ function NotificationsTab({ showToast }) {
               <table className="w-full text-sm">
                 <thead className="bg-stone-50 border-b border-stone-100">
                   <tr>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider whitespace-nowrap">Queued</th>
-                    <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">To</th>
-                    <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Email</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Order</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Status</th>
-                    <th className="hidden sm:table-cell text-left px-4 py-3 text-xs font-bold text-stone-400 uppercase tracking-wider">Detail</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">Queued</th>
+                    <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">To</th>
+                    <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Email</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Order</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Status</th>
+                    <th className="hidden sm:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Detail</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-stone-50">
                   {(data?.emails || []).map((m) => (
                     <tr key={m.id} className="hover:bg-stone-50/50">
-                      <td className="px-4 py-3 text-[10px] text-stone-400 whitespace-nowrap">
+                      <td className="px-4 py-3 text-[10px] text-muted whitespace-nowrap">
                         {new Date(m.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </td>
                       <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-600">{m.to_email || "—"}</td>
                       <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-600">{String(m.template).replace(/_/g, " ")}</td>
-                      <td className="px-4 py-3 font-mono text-[10px] text-stone-400">{m.order_id ? String(m.order_id).slice(0, 8).toUpperCase() : "—"}</td>
+                      <td className="px-4 py-3 font-mono text-[10px] text-muted">{m.order_id ? String(m.order_id).slice(0, 8).toUpperCase() : "—"}</td>
                       <td className={`px-4 py-3 text-xs font-semibold ${tone[m.status] || ""}`}>{m.status}</td>
                       <td className="hidden sm:table-cell px-4 py-3 text-[10px] text-stone-500 max-w-[280px] truncate" title={m.last_error || ""}>
                         {m.last_error || (m.attempts ? `${m.attempts} attempt${m.attempts !== 1 ? "s" : ""}` : "—")}
@@ -2672,7 +2817,7 @@ function NotificationsTab({ showToast }) {
                     <tr>
                       <td colSpan={6} className="px-4 py-12 text-center">
                         <div className="text-3xl mb-2">✉️</div>
-                        <p className="text-stone-400 text-sm">No emails queued yet</p>
+                        <p className="text-muted text-sm">No emails queued yet</p>
                       </td>
                     </tr>
                   )}
@@ -2744,7 +2889,7 @@ function MobileNav({ open, activeTab, onSelect, onClose }) {
                   isActive ? "bg-navy text-white" : "text-ink hover:bg-subtle"
                 }`}
               >
-                <span className="text-base flex-shrink-0" aria-hidden="true">{item.icon}</span>
+                <NavIcon name={item.icon} className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : "text-stone-500"}`} />
                 <span className="flex-1 text-left font-medium text-[13px]">{item.label}</span>
               </button>
             );
@@ -2947,7 +3092,7 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
     <div className="min-h-screen bg-stone-50 flex items-center justify-center">
       <div className="text-center space-y-4">
         <div className="w-12 h-12 border-4 border-[#E3DCCB] border-t-[#1B2A4A] rounded-full animate-spin mx-auto"/>
-        <p className="text-stone-400 text-sm">Verifying access…</p>
+        <p className="text-muted text-sm">Verifying access…</p>
       </div>
     </div>
   );
