@@ -4,7 +4,7 @@ import { BookGridSkeleton } from "../components/BookGrid";
 export default function Loading() {
   return (
     <StoreLayout>
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 py-6 sm:py-10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-6 space-y-2">
           <div className="h-3 w-40 rounded bg-subtle animate-pulse" />
           <div className="h-7 w-56 rounded bg-subtle animate-pulse" />

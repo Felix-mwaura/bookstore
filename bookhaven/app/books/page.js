@@ -64,7 +64,7 @@ export default async function BooksPage({ searchParams }) {
 
   return (
     <StoreLayout>
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 py-6 sm:py-10">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-10">
         <nav aria-label="Breadcrumb" className="text-xs text-muted mb-4">
           <ol className="flex items-center gap-2">
             <li><Link href="/" className="hover:text-navy underline-offset-2 hover:underline">Home</Link></li>

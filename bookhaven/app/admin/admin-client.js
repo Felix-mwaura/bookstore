@@ -2476,8 +2476,30 @@ function ActivityLogTab() {
       {loading ? (
         <div className="space-y-2">{[...Array(5)].map((_,i)=><Skeleton key={i} className="h-12"/>)}</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
-          <div className="overflow-x-auto">
+                <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
+          {/* Phones get a list: the three-column table forced the admin
+              email and the timestamp onto one line and pushed the row wider
+              than a 320px screen. */}
+          <ul className="divide-y divide-stone-50 lg:hidden">
+            {log.map((entry) => (
+              <li key={entry.id} className="px-4 py-3">
+                <p className="text-xs font-medium leading-snug text-[#1B2A4A]">{describeActivity(entry)}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-stone-500">
+                  <span className="truncate max-w-[16rem]">{entry.admin_email}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{new Date(entry.created_at).toLocaleString("en-KE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</span>
+                </p>
+              </li>
+            ))}
+            {log.length === 0 && (
+              <li className="px-4 py-12 text-center">
+                <p className="text-3xl mb-2" aria-hidden="true">📋</p>
+                <p className="text-stone-400 text-sm">No admin actions recorded yet</p>
+              </li>
+            )}
+          </ul>
+
+          <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-stone-50 border-b border-stone-100">
                 <tr>{["Admin","What happened","When"].map(h=>(
