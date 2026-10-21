@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { userFromRequest, serviceClient } from "../../../lib/server";
 import {
   mpesaConfig,
-  mpesaAccessToken,
+  resolveAccessToken,
   mpesaTimestamp,
   mpesaPassword,
   normalisePhone,
@@ -130,7 +130,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "Could not price your cart. Please try again." }, { status: 500 });
   }
 
-  const tokenResult = await mpesaAccessToken(config);
+  const tokenResult = await resolveAccessToken(config);
   if (tokenResult.error) {
     // This is the step that fails when the credentials belong to the other
     // Daraja environment, or when a key was regenerated. Log Safaricom's own
@@ -142,7 +142,8 @@ export async function POST(request) {
       status: tokenResult.status ?? null,
       code: tokenResult.code ?? null,
       message: tokenResult.message ?? null,
-      hint: "Run /api/mpesa/token as an admin, or open Admin → Payments → Test connection.",
+      alsoTried: tokenResult.alsoTried ?? null,
+      hint: "Open Admin → Payments — the checker probes both Daraja hosts and names the fix.",
     });
 
     return NextResponse.json(
@@ -158,7 +159,7 @@ export async function POST(request) {
   const timestamp = mpesaTimestamp();
   const password = mpesaPassword(config.shortcode, config.passkey, timestamp);
 
-  const stkRes = await fetch(`${config.base}/mpesa/stkpush/v1/processrequest`, {
+  const stkRes = await fetch(`${tokenResult.base ?? config.base}/mpesa/stkpush/v1/processrequest`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${tokenResult.token}`,
