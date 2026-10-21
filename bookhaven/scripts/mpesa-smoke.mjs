@@ -94,6 +94,20 @@ withEnv({ ...creds, MPESA_ENV: "PRODUCTION" }, () => {
   check("case does not matter", mpesaConfig().environment, "production");
 });
 
+// ── shortcode shape: paybill or Buy Goods (till)? ───────────────
+// Six digits is a paybill, seven is a till, and 174379 is Safaricom's
+// sandbox test paybill. This only raises a warning; it never rewrites the
+// declared transaction type.
+withEnv({ ...creds, MPESA_SHORTCODE: "9874839" }, () => {
+  check("a 7-digit short code is a till", mpesaConfig().shortcodeKind, "till");
+});
+withEnv({ ...creds, MPESA_SHORTCODE: "247247" }, () => {
+  check("a 6-digit short code is a paybill", mpesaConfig().shortcodeKind, "paybill");
+});
+withEnv({ ...creds, MPESA_SHORTCODE: "174379" }, () => {
+  check("174379 is the sandbox test paybill", mpesaConfig().shortcodeKind, "sandbox-test");
+});
+
 // ── values pasted out of a dashboard text box ───────────────────
 withEnv({
   MPESA_CONSUMER_KEY: '  "abc123"\n',
@@ -170,4 +184,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("mpesa test passed — environment detection, value cleaning, probe reporting, host resolution and request signing");
+console.log("mpesa test passed — environment detection, value cleaning, shortcode shape, probe reporting, host resolution and request signing");

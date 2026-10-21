@@ -58,6 +58,17 @@ export function mpesaConfig() {
   const transactionType =
     clean(process.env.MPESA_TRANSACTION_TYPE) || "CustomerPayBillOnline";
 
+  // Which kind of shortcode this is, read off its shape. Safaricom issues
+  // 6-digit paybill numbers and 7-digit till numbers, and 174379 is the
+  // sandbox test paybill. This only feeds a warning — the transaction type
+  // stays something the owner declares, never something guessed.
+  const digits = /^\d+$/.test(shortcode) ? shortcode.length : 0;
+  const shortcodeKind =
+    shortcode === "174379" ? "sandbox-test"
+    : digits === 7 ? "till"
+    : digits === 6 ? "paybill"
+    : "unknown";
+
   return {
     key,
     secret,
@@ -66,6 +77,7 @@ export function mpesaConfig() {
     callbackUrl,
     base,
     transactionType,
+    shortcodeKind,
     environment: env === "production" ? "production" : "sandbox",
     // True when nobody has said which environment these credentials belong
     // to, so the default is being used and may be the wrong one.
@@ -146,6 +158,22 @@ export async function mpesaDiagnostics() {
   } else if (!/^https:\/\//.test(config.callbackUrl)) {
     problem = "callback-url";
     advice = "The callback URL must be public HTTPS.";
+  } else {
+    // The login is fine, so anything left fails later, at the push. The one
+    // that is silent until a customer tries to pay is a wrong transaction
+    // type: a till presented as a paybill (or the reverse) is refused by
+    // Daraja with "Invalid TransactionType" and no prompt is ever sent.
+    const wrongType =
+      (config.shortcodeKind === "till" && config.transactionType === "CustomerPayBillOnline") ||
+      (config.shortcodeKind === "paybill" && config.transactionType === "CustomerBuyGoodsOnline");
+
+    if (wrongType) {
+      problem = "transaction-type";
+      advice =
+        config.shortcodeKind === "till"
+          ? `Short code ••••${config.shortcode.slice(-4)} is 7 digits, which is a Buy Goods (till) number, but the app is sending it as a paybill. Set MPESA_TRANSACTION_TYPE=CustomerBuyGoodsOnline and redeploy — until then Daraja refuses the push and no prompt reaches the phone.`
+          : `Short code ••••${config.shortcode.slice(-4)} is 6 digits, which is a paybill, but the app is sending it as Buy Goods. Remove MPESA_TRANSACTION_TYPE (the default is CustomerPayBillOnline) and redeploy.`;
+    }
   }
 
   return {
@@ -155,6 +183,7 @@ export async function mpesaDiagnostics() {
     environment: config.environment,
     environmentAssumed: config.environmentAssumed,
     shortcode: config.shortcode ? `••••${config.shortcode.slice(-4)}` : null,
+    shortcodeKind: config.shortcodeKind,
     shortcodeLooksLikeSandboxTest: config.shortcode === "174379",
     transactionType: config.transactionType,
     callbackHost: (() => {
