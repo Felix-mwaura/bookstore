@@ -32,7 +32,8 @@ function Hero({ books }) {
             </h1>
             <p className="mt-4 max-w-lg text-base leading-relaxed text-muted sm:mt-5 sm:text-lg">
               Paperbacks and hardcovers across fiction, finance, self-help and biography.
-              Stock shown is the real shelf quantity, and delivery is priced before you pay.
+              Stock shown is the real shelf quantity, and delivery is free — the total you see is
+              the price of the books.
             </p>
 
             <form action="/books" method="get" role="search" className="mt-6 max-w-lg sm:mt-8">
