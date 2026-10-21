@@ -52,6 +52,29 @@ The checkout only shows the M-Pesa tab when a push can actually be sent, so a
 configuration problem never takes a customer's money and leaves them without
 an order. The customer-facing message deliberately says nothing technical.
 
+### Which environment is this app?
+
+The Daraja portal already answers that: open the app and look at the endpoints
+it lists.
+
+| Portal shows | What it means |
+| --- | --- |
+| `https://sandbox.safaricom.co.ke/oauth/v1/generate` | a sandbox app; its key and passkey only work on sandbox |
+| `https://api.safaricom.co.ke/oauth/v1/generate` | a **production** app ("Lipa na M-Pesa Production"); its key and passkey are live |
+
+Both sets use the same three paths — `/oauth/v1/generate`,
+`/mpesa/stkpush/v1/processrequest`, `/mpesa/stkpushquery/v1/query` — which are
+the only paths `app/lib/mpesa.js` calls. So the portal's host is the value
+`MPESA_ENV` must match: `production` for `api.safaricom.co.ke`, `sandbox`
+otherwise. Sending live credentials to the sandbox host (or the reverse) is
+answered with the same "Invalid Authentication passed" as a wrong key, which
+is why the diagnostics probe both hosts instead of trusting the setting.
+
+One more thing the portal decides: a **Paybill** number uses
+`CustomerPayBillOnline` (the default), while a **Buy Goods / till** number
+needs `MPESA_TRANSACTION_TYPE=CustomerBuyGoodsOnline`, or Daraja rejects the
+push.
+
 M-Pesa switches itself on when the four credentials above are present **and**
 the delivery rule in the database matches `DELIVERY_PERCENT` in `app/lib/site.js`.
 Until then the checkout offers cash on delivery only, and `/admin → Payments`
