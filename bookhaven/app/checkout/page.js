@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BookCover } from "../components/BookCover";
 import { supabase } from "../lib/supabase";
 import { orderReference } from "../lib/orders";
-import { DELIVERY_FEE } from "../lib/site";
+import { DELIVERY_PERCENT, deliveryFeeFor } from "../lib/site";
 
 function formatPhone(raw) {
   const d = String(raw || "").replace(/\D/g, "");
@@ -50,7 +50,8 @@ function StepBar({ step }) {
 function OrderSummary({ cart, total, onChangeQty, onRemove }) {
   // Same rule the server applies in place_order, imported rather than
   // duplicated so the displayed total cannot disagree with the charged one.
-  const grand = total + DELIVERY_FEE;
+  const delivery = deliveryFeeFor(total);
+  const grand = total + delivery;
   return (
     <div className="bg-white rounded-card border border-line p-5 sm:p-6 lg:sticky lg:top-24">
       <h3 className="font-bold text-[#1B2A4A] text-lg mb-5">Order Summary</h3>
@@ -88,11 +89,14 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
       </div>
       <div className="border-t border-stone-100 mt-5 pt-4 space-y-2.5">
         <div className="flex justify-between text-sm"><span className="text-stone-500">Subtotal</span><span className="font-semibold">KSh {total.toLocaleString()}</span></div>
-        <div className="flex justify-between text-sm"><span className="text-stone-500">Delivery</span><span className="font-semibold text-success">Free</span></div>
+        <div className="flex justify-between text-sm">
+          <span className="text-stone-500">Delivery ({DELIVERY_PERCENT}%)</span>
+          <span className="font-semibold">KSh {delivery.toLocaleString()}</span>
+        </div>
         <div className="flex justify-between text-base font-bold text-navy border-t border-line pt-3"><span>Total</span><span>KSh {grand.toLocaleString()}</span></div>
       </div>
       <div className="mt-5 pt-4 border-t border-line space-y-1.5">
-        <p className="text-xs text-muted">Delivery is free on every order — the total is the price of the books.</p>
+        <p className="text-xs text-muted">Delivery is {DELIVERY_PERCENT}% of the book total, worked out here and charged once — nothing is added at the door.</p>
         <p className="text-xs text-muted">You will see the full total before you confirm.</p>
       </div>
     </div>
@@ -514,7 +518,7 @@ function CodFlow({ total, onSuccess, disabled = false }) {
 function StepPayment({ details, total, items, reference, canPay, ready = true, mpesaEnabled = false, onSuccess, onBack }) {
   const [chosen, setChosen] = useState(null);
   const method = chosen ?? (mpesaEnabled ? "mpesa" : "cod");
-  const grand = total + DELIVERY_FEE;
+  const grand = total + deliveryFeeFor(total);
   const methods = [
     ...(mpesaEnabled ? [{ id: "mpesa", label: "M-Pesa", sub: "Pay from your phone", icon: "M", color: "bg-[#2F7D4F]" }] : []),
     { id: "cod", label: "Cash on delivery", sub: "Pay the rider", icon: "KSh", color: "bg-navy" },
@@ -578,7 +582,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, m
 }
 
 function StepConfirmation({ order, reference, details, method, cart, total, saveError, stockError, saving, onRetry }) {
-  const grand = order?.total ?? total + DELIVERY_FEE;
+  const grand = order?.total ?? total + deliveryFeeFor(total);
   const methodLabels = { mpesa: "M-Pesa", cod: "Cash on Delivery" };
   // The reference customers quote to support is derived from the saved order
   // id. Before the order exists there is nothing real to quote, so we show
@@ -955,7 +959,7 @@ export default function CheckoutPage() {
         <div className="lg:hidden bg-white border-b border-[#E3DCCB] px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-stone-600">Order total</span>
-            <span className="text-sm font-black text-[#1B2A4A]">KSh {(total + DELIVERY_FEE).toLocaleString()}</span>
+            <span className="text-sm font-black text-[#1B2A4A]">KSh {(total + deliveryFeeFor(total)).toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-1.5">
             {cart.slice(0, 3).map((item, i) => (

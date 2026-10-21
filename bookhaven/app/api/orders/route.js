@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { clientForToken, bearerToken, serviceClient } from "../../lib/server";
 import { queueEmailDispatch } from "../../lib/email-dispatch";
-import { DELIVERY_FEE } from "../../lib/site";
+import { DELIVERY_PERCENT } from "../../lib/site";
 
 // GET /api/orders — the signed-in customer's own orders (RLS-enforced)
 export async function GET(request) {
@@ -160,16 +160,15 @@ export async function POST(request) {
   }
 
   // The order writer must agree with what the customer was shown. If the
-  // database still carries the old delivery charge (the free-delivery
-  // migration has not been applied), place_order() would add KSh 300 that the
-  // checkout never displayed. Refuse the order instead of taking money for a
-  // total the customer did not agree to.
-  const { data: rule, error: ruleError } = await serverClient.rpc("delivery_fee_rule");
-  if (ruleError || Number(rule) !== DELIVERY_FEE) {
+  // database still carries the old delivery rule (KSh 300 below KSh 3,000, or
+  // free), place_order() would bill a total the checkout never displayed.
+  // Refuse the order rather than charge a figure the customer did not agree to.
+  const { data: rule, error: ruleError } = await serverClient.rpc("delivery_rate");
+  if (ruleError || Number(rule) !== DELIVERY_PERCENT) {
     console.error(
       "/api/orders: delivery pricing is out of step with the app —",
-      ruleError ? ruleError.message : `database charges ${rule}, app expects ${DELIVERY_FEE}`,
-      "— apply supabase/migrations/20261021090000_free_delivery.sql"
+      ruleError ? ruleError.message : `database charges ${rule}% delivery, app expects ${DELIVERY_PERCENT}%`,
+      "— apply supabase/migrations/20261021110000_delivery_rate.sql"
     );
     return NextResponse.json(
       {

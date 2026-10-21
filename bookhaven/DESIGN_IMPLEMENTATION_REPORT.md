@@ -228,20 +228,21 @@ auth guards and RLS were not modified.
 
 ---
 
-## Addendum — free delivery and M-Pesa
+## Addendum — delivery pricing and M-Pesa
 
 This report covers the design pass. Two commercial changes were made after it,
 and they alter two statements above:
 
-- **Delivery is no longer charged.** The copy that said "free above KSh 3,000,
-  a flat KSh 300 below it" is gone from the homepage, the header strip, the
-  footer, the book page, the basket and checkout. Every total is now the price
-  of the books. The database rule is changed by
-  `supabase/migrations/20261021090000_free_delivery.sql`, which has to be
-  applied — see `AUDIT_PHASE4.md` §J.
+- **Delivery is 20% of the book total.** The copy that said "free above
+  KSh 3,000, a flat KSh 300 below it" is gone from the homepage, the header
+  strip, the footer, the book page, the basket and checkout. The database rule
+  is changed by
+  `supabase/migrations/20261021110000_delivery_rate.sql`, which has to be
+  applied — see `AUDIT_PHASE4.md` §J. Until it is, checkout refuses orders
+  rather than charge a total nobody was shown.
 - **M-Pesa is no longer "deferred".** It is implemented end to end and switches
-  itself on when the Daraja credentials are present and the database agrees that
-  delivery is free. The admin's Payments tab, previously a placeholder, now
+  itself on when the Daraja credentials are present and the database charges the
+  same 20% delivery. The admin's Payments tab, previously a placeholder, now
   lists real attempts with receipt, status and customer. It has still never
   spoken to Safaricom from this environment, so the sandbox transaction is
   yours to run.

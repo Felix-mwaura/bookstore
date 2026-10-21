@@ -57,9 +57,10 @@ baskets.
   page showed a total from days ago and only failed at submit.
 - Quantities can be adjusted or removed on the review screen, and the edit is
   written back to the same storage key the cart drawer uses.
-- Delivery maths reads `FREE_DELIVERY_THRESHOLD` / `STANDARD_DELIVERY_FEE`
-  instead of repeating `3000`/`300` in three places. The server still prices
-  the order; the UI now agrees with it.
+- Delivery maths reads one shared rule (`deliveryFeeFor()`) instead of
+  repeating the rate in three places. The server still prices the order; the
+  UI now agrees with it. (The rate has since changed from a flat fee to 20% of
+  the book total — see `AUDIT_PHASE4.md` §J.)
 - The invented `BH-XXXXX` reference (generated in the browser, never stored)
   is gone. Customers see the real order reference, or the M-Pesa checkout id
   if the order could not be saved.
@@ -93,7 +94,7 @@ The storefront carried content that was not true:
 | Six named customer testimonials, "4.9/5 · 2,400+ readers" | "How it works" — three steps describing the actual flow |
 | "2,000+ titles", "15K+ readers", "6+ years", founder story with named staff | Live counts from the books table, and a description of the shop's actual pricing and tracking |
 | "Up to 40% Off Bestselling Titles" | The deepest real discount, calculated from `original_price` |
-| "Free delivery in Nairobi over KSh 3,000" | The rule the server actually applies. Delivery is now free on every order, so this says exactly that |
+| "Free delivery in Nairobi over KSh 3,000" | The rule the server actually applies: 20% of the book total on every order, shown at checkout |
 | "30-day return policy" | "Order tracking" — a promise the product keeps |
 | Newsletter: "You're in! Check your inbox soon" with no request made | Real insert into `newsletter_subscribers`, honest copy, duplicate-safe |
 | 12 hard-coded books in `app/books.js` (unused, but a trap for anyone editing it) | Deleted |

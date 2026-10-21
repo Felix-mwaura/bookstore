@@ -248,7 +248,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
   return (
     <>
       <div className="bg-navy text-cream/90 text-center py-1.5 text-xs sm:text-[13px] px-4">
-        Free delivery on every order · Every order has a reference
+        Delivery is 20% of the book total · Every order has a reference
       </div>
 
       <header className="sticky top-0 z-40 bg-cream/95 backdrop-blur border-b border-line">

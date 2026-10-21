@@ -7,7 +7,7 @@ import {
   mpesaPassword,
   normalisePhone,
 } from "../../../lib/mpesa";
-import { DELIVERY_FEE } from "../../../lib/site";
+import { deliveryFeeFor } from "../../../lib/site";
 
 // POST /api/mpesa/stk
 //
@@ -124,7 +124,7 @@ export async function POST(request) {
     const book = (catalogue || []).find((b) => b.id === item.id);
     return sum + Number(book?.price || 0) * item.quantity;
   }, 0);
-  const amount = subtotal + DELIVERY_FEE;
+  const amount = subtotal + deliveryFeeFor(subtotal);
 
   if (!Number.isFinite(amount) || amount < 1) {
     return NextResponse.json({ error: "Could not price your cart. Please try again." }, { status: 500 });

@@ -187,8 +187,8 @@ export default async function BookPage({ params }) {
               </div>
 
               <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
-                Delivery is free. The total on the checkout page is the price of the books — nothing
-                is added at the door.
+                Delivery is 20% of the book total. It is added on the checkout page, before you pay,
+                so the amount owed is on screen before you confirm.
               </p>
             </div>
 
