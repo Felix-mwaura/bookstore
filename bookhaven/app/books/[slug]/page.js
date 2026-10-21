@@ -163,44 +163,53 @@ export default async function BookPage({ params }) {
               )}
             </div>
 
-            <h1 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight text-navy">{book.title}</h1>
+            <h1 className="mt-2 text-2xl font-bold leading-tight text-navy sm:text-3xl lg:text-4xl">{book.title}</h1>
             <p className="mt-1.5 text-base text-muted">by {book.author}</p>
 
-            <div className="mt-5 flex flex-wrap items-baseline gap-3">
-              <span className="text-3xl font-bold text-navy">{formatKsh(book.price)}</span>
-              {book.original_price && book.original_price > book.price && (
-                <span className="text-base text-muted line-through">{formatKsh(book.original_price)}</span>
-              )}
+            {/* One panel for everything that decides the purchase: price,
+                stock, quantity, the action. Reading and reference material
+                sits below it, so the buy controls are never split by prose. */}
+            <div className="mt-5 rounded-card border border-line bg-white p-5 sm:p-6">
+              <div className="flex flex-wrap items-baseline gap-3">
+                <span className="text-3xl font-bold text-navy">{formatKsh(book.price)}</span>
+                {book.original_price && book.original_price > book.price && (
+                  <span className="text-base text-muted line-through">{formatKsh(book.original_price)}</span>
+                )}
+              </div>
+
+              <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${state.className}`}>
+                <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+                {state.key === "in" ? "In stock — ready to ship" : state.key === "low" ? `Only ${book.stock_quantity} left` : "Out of stock"}
+              </p>
+
+              <div className="mt-5">
+                <BuyBar book={book} />
+              </div>
+
+              <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
+                Free delivery above KSh 3,000, otherwise a flat KSh 300. The delivery total is shown
+                on the checkout page before you confirm.
+              </p>
             </div>
-
-            <p className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${state.className}`}>
-              <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
-              {state.key === "in" ? "In stock — ready to ship" : state.key === "low" ? `Only ${book.stock_quantity} left` : "Out of stock"}
-            </p>
-
-            <div className="mt-6">
-              <BuyBar book={book} />
-            </div>
-
-            <p className="mt-3 text-xs text-muted leading-relaxed">
-              Free delivery above KSh 3,000, otherwise a flat KSh 300. The delivery total is shown
-              on the checkout page before you confirm.
-            </p>
 
             <BookDescription text={book.description} />
 
-            {details.length > 0 && (
-              <dl className="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {(details.length > 0 || book.isbn) && (
+              <dl className="mt-8 border-t border-line">
                 {details.map((item) => (
-                  <div key={item.label} className="rounded-card border border-line bg-white p-3">
-                    <dt className="text-[10px] font-bold uppercase tracking-wider text-muted">{item.label}</dt>
-                    <dd className="mt-0.5 text-sm font-semibold text-navy">{item.value}</dd>
+                  <div key={item.label} className="flex items-baseline justify-between gap-6 border-b border-line py-2.5">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted">{item.label}</dt>
+                    <dd className="text-sm font-semibold text-navy">{item.value}</dd>
                   </div>
                 ))}
+                {book.isbn && (
+                  <div className="flex items-baseline justify-between gap-6 border-b border-line py-2.5">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted">ISBN</dt>
+                    <dd className="font-mono text-xs text-ink">{book.isbn}</dd>
+                  </div>
+                )}
               </dl>
             )}
-
-            {book.isbn && <p className="mt-4 text-xs text-muted">ISBN {book.isbn}</p>}
           </div>
         </div>
 

@@ -34,10 +34,10 @@ function StepBar({ step }) {
         return (
           <div key={label} className="flex items-center">
             <div className="flex flex-col items-center">
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm border-2 transition-colors ${done ? "bg-[#B5532F] border-[#B5532F] text-white" : active ? "bg-white border-[#B5532F] text-[#B5532F]" : "bg-white border-stone-300 text-stone-400"}`}>
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm border-2 transition-colors ${done ? "bg-[#B5532F] border-[#B5532F] text-white" : active ? "bg-white border-[#B5532F] text-[#B5532F]" : "bg-white border-stone-300 text-muted"}`}>
                 {done ? (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>) : idx}
               </div>
-              <span className={`text-[10px] sm:text-xs font-semibold mt-1.5 whitespace-nowrap ${active ? "text-[#B5532F]" : done ? "text-stone-500" : "text-stone-400"}`}>{label}</span>
+              <span className={`text-[10px] sm:text-xs font-semibold mt-1.5 whitespace-nowrap ${active ? "text-[#B5532F]" : done ? "text-stone-500" : "text-muted"}`}>{label}</span>
             </div>
             {i < steps.length - 1 && <div className={`w-8 sm:w-24 h-0.5 mx-1.5 sm:mx-3 mb-5 transition-colors ${done ? "bg-sienna" : "bg-line"}`} />}
           </div>
@@ -63,7 +63,7 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-[#1B2A4A] line-clamp-1">{item.title}</p>
-              <p className="text-xs text-stone-400">{item.author}</p>
+              <p className="text-xs text-muted">{item.author}</p>
               <div className="flex justify-between items-center mt-1">
                 {onChangeQty ? (
                   <div className="flex items-center border border-stone-300 rounded-lg">
@@ -74,12 +74,12 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
                       className="w-7 h-7 flex items-center justify-center hover:bg-stone-100 font-bold text-sm">+</button>
                   </div>
                 ) : (
-                  <span className="text-xs text-stone-400">Qty: {item.quantity}</span>
+                  <span className="text-xs text-muted">Qty: {item.quantity}</span>
                 )}
                 <span className="text-sm font-bold text-[#1B2A4A]">KSh {(item.price * item.quantity).toLocaleString()}</span>
               </div>
               {onRemove && (
-                <button type="button" onClick={() => onRemove(item.id)} className="text-[11px] text-stone-400 hover:text-red-600 underline mt-1">
+                <button type="button" onClick={() => onRemove(item.id)} className="text-[11px] text-muted hover:text-red-600 underline mt-1">
                   Remove
                 </button>
               )}
@@ -335,7 +335,7 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
           placeholder="0712 345 678"
           className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-green-200 transition ${phoneError ? "border-red-400 bg-red-50/50" : "border-[#E3DCCB] focus:border-green-500"}`} />
         {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
-        <p className="text-xs text-stone-400 mt-1.5">Safaricom lines only (07XX / 01XX)</p>
+        <p className="text-xs text-muted mt-1.5">Safaricom lines only (07XX / 01XX)</p>
       </div>
 
       <div className="bg-stone-50 rounded-xl p-4 flex justify-between items-center">
@@ -407,7 +407,7 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
           <div className="h-1.5 rounded-full transition-all duration-1000"
             style={{ width: `${(countdown / 60) * 100}%`, backgroundColor: countdown > 15 ? "#16a34a" : "#ef4444" }} />
         </div>
-        <p className="text-xs text-stone-400">Checking payment status automatically…</p>
+        <p className="text-xs text-muted">Checking payment status automatically…</p>
       </div>
 
       <div className="flex gap-3">
@@ -525,7 +525,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, o
         <Link href="/login?next=/checkout" className="block text-center bg-[#1B2A4A] hover:bg-[#B5532F] text-white py-4 rounded-xl font-bold transition">
           Sign in to continue
         </Link>
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-stone-400 hover:text-stone-600 transition">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted hover:text-stone-600 transition">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Back to details
         </button>
@@ -547,7 +547,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, o
           <button key={m.id} onClick={() => setMethod(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-[#B5532F] bg-[#B5532F]/5" : "border-[#E3DCCB] hover:border-stone-300 bg-white"}`}>
             <div className={`w-9 h-9 ${m.color} rounded-lg flex items-center justify-center mx-auto mb-2`}><span className="text-white font-black text-sm">{m.icon}</span></div>
             <p className={`text-xs font-bold leading-tight ${method === m.id ? "text-[#B5532F]" : "text-stone-700"}`}>{m.label}</p>
-            <p className="text-[10px] text-stone-400 mt-0.5">{m.sub}</p>
+            <p className="text-[10px] text-muted mt-0.5">{m.sub}</p>
           </button>
         ))}
       </div>
@@ -880,7 +880,7 @@ export default function CheckoutPage() {
           <p className="text-sm text-stone-500 mt-2">
             Orders are tied to your account so you can track delivery and keep a record of every purchase.
           </p>
-          <p className="text-xs text-stone-400 mt-3">
+          <p className="text-xs text-muted mt-3">
             {cart.length === 0
               ? "Your basket is empty."
               : `Your ${cart.reduce((n, i) => n + i.quantity, 0)} item basket is saved on this device — nothing is lost.`}
@@ -941,7 +941,7 @@ export default function CheckoutPage() {
                 <BookCover book={item} className="w-full h-full" />
               </div>
             ))}
-            {cart.length > 3 && <span className="text-xs text-stone-400 font-medium">+{cart.length - 3}</span>}
+            {cart.length > 3 && <span className="text-xs text-muted font-medium">+{cart.length - 3}</span>}
           </div>
         </div>
       )}

@@ -64,21 +64,33 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
               </svg>
               <h3 className="mt-4 text-base font-semibold text-navy">Your basket is empty</h3>
               <p className="mt-1 text-sm text-muted">Add a book and it will wait here for you.</p>
-              <Link href="/books" onClick={close} className="btn-primary mt-5 text-sm">Browse books</Link>
+              <div className="mt-5 flex flex-col items-center gap-2">
+                <Link href="/books" onClick={close} className="btn-primary text-sm">Browse books</Link>
+                <Link
+                  href="/books?sort=newest"
+                  onClick={close}
+                  className="text-xs font-semibold text-sienna underline-offset-2 hover:underline"
+                >
+                  See new arrivals
+                </Link>
+              </div>
             </div>
           ) : (
             <ul role="list" className="divide-y divide-line">
               {cart.map((item) => (
-                <li key={item.id} className="flex gap-3 py-3">
-                  <Link href={bookPath(item)} onClick={close} className="w-16 shrink-0 rounded-r-sm overflow-hidden book-shadow">
-                    <BookCover book={item} className="w-full" sizes="64px" />
+                <li key={item.id} className="flex gap-3 py-3.5 first:pt-1">
+                  <Link href={bookPath(item)} onClick={close} className="w-14 shrink-0 overflow-hidden rounded-r-sm book-shadow">
+                    <BookCover book={item} className="w-full" sizes="56px" />
                   </Link>
 
                   <div className="min-w-0 flex-1">
                     <Link href={bookPath(item)} onClick={close} className="block text-sm font-semibold text-navy line-clamp-2 hover:text-sienna">
                       {item.title}
                     </Link>
-                    <p className="mt-0.5 text-xs text-muted truncate">{item.author}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted">
+                      {item.author}
+                      {item.quantity > 1 ? ` · ${formatKsh(item.price)} each` : ""}
+                    </p>
 
                     <div className="mt-2 flex items-center justify-between gap-2">
                       <div className="flex items-center rounded-control border border-line bg-white">

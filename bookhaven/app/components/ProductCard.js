@@ -13,12 +13,24 @@ export function StockBadge({ book, className = "" }) {
   const state = stockState(book);
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold ${state.className} ${className}`}>
-      <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden="true" />
+      <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
       {state.label}
     </span>
   );
 }
 
+const STOCK_DOT = { in: "bg-success", low: "bg-warning", out: "bg-error" };
+const STOCK_TEXT = { in: "text-muted", low: "text-[#8A5A15]", out: "text-error" };
+
+/**
+ * A catalogue card, built to be read in one glance.
+ *
+ * The cover is the one dominant element; the title follows; the author and
+ * stock are quiet lines; the price sits on a hairline with the single action.
+ * Stock used to be a coloured pill in the middle of the card, which competed
+ * with the price for attention — it still has to be visible (a pay-on-delivery
+ * customer needs to know), so it is now a dot plus a word.
+ */
 export default function ProductCard({ book, onAddToCart, note }) {
   const store = useStore();
   const state = stockState(book);
@@ -41,7 +53,7 @@ export default function ProductCard({ book, onAddToCart, note }) {
 
   return (
     <article className="card-3d group relative flex h-full flex-col rounded-card border border-line bg-white shadow-card">
-      <div className="scene relative p-4 sm:p-5">
+      <div className="scene relative rounded-t-card bg-cream/70 px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5">
         <div className="mx-auto w-full max-w-[9.5rem]">
           <div className="book-3d aspect-[2/3] overflow-hidden rounded-r-md book-shadow">
             <BookCover book={book} className="h-full w-full" />
@@ -62,7 +74,7 @@ export default function ProductCard({ book, onAddToCart, note }) {
         </div>
       </div>
 
-      <div className="flex flex-1 flex-col px-3 pb-3 pt-1 sm:px-4 sm:pb-4">
+      <div className="flex flex-1 flex-col px-3.5 pb-3.5 pt-3 sm:px-4 sm:pb-4">
         <p className="truncate text-[10px] font-semibold uppercase tracking-wider text-muted sm:text-[11px]">
           {book.category}
         </p>
@@ -72,7 +84,7 @@ export default function ProductCard({ book, onAddToCart, note }) {
         <h3 className="mt-1 line-clamp-2 text-[14px] font-semibold leading-snug text-navy sm:text-[15px]">
           <Link
             href={bookPath(book)}
-            className="after:absolute after:inset-0 after:content-[''] hover:text-sienna transition-colors"
+            className="transition-colors after:absolute after:inset-0 after:content-[''] hover:text-sienna"
           >
             {book.title}
           </Link>
@@ -80,11 +92,12 @@ export default function ProductCard({ book, onAddToCart, note }) {
 
         <p className="mt-0.5 truncate text-[13px] text-muted sm:text-sm">{book.author}</p>
 
-        <div className="mt-2">
-          <StockBadge book={book} />
-        </div>
+        <p className={`mt-2 flex items-center gap-1.5 text-[11px] font-medium ${STOCK_TEXT[state.key]}`}>
+          <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${STOCK_DOT[state.key]}`} />
+          {state.label}
+        </p>
 
-        <div className="mt-auto flex items-end justify-between gap-1.5 pt-3">
+        <div className="mt-auto flex items-end justify-between gap-1.5 border-t border-line pt-3">
           {/* The currency label is small so the number has room on a 320px
               two-column grid; the accessible name keeps the full price. */}
           <div className="min-w-0">
