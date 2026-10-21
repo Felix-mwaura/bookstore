@@ -32,8 +32,8 @@ function Hero({ books }) {
             </h1>
             <p className="mt-4 max-w-lg text-base leading-relaxed text-muted sm:mt-5 sm:text-lg">
               Paperbacks and hardcovers across fiction, finance, self-help and biography.
-              Stock shown is the real shelf quantity, and delivery is free — the total you see is
-              the price of the books.
+              Stock shown is the real shelf quantity, and delivery is 20% of the book total,
+              worked out before you pay.
             </p>
 
             <form action="/books" method="get" role="search" className="mt-6 max-w-lg sm:mt-8">
@@ -224,7 +224,7 @@ function ShelfFacts({ stats }) {
     { value: stats.titles.toLocaleString("en-KE"), label: "titles on the shelf" },
     { value: stats.categories.toLocaleString("en-KE"), label: "genres to browse" },
     { value: stats.inStock.toLocaleString("en-KE"), label: "ready to ship" },
-    { value: "Free", label: "delivery on every order" },
+    { value: "20%", label: "delivery on every order" },
   ];
 
   return (
@@ -234,9 +234,8 @@ function ShelfFacts({ stats }) {
           <div>
             <SectionHeading eyebrow="About the shop" title="A bookshop for Kenyan readers" />
             <p className="mt-4 text-sm leading-relaxed text-muted sm:text-base">
-              Prices are in Kenyan shillings and delivery is included: the total you see is the
-              price of the books. Nothing is added at the door, and the full total is on screen
-              before you confirm.
+              Prices are in Kenyan shillings and delivery is 20% of the book total — worked out on
+              screen before you confirm, so nothing is added at the door.
             </p>
             <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
               We deliver countrywide and every order can be followed from your account.
@@ -269,7 +268,7 @@ function TrustStrip({ mpesaEnabled }) {
   // payment: the homepage is rendered on the server, which is the one place
   // that knows whether the Daraja credentials are present.
   const items = [
-    { title: "Free delivery", body: "On every order, countrywide." },
+    { title: "20% delivery", body: "On every order, shown before you pay." },
     { title: "Order tracking", body: "Every order has a reference." },
     mpesaEnabled
       ? { title: "Pay with M-Pesa", body: "Or in cash on delivery." }

@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { BookCover } from "./BookCover";
 import { bookPath } from "../lib/book-url";
-import { formatKsh } from "../lib/site";
+import { DELIVERY_PERCENT, deliveryFeeFor, formatKsh } from "../lib/site";
 import { useDialog } from "../lib/useDialog";
 import { STORE_CONTACT } from "../lib/site";
 import { StoreContext, useStore, useStoreState } from "../lib/store-state";
@@ -137,20 +137,20 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
                 <span className="font-semibold text-navy">{formatKsh(total)}</span>
               </div>
               <div className="mt-1.5 flex justify-between text-sm">
-                <span className="text-muted">Delivery</span>
-                <span className="font-semibold text-success">Free</span>
+                <span className="text-muted">Delivery ({DELIVERY_PERCENT}%)</span>
+                <span className="font-semibold text-navy">{formatKsh(deliveryFeeFor(total))}</span>
               </div>
 
               <div className="mt-3 flex justify-between border-t border-line pt-3 text-base font-bold text-navy">
                 <span>Total</span>
-                <span>{formatKsh(total)}</span>
+                <span>{formatKsh(total + deliveryFeeFor(total))}</span>
               </div>
             </div>
 
             <Link href="/checkout" onClick={close} className="btn-primary mt-3 w-full text-sm">
               Checkout
             </Link>
-            <p className="mt-2 text-center text-xs text-muted">Free delivery — the total is the price of the books.</p>
+            <p className="mt-2 text-center text-xs text-muted">Delivery is {DELIVERY_PERCENT}% of the book total.</p>
           </div>
         )}
       </div>
@@ -171,8 +171,8 @@ export function StoreFooter() {
               <span className="font-playfair text-lg font-bold text-white">Book Haven</span>
             </Link>
             <p className="mt-3 text-sm leading-relaxed text-cream/70">
-              Books in Kenyan shillings, delivered nationwide. Delivery is free —
-              the total you see is the price of the books.
+              Books in Kenyan shillings, delivered nationwide. Delivery is {DELIVERY_PERCENT}%
+              of the book total, shown before you pay.
             </p>
           </div>
 

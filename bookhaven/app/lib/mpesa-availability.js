@@ -3,7 +3,7 @@
 // Two independent conditions, and both have to hold:
 //
 //   1. The Daraja credentials exist, so a push can be sent at all.
-//   2. The database's delivery rule matches DELIVERY_FEE. place_order()
+//   2. The database's delivery rule matches DELIVERY_PERCENT. place_order()
 //      refuses an M-Pesa order unless the payment covers the total IT
 //      computes, so if the database still adds a delivery fee the app never
 //      showed, a customer would be charged and then have the order refused.
@@ -14,7 +14,7 @@
 
 import { mpesaConfig } from "./mpesa.js";
 import { serviceClient } from "./server.js";
-import { DELIVERY_FEE } from "./site.js";
+import { DELIVERY_PERCENT } from "./site.js";
 
 export async function mpesaAvailability() {
   const config = mpesaConfig();
@@ -41,22 +41,22 @@ export async function mpesaAvailability() {
     };
   }
 
-  const { data: rule, error } = await db.rpc("delivery_fee_rule");
+  const { data: rule, error } = await db.rpc("delivery_rate");
 
   if (error) {
     return {
       enabled: false,
       reason: "pricing-migration",
-      detail: "Apply supabase/migrations/20261021090000_free_delivery.sql so the database charges no delivery.",
+      detail: "Apply supabase/migrations/20261021110000_delivery_rate.sql so the database charges the same 20% delivery.",
       environment,
     };
   }
 
-  if (Number(rule) !== DELIVERY_FEE) {
+  if (Number(rule) !== DELIVERY_PERCENT) {
     return {
       enabled: false,
       reason: "pricing-mismatch",
-      detail: `The database charges KSh ${Number(rule).toLocaleString()} delivery; the app expects KSh ${DELIVERY_FEE}.`,
+      detail: `The database charges ${Number(rule)}% delivery; the app expects ${DELIVERY_PERCENT}%.`,
       environment,
     };
   }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
 import { mpesaAvailability } from "../../../lib/mpesa-availability";
-import { DELIVERY_FEE } from "../../../lib/site";
+import { DELIVERY_PERCENT } from "../../../lib/site";
 
 // GET /api/admin/checkout-status — is the shop able to take an order, and can
 // it take M-Pesa?
@@ -23,7 +23,7 @@ export async function GET(request) {
     {
       checkoutPaused: mpesa.reason === "pricing-migration" || mpesa.reason === "pricing-mismatch",
       mpesa,
-      deliveryFee: DELIVERY_FEE,
+      deliveryPercent: DELIVERY_PERCENT,
     },
     { headers: { "Cache-Control": "no-store" } }
   );

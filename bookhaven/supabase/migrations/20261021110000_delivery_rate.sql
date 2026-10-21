@@ -1,26 +1,30 @@
--- Free delivery, and M-Pesa that can be enabled without a second migration.
+-- Delivery at 20% of the book total.
 --
 -- WHY THIS EXISTS
---   The shop no longer charges for delivery: checkout adds nothing to the price
---   of the books and says so on screen, in the basket and on the book page.
---   place_order() is what actually writes the order, so the rule has to change
---   here too or the database would bill KSh 300 the customer was never shown.
+--   Every order is charged delivery equal to 20% of what the books cost. The
+--   checkout shows that figure before the customer confirms, and place_order()
+--   is what actually bills it, so the rule has to exist in both places or the
+--   customer is quoted one number and charged another.
 --
 -- WHAT IT CHANGES
---   • public.place_order(): v_delivery becomes 0 for every order.
---   • Nothing else. No column, no policy, no grant, no trigger, no data.
---     Existing orders keep the delivery fee they were actually charged.
+--   * public.place_order(): v_delivery := round(subtotal * 20%). Nothing else.
+--     No column, no index, no policy, no grant, no trigger, no data. Existing
+--     orders keep the delivery fee they were actually charged.
+--   * public.delivery_rate(): new, returns the percentage (20). The app reads
+--     it before it quotes a total, offers M-Pesa or saves an order, so a
+--     deployment whose database has not had this applied refuses checkout
+--     instead of charging a fee nobody was shown.
+--   * public.delivery_fee_rule(): dropped if present. It was introduced by the
+--     free-delivery migration, which this supersedes; nothing references it.
 --
--- WHY IT MATTERS FOR M-PESA
---   place_order() refuses an M-Pesa order unless the payment it can see covers
---   the total it computes (`coalesce(amount, expected_amount) < v_total`).
---   /api/mpesa/stk charges subtotal + DELIVERY_FEE. While this shop charged
---   KSh 300 below KSh 3,000, a customer who paid the subtotal would be charged
---   correctly but refused an order. Run this migration before or together with
---   the deployment that removes the fee — not after taking a payment.
+-- ORDER OF OPERATIONS
+--   Run this before or together with the deployment. Until it is applied,
+--   /api/orders returns 503 PRICING_NOT_READY and M-Pesa stays switched off.
+--   That is deliberate: the alternative is charging a total the checkout never
+--   displayed.
 --
 -- HOW TO APPLY
---   Supabase dashboard → SQL editor → paste this file → run, or
+--   Supabase dashboard -> SQL editor -> paste this file -> run, or
 --   `supabase db push` if the project is linked. It is idempotent
 --   (create or replace) and safe to run twice.
 --
@@ -131,10 +135,12 @@ begin
     );
   end loop;
 
-  -- Delivery is included in the book price, so the order total is the sum of
-  -- the books. This must stay identical to DELIVERY_FEE in app/lib/site.js:
-  -- place_order() is what the M-Pesa amount is checked against.
-  v_delivery := 0;
+  -- Delivery is 20% of the book total, rounded to the nearest shilling with
+  -- integer arithmetic only. This must stay identical to deliveryFeeFor() in
+  -- app/lib/site.js: /api/mpesa/stk charges that amount, and this function is
+  -- what the payment is checked against before an order is written.
+  --   (subtotal * 20 + 50) / 100   -- integer division, so it rounds half up
+  v_delivery := (v_subtotal * 20 + 50) / 100;
   v_total := v_subtotal + v_delivery;
 
   -- Payment status is derived here, never supplied by the caller.
@@ -210,21 +216,22 @@ end;
 $function$;
 
 -- ---------------------------------------------------------------------------
--- 2. A readable copy of the delivery rule
+-- 2. The rate, readable by the app
 -- ---------------------------------------------------------------------------
--- The checkout only offers M-Pesa when this function exists and returns the
--- same number as DELIVERY_FEE in app/lib/site.js. Until this migration runs,
--- the function is absent, /api/mpesa/status reports "not ready", and the shop
--- quietly takes cash on delivery instead of charging a customer whose order
--- the database would then refuse. That is the safe direction to fail in.
+-- /api/orders, /api/mpesa/status and the admin dashboard all compare this with
+-- DELIVERY_PERCENT in app/lib/site.js. If the two ever differ, checkout pauses
+-- rather than charging a percentage the customer never saw.
 
-create or replace function public.delivery_fee_rule()
+create or replace function public.delivery_rate()
 returns integer
 language sql
 immutable
 as $function$
-  select 0;
+  select 20;
 $function$;
 
-revoke all on function public.delivery_fee_rule() from public;
-grant execute on function public.delivery_fee_rule() to service_role;
+revoke all on function public.delivery_rate() from public;
+grant execute on function public.delivery_rate() to service_role;
+
+-- Superseded helper from the free-delivery migration.
+drop function if exists public.delivery_fee_rule();

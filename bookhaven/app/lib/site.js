@@ -14,13 +14,23 @@ export const SITE_NAME = "Book Haven";
 export const SITE_TAGLINE = "Kenya's online bookstore";
 
 export const SITE_DESCRIPTION =
-  "Buy books online in Kenya. Paperbacks and hardcovers across fiction, finance, self-help and biography — free delivery on every order.";
+  "Buy books online in Kenya. Paperbacks and hardcovers across fiction, finance, self-help and biography — 20% delivery on every order.";
 
-// Delivery is included in the book price: the checkout total is the sum of
-// the books and nothing else. It stays a named constant, and the SQL function
-// place_order() carries the matching rule, so the figure the customer reads
-// and the figure the database writes cannot drift apart.
-export const DELIVERY_FEE = 0;
+// Delivery is 20% of the book total, on every order.
+//
+// One rule, written once here and once in place_order(), which is what
+// actually bills the customer. The arithmetic is deliberately integer-only --
+// floor((subtotal * 20 + 50) / 100) in both languages -- because a Javascript
+// Math.round and a Postgres round() can disagree on a half-shilling, and the
+// M-Pesa amount is checked against the database's total before an order is
+// accepted.
+export const DELIVERY_PERCENT = 20;
+
+/** Delivery charged on a book subtotal of `subtotal` shillings. */
+export function deliveryFeeFor(subtotal) {
+  const amount = Math.max(0, Math.round(Number(subtotal) || 0));
+  return Math.floor((amount * DELIVERY_PERCENT + 50) / 100);
+}
 
 // Store contact details. These are the values the site has always shown;
 // they are centralised here so they can be corrected in one place rather

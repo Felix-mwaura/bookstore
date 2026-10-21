@@ -2760,8 +2760,8 @@ function PaymentsTab({ onNavigate, showToast }) {
               deployment, then redeploy. The callback address defaults to this site&apos;s own domain.</>
             )}
             {config.reason === "pricing-migration" && (
-              <>Run <code className="font-mono">20261021090000_free_delivery.sql</code> in Supabase. Until it is applied the
-              database would still add a delivery fee the customer was never shown, so payments stay switched off.</>
+              <>Run <code className="font-mono">20261021110000_delivery_rate.sql</code> in Supabase. Until it is applied the
+              database would charge a delivery fee the customer was never shown, so payments stay switched off.</>
             )}
             {config.reason === "pricing-mismatch" && <>{config.detail}</>}
             {config.reason === "server" && <>The server is missing <code className="font-mono">SUPABASE_SERVICE_ROLE_KEY</code>.</>}
@@ -3384,9 +3384,10 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
               <p className="text-sm font-bold text-red-900">Checkout is paused — no order can be saved</p>
               <p className="mt-1 text-xs leading-relaxed text-red-800">
                 The database and the app disagree about delivery pricing, so every order is being
-                refused rather than charged a fee the customer never saw.{" "}
+                refused rather than charged a fee the customer never saw (the app charges 20% of the
+                book total).{" "}
                 {checkout.mpesa?.reason === "pricing-migration" ? (
-                  <>Run <code className="font-mono">supabase/migrations/20261021090000_free_delivery.sql</code> in
+                  <>Run <code className="font-mono">supabase/migrations/20261021110000_delivery_rate.sql</code> in
                   the Supabase SQL editor. Checkout resumes as soon as it finishes; nothing needs redeploying.</>
                 ) : (
                   <>Run the migration again and check it returned <code className="font-mono">0</code>.</>

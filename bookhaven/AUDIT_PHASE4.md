@@ -355,35 +355,37 @@ Close those, do the device pass, and the answer changes to yes. Everything else 
 
 ---
 
-## J. Follow-up: free delivery and M-Pesa go-live
+## J. Follow-up: 20% delivery and M-Pesa go-live
 
 Two changes were made to the shop after this audit, and they interact, so they
 are recorded together.
 
-### 1. Delivery is now free
+### 1. Delivery is 20% of the book total
 
-`DELIVERY_FEE = 0` in `app/lib/site.js` is the only delivery figure in the app.
-Checkout, the basket drawer, the book page and the account/order pages all read
-it, and `place_order()` writes the same number. The paid totals therefore equal
-the sum of the books.
+`DELIVERY_PERCENT = 20` and `deliveryFeeFor(subtotal)` in `app/lib/site.js` are
+the only delivery rule in the app. Checkout, the basket drawer, the book page
+and the STK route read them; `place_order()` applies the identical integer
+arithmetic, `(subtotal * 20 + 50) / 100`, so the figure on screen is the figure
+billed.
 
 **Affected code:** `app/lib/site.js`, `app/checkout/page.js`,
 `app/components/StoreShell.js`, `app/components/StoreHeader.js`,
-`app/components/HomeClient.js`, `app/page.js`, `app/books/[slug]/page.js`,
-`app/components/OrderView.js`, `app/admin/admin-client.js`, plus
-`supabase/migrations/20261021090000_free_delivery.sql`.
+`app/components/HomeClient.js`, `app/books/[slug]/page.js`,
+`app/api/mpesa/stk/route.js`, `app/api/orders/route.js`,
+`app/lib/mpesa-availability.js`, plus
+`supabase/migrations/20261021110000_delivery_rate.sql`.
 
 **Schema impact:** none. One function body is replaced (`place_order`), no
 column, index, policy or grant is touched, and existing orders keep the fee they
-were actually charged. The migration adds one read-only helper,
-`delivery_fee_rule()`, used as a preflight check.
+were actually charged. One read-only helper is added, `delivery_rate()`, used as
+a preflight check.
 
 **What must happen before taking money:** run that migration. Until it is
-applied, the database would add KSh 300 to orders under KSh 3,000 — a charge
-the customer never saw. The app defends itself: `/api/mpesa/status` reports
-M-Pesa unavailable while `delivery_fee_rule()` is missing or disagrees with
-`DELIVERY_FEE`, so checkout falls back to cash on delivery instead of charging
-someone whose order would then be refused.
+applied the database still charges KSh 300 below KSh 3,000, so every order is
+refused with `PRICING_NOT_READY` rather than billed a fee the customer never
+saw. `/api/mpesa/status` likewise reports M-Pesa unavailable, and `/admin`
+shows the pause on every tab. The app recovers by itself as soon as the
+migration finishes — nothing needs redeploying.
 
 ### 2. M-Pesa is wired end to end
 
@@ -403,7 +405,7 @@ What changed:
 
 | Area | Change |
 | --- | --- |
-| `app/api/mpesa/stk/route.js` | Prices from `books.price` + `DELIVERY_FEE`; short `AccountReference`; `TransactionDesc` within 13 chars; transaction type configurable |
+| `app/api/mpesa/stk/route.js` | Prices from `books.price` + `deliveryFeeFor()`; short `AccountReference`; `TransactionDesc` within 13 chars; transaction type configurable |
 | `app/api/mpesa/status/route.js` | New. Reports whether a push can be sent, after checking both credentials and the database pricing rule |
 | `app/lib/mpesa.js` | Callback URL defaults to this site's own HTTPS address; rejects a non-HTTPS callback; `MPESA_TRANSACTION_TYPE` for till numbers |
 | `app/checkout/page.js` | M-Pesa tab appears only when the server says it can work; refuses to send until the delivery details are valid; restyled to the shop's system; live total on the amount row; no emoji |
