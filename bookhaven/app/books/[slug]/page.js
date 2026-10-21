@@ -199,13 +199,13 @@ export default async function BookPage({ params }) {
                 {details.map((item) => (
                   <div key={item.label} className="flex items-baseline justify-between gap-6 border-b border-line py-2.5">
                     <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted">{item.label}</dt>
-                    <dd className="text-sm font-semibold text-navy">{item.value}</dd>
+                    <dd className="max-w-[65%] text-right text-sm font-semibold text-navy break-words">{item.value}</dd>
                   </div>
                 ))}
                 {book.isbn && (
                   <div className="flex items-baseline justify-between gap-6 border-b border-line py-2.5">
                     <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted">ISBN</dt>
-                    <dd className="font-mono text-xs text-ink">{book.isbn}</dd>
+                    <dd className="max-w-[65%] text-right font-mono text-xs text-ink break-words">{book.isbn}</dd>
                   </div>
                 )}
               </dl>
