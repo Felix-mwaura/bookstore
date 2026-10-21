@@ -9,7 +9,7 @@ import StoreLayout from "../../components/StoreLayout";
 import { getBookById, getRelatedBooks, bookPath, bookSlug, parseBookSlug } from "../../lib/catalogue";
 import { categorySlug } from "../../lib/categories";
 import { stockState } from "../../lib/stock";
-import { SITE_NAME, SITE_URL, formatKsh, absoluteUrl } from "../../lib/site";
+import { SITE_NAME, SITE_URL, deliveryFeeFor, formatKsh, absoluteUrl } from "../../lib/site";
 
 // Rendered per request rather than cached.
 //
@@ -187,8 +187,9 @@ export default async function BookPage({ params }) {
               </div>
 
               <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
-                Delivery is 20% of the book total. It is added on the checkout page, before you pay,
-                so the amount owed is on screen before you confirm.
+                Delivery is 20% of the book total — {formatKsh(deliveryFeeFor(book.price))} on this
+                title. It is added on the checkout page, before you pay, so the amount owed is on
+                screen before you confirm.
               </p>
             </div>
 
