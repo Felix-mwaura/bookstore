@@ -458,7 +458,7 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
       <StatBand
         title="Today's work"
         description="Each count opens the order list, where you can filter by status."
-        columns="sm:grid-cols-5"
+        columns="sm:grid-cols-3 lg:grid-cols-5"
       >
         <StatCard
           icon="clock"

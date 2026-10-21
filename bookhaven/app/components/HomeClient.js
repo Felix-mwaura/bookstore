@@ -25,7 +25,7 @@ function Hero({ books }) {
               <span aria-hidden="true" className="h-px w-6 bg-sienna" />
               Book Haven · Books in Kenyan shillings
             </p>
-            <h1 className="mt-3 text-[2rem] font-bold leading-[1.08] tracking-[-0.01em] text-navy sm:text-[2.75rem] lg:text-[3.25rem]">
+            <h1 className="mt-3 text-[1.75rem] font-bold leading-[1.1] tracking-[-0.01em] text-navy sm:text-[2.5rem] lg:text-[3.25rem]">
               Books worth keeping,
               <br />
               <span className="italic text-sienna">delivered</span> to your door.

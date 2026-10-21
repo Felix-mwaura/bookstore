@@ -36,7 +36,7 @@ function Timeline({ status }) {
             <div className="flex flex-col items-center">
               <span
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0 ${
-                  done ? "bg-[#B5532F] border-[#B5532F] text-white" : "bg-white border-stone-300 text-stone-400"
+                  done ? "bg-[#B5532F] border-[#B5532F] text-white" : "bg-white border-stone-300 text-muted"
                 }`}
                 aria-hidden="true"
               >
@@ -47,7 +47,7 @@ function Timeline({ status }) {
               )}
             </div>
             <div className="pt-1 pb-1">
-              <p className={`text-sm font-bold ${active ? "text-[#B5532F]" : done ? "text-[#1B2A4A]" : "text-stone-400"}`}>
+              <p className={`text-sm font-bold ${active ? "text-[#B5532F]" : done ? "text-[#1B2A4A]" : "text-muted"}`}>
                 {step.label}
                 {active && <span className="ml-2 text-[10px] uppercase tracking-wider text-[#B5532F]">Current</span>}
               </p>

@@ -303,15 +303,152 @@ Neither touches data, auth, prices or checkout.
 
 ---
 
-## 9. Decision needed
+## 9. Implementation record (what actually shipped)
 
-The brief asks me to wait before major visual changes. So:
+You approved the direction and asked me to proceed autonomously. It went out
+as three reviewable PRs, each merged after a build + lint + HTTP smoke pass.
 
-- **Approve the "warm editorial shelf" direction** and I start with increments 1
-  and 2 (homepage rhythm + genre tiles), show you the diff, then continue.
-- **Or pick a different direction** — say which of R1–R5 you liked and I will
-  re-plan around it.
-- **Or tell me to proceed autonomously** through all six increments and I will
-  ship them as reviewed PRs with the test results attached.
+| PR | Commit | What it changed |
+| --- | --- | --- |
+| #30 | `a636867` | container widths aligned; activity log gets a phone layout; this research file |
+| #31 | `df8f7b4` | storefront: section rhythm, genre tiles, cards, book page, basket, states |
+| #32 | `483564d` | admin: three metric bands, clickable pipeline, drawn icons, phone lists |
+| #33 | (this) | 320px tighten-ups, contrast stragglers, final report |
 
-If you say nothing, I have not touched the design.
+### Components redesigned
+
+1. **Section heading** — new `app/components/SectionHeading.js`: sienna eyebrow
+   with a hairline rule, Playfair title, optional sentence, at most one action.
+   Applied to all six homepage bands.
+2. **Homepage genre grid** — covers already in the catalogue replace emoji;
+   an empty genre shows its initial. Counts unchanged.
+3. **Hero** — smaller, tighter display type so the headline holds together at
+   320 px; search and the two actions unchanged.
+4. **Product card** — cream cover stage, category → title → author → stock
+   (dot + word) → price on a hairline with the single action. The 44 px target,
+   the compact exact price and the full accessible name all survived.
+5. **Catalogue pages** — shared eyebrow + hairline toolbar; the sort and
+   filter controls sit on the same baseline as the count.
+6. **Book page** — one panel holds price, stock, quantity, Add/Buy and the
+   delivery note; the reading material sits below it; details are a definition
+   list with ISBN as the last row.
+7. **Basket drawer** — 56 px covers, unit price when quantity > 1, empty state
+   with two real ways back to the shelf.
+8. **Admin overview** — twelve equal tiles became three bands: *Today's work*
+   (five pipeline counts, each opening the order list), *Money*, *Catalogue*.
+   Every figure is one that already existed; none was derived or invented.
+9. **Admin chrome** — one stroke icon set for stat tiles and navigation
+   (emoji removed), `Packed` given the badge it was missing, recent orders and
+   the activity log get phone lists instead of horizontal scroll.
+10. **States** — `app/error.js` (storefront error boundary), a book-page
+    skeleton shaped like the page, a grid skeleton shaped like the new card,
+    and the existing empty/error states kept.
+
+### Files changed
+
+```
+app/components/SectionHeading.js      new: one heading pattern
+app/components/HomeClient.js          hero, genre tiles, every band
+app/components/ProductCard.js         card hierarchy, stock, hairline price row
+app/components/BookGrid.js            skeleton + empty state
+app/components/StoreShell.js          basket line items and empty state
+app/books/page.js                     toolbar
+app/category/[slug]/page.js           toolbar, emoji heading removed
+app/books/[slug]/page.js              buy panel, definition list
+app/books/[slug]/loading.js           new: book-page skeleton
+app/books/loading.js                  header skeleton
+app/category/[slug]/loading.js        header skeleton
+app/error.js                          new: storefront error boundary
+app/globals.css                       quieter card tilt
+app/admin/admin-client.js             bands, icons, badges, phone lists, contrast
+app/admin/error.js                    contrast
+app/checkout/page.js                  contrast
+app/components/OrderView.js           contrast
+app/access-denied/page.js             contrast
+```
+
+### Tests actually run
+
+| Check | Result |
+| --- | --- |
+| `npx next build --webpack` | ✓ compiled, 28 pages generated |
+| `npx eslint .` | 0 errors, 7 pre-existing warnings |
+| `node scripts/smoke.mjs <local>` | 24 passed, 9 skipped (no service-role key) |
+| `cart:smoke` / `price:smoke` / `store:wiring` | all pass |
+| Card + stock + price markup | asserted with `react-dom/server` |
+| Genre tiles / headings | checked in the rendered production HTML |
+| Production pages | `/`, `/books`, book page fetched after deploy |
+
+### Regressions found and fixed while doing this
+
+- Genre tiles are links whose accessible name would have included the cover
+  `alt` text; the cluster is `aria-hidden`, so the name stays "Self-Help · 2
+  books".
+- The card's stretched link needed the article to stay `position: relative` but
+  *not* `overflow: hidden`, or the 3D tilt and its shadow were clipped. The
+  cream stage carries the rounding instead.
+- `Packed` had no badge (a real fulfilment stage since `set_order_status`
+  supports it), so it rendered as a generic grey pill.
+- Several thousand characters of the admin and checkout put `stone-400`
+  (2.5:1) on white; those moved to the muted token (6.1:1). Disabled states
+  were left alone, since disabled text is exempt.
+- Pipeline counts open the order list rather than a pre-filtered slice, because
+  "awaiting processing" spans two statuses. The band description says exactly
+  that instead of implying a filter that does not exist.
+
+### Still not verified
+
+- No browser render at any width, in either the storefront or the admin. No
+  headless browser can be installed here; every responsive judgement above is
+  from the markup and the Tailwind classes, not from looking.
+- The admin screens need a signed-in session and the service-role key, so
+  their layout was not rendered after the change — only built and linted.
+- No screen-reader run and no automated axe pass.
+- Pinterest itself was never readable from this environment (403); see §0.
+
+---
+
+## 10. Final report
+
+**What this was.** A design research pass followed by a six-increment
+implementation of a "warm editorial shelf" direction, on top of the existing
+cream/navy/sienna identity. No new dependency, no framework change, no
+TypeScript, no touch to auth, RLS, order creation or payment code.
+
+**References used** (as inspiration only — no template code or asset was
+copied, so no licence was needed):
+
+- Readster — live Webflow demo: cover-first cards, generous section spacing.
+  <https://readster-template.webflow.io/>
+- Edition — live Webflow demo: serif display type, a wall of covers at small
+  scale. <https://edition-template.webflow.io/>
+- Vintage Books concept (image in `design-refs/`): eyebrow + rule + serif
+  headline, hairline dividers.
+- Minimal product grid (Dribbble, image in `design-refs/`): name/price on a
+  hairline, one action.
+- Orders-admin shot (Dribbble, image in `design-refs/`): pipeline counters as
+  the first thing on the dashboard.
+
+**Pinterest:** not accessible from this environment (HTTP 403 on search,
+boards, pins and `/ideas/`). The pin URLs are in §6 for you to open; nothing
+in the implementation depends on content I could not see.
+
+**Regressions:** none known in behaviour. The basket, prices, stock caps,
+checkout totals, auth guards and RLS are untouched. The visual regressions
+found while implementing (clipped 3D tilt, duplicated accessible names in
+genre tiles, a missing `Packed` badge, low-contrast admin text) are listed in
+§9 with their fixes.
+
+**Outstanding, in priority order:**
+
+1. **A real device pass** at 320 / 360 / 390 / 768 / 1024 / 1440 px, in a
+   browser. This is the one thing I could not do, and it is the check that
+   would catch anything my reading of the classes missed.
+2. **Admin visual check while signed in** — the bands and the new lists were
+   built and linted, never rendered.
+3. The four launch items from the audit are unchanged: apply
+   `20261020030000_profile_role_hardening.sql`, set `NEXT_PUBLIC_SITE_URL` and
+   `NEXT_PUBLIC_MPESA_ENABLED`, replace the placeholder contact details, and
+   test M-Pesa in the Daraja sandbox when you go live.
+4. Pinterest-specific refinements, if you open the pins in §6 and like
+   something there that is not already in this direction.

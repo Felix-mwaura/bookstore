@@ -280,6 +280,36 @@ arithmetic (cap, out-of-stock, rapid adds, totals, reconciliation).
 real browser click-through — no browser can be installed in this environment,
 so the visual result on a device is still owed (item 7 below).
 
+### G3. Design pass — "warm editorial shelf" (PRs #30–#32)
+
+Research, references and the reasoning: `DESIGN_RESEARCH.md`. Pinterest could
+not be opened from this environment (HTTP 403 on every URL); the shortlist was
+built from live template demos, the Dribbble search surface and design images,
+and the report says which was which.
+
+```
+app/components/SectionHeading.js   new: eyebrow + rule + title + one action
+app/components/HomeClient.js       one rhythm across all six bands; genre
+                                   tiles show real covers instead of emoji
+app/components/ProductCard.js      cream cover stage; stock as dot + word;
+                                   price on a hairline with the single action
+app/components/BookGrid.js         skeleton shaped like the new card
+app/components/StoreShell.js       basket line items, 56px covers, empty state
+app/books/page.js                  eyebrow + hairline toolbar
+app/category/[slug]/page.js        same toolbar, emoji removed
+app/books/[slug]/page.js           one buy panel; details as a definition list
+app/books/[slug]/loading.js        new: book-page skeleton
+app/error.js                       new: storefront error boundary
+app/admin/admin-client.js          three metric bands, pipeline links, drawn
+                                   icons, Packed badge, phone lists, contrast
+app/globals.css                    quieter card tilt
+several files                      stone-400 (2.5:1) → muted token (6.1:1)
+```
+
+Every figure on the dashboard existed before the pass; none was derived or
+invented. **Not verified:** any browser render, at any width, in the
+storefront or the admin — no headless browser is installable here.
+
 ---
 
 ## H. Remaining work
