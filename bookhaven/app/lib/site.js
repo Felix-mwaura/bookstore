@@ -14,10 +14,13 @@ export const SITE_NAME = "Book Haven";
 export const SITE_TAGLINE = "Kenya's online bookstore";
 
 export const SITE_DESCRIPTION =
-  "Buy books online in Kenya. Paperbacks and hardcovers across fiction, finance, self-help and biography — free delivery on orders of KSh 3,000 and above.";
+  "Buy books online in Kenya. Paperbacks and hardcovers across fiction, finance, self-help and biography — free delivery on every order.";
 
-export const FREE_DELIVERY_THRESHOLD = 3000;
-export const STANDARD_DELIVERY_FEE = 300;
+// Delivery is included in the book price: the checkout total is the sum of
+// the books and nothing else. It stays a named constant, and the SQL function
+// place_order() carries the matching rule, so the figure the customer reads
+// and the figure the database writes cannot drift apart.
+export const DELIVERY_FEE = 0;
 
 // Store contact details. These are the values the site has always shown;
 // they are centralised here so they can be corrected in one place rather

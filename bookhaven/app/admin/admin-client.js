@@ -1125,7 +1125,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
 
                     <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
                       <p>Subtotal <span className="float-right font-semibold text-navy">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
-                      <p>Delivery <span className="float-right font-semibold text-navy">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
+                      <p>Delivery <span className="float-right font-semibold text-navy">{Number(o.delivery_fee) > 0 ? `KSh ${Number(o.delivery_fee).toLocaleString()}` : "Free"}</span></p>
                       <p>Total <span className="float-right font-bold text-navy">KSh {(o.total ?? 0).toLocaleString()}</span></p>
                       {o.payment_ref && <p>Receipt <span className="float-right font-mono">{o.payment_ref}</span></p>}
                       {o.courier && <p>Courier <span className="float-right">{o.courier}</span></p>}
@@ -1297,7 +1297,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                                 <div className="bg-white rounded-xl border border-stone-100 p-4">
                                   <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Money & dispatch</p>
                                   <p className="text-stone-500">Subtotal: <span className="font-semibold text-[#1B2A4A]">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
-                                  <p className="text-stone-500">Delivery: <span className="font-semibold text-[#1B2A4A]">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
+                                  <p className="text-stone-500">Delivery: <span className="font-semibold text-[#1B2A4A]">{Number(o.delivery_fee) > 0 ? `KSh ${Number(o.delivery_fee).toLocaleString()}` : "Free"}</span></p>
                                   <p className="text-stone-500">Total: <span className="font-bold text-[#1B2A4A]">KSh {(o.total ?? 0).toLocaleString()}</span></p>
                                   {o.payment_ref && <p className="text-stone-500 mt-1">Receipt: <span className="font-mono font-bold">{o.payment_ref}</span></p>}
                                   {o.courier && <p className="text-stone-500 mt-1">Courier: {o.courier}</p>}
@@ -2247,7 +2247,7 @@ function CustomersTab({ users, orders }) {
 
                     <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
                       <p>Subtotal <span className="float-right font-semibold text-navy">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
-                      <p>Delivery <span className="float-right font-semibold text-navy">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
+                      <p>Delivery <span className="float-right font-semibold text-navy">{Number(o.delivery_fee) > 0 ? `KSh ${Number(o.delivery_fee).toLocaleString()}` : "Free"}</span></p>
                       <p>Total <span className="float-right font-bold text-navy">KSh {(o.total ?? 0).toLocaleString()}</span></p>
                       {o.payment_ref && <p>Receipt <span className="float-right font-mono">{o.payment_ref}</span></p>}
                       {o.courier && <p>Courier <span className="float-right">{o.courier}</span></p>}
@@ -2488,7 +2488,7 @@ function UsersTab({ users, orders, session, showToast }) {
 
                     <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
                       <p>Subtotal <span className="float-right font-semibold text-navy">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
-                      <p>Delivery <span className="float-right font-semibold text-navy">KSh {(o.delivery_fee ?? 0).toLocaleString()}</span></p>
+                      <p>Delivery <span className="float-right font-semibold text-navy">{Number(o.delivery_fee) > 0 ? `KSh ${Number(o.delivery_fee).toLocaleString()}` : "Free"}</span></p>
                       <p>Total <span className="float-right font-bold text-navy">KSh {(o.total ?? 0).toLocaleString()}</span></p>
                       {o.payment_ref && <p>Receipt <span className="float-right font-mono">{o.payment_ref}</span></p>}
                       {o.courier && <p>Courier <span className="float-right">{o.courier}</span></p>}
@@ -2672,6 +2672,244 @@ function ActivityLogTab() {
 // ─────────────────────────────────────────────────────────
 // PLACEHOLDER TABS
 // ─────────────────────────────────────────────────────────
+function PaymentsTab({ onNavigate, showToast }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [filter, setFilter] = useState("all");
+
+  const load = useCallback(async (status) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+      const res = await fetch(`/api/admin/payments?status=${status}`, {
+        headers: { authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      let json;
+      try { json = await res.json(); } catch { throw new Error(`Server returned an unreadable response (${res.status})`); }
+      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+      setData(json);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load(filter); }, [load, filter]);
+
+  const statusLabel = { completed: "Paid", pending: "Pending", failed: "Failed" };
+  const summary = data?.summary;
+  const config = data?.configuration;
+  const payments = data?.payments || [];
+
+  const statusChip = (key, label, count) => (
+    <button
+      key={key}
+      type="button"
+      onClick={() => setFilter(key)}
+      aria-pressed={filter === key}
+      className={`min-h-9 rounded-control border px-3 text-xs font-semibold transition ${
+        filter === key ? "border-navy bg-navy text-white" : "border-line bg-white text-muted hover:border-navy hover:text-navy"
+      }`}
+    >
+      {label}{typeof count === "number" ? ` (${count})` : ""}
+    </button>
+  );
+
+  return (
+    <div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div>
+          <h2 className="text-lg font-bold text-navy">M-Pesa payments</h2>
+          <p className="mt-0.5 max-w-xl text-xs text-muted">
+            The last 100 payment attempts, newest first. An order is only marked paid when
+            Safaricom confirms the amount, never because a browser said so.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by payment status">
+            {statusChip("all", "All", summary?.total)}
+            {statusChip("completed", "Paid", summary?.completed)}
+            {statusChip("pending", "Pending", summary?.pending)}
+            {statusChip("failed", "Failed", summary?.failed)}
+          </div>
+          <button
+            type="button"
+            onClick={() => { load(filter); showToast?.("M-Pesa payments refreshed"); }}
+            className="min-h-9 rounded-control border border-line bg-white px-3 text-xs font-semibold text-navy transition hover:border-navy"
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+
+      {config && !config.enabled && (
+        <div className="mb-4 rounded-control border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-900">
+            M-Pesa is not live yet — checkout is taking cash on delivery only.
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-800">
+            {config.reason === "not-configured" && (
+              <>Set <code className="font-mono">MPESA_CONSUMER_KEY</code>, <code className="font-mono">MPESA_CONSUMER_SECRET</code>,{" "}
+              <code className="font-mono">MPESA_SHORTCODE</code> and <code className="font-mono">MPESA_PASSKEY</code> in the
+              deployment, then redeploy. The callback address defaults to this site&apos;s own domain.</>
+            )}
+            {config.reason === "pricing-migration" && (
+              <>Run <code className="font-mono">20261021090000_free_delivery.sql</code> in Supabase. Until it is applied the
+              database would still add a delivery fee the customer was never shown, so payments stay switched off.</>
+            )}
+            {config.reason === "pricing-mismatch" && <>{config.detail}</>}
+            {config.reason === "server" && <>The server is missing <code className="font-mono">SUPABASE_SERVICE_ROLE_KEY</code>.</>}
+          </p>
+        </div>
+      )}
+
+      {config?.enabled && (
+        <p className="mb-4 inline-flex items-center gap-2 rounded-control border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800">
+          <span aria-hidden="true">✓</span>
+          M-Pesa is live · {config.environment === "sandbox" ? "Safaricom sandbox" : "production"}
+        </p>
+      )}
+
+      {error && (
+        <div className="mb-4 rounded-control border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+          {error}
+          <button type="button" onClick={() => load(filter)} className="ml-2 font-semibold underline">Try again</button>
+        </div>
+      )}
+
+      {summary && (
+        <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Collected", value: `KSh ${summary.collected.toLocaleString("en-KE")}`, accent: "text-success" },
+            { label: "Paid attempts", value: summary.completed, accent: "text-navy" },
+            { label: "Awaiting PIN", value: summary.pending, accent: "text-navy" },
+            { label: "Failed or cancelled", value: summary.failed, accent: summary.failed ? "text-error" : "text-navy" },
+          ].map(({ label, value, accent }) => (
+            <div key={label} className="rounded-card border border-line bg-white p-4">
+              <p className={`text-xl font-bold tabular-nums ${accent}`}>{value}</p>
+              <p className="mt-0.5 text-xs text-muted">{label}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="rounded-card border border-line bg-white overflow-hidden">
+        {loading && !data ? (
+          <div className="space-y-3 p-4">
+            {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+          </div>
+        ) : payments.length === 0 ? (
+          <div className="p-10 text-center">
+            <p className="text-sm font-semibold text-navy">
+              {filter === "all" ? "No M-Pesa attempts yet" : `No ${statusLabel[filter]?.toLowerCase() || filter} payments`}
+            </p>
+            <p className="mx-auto mt-1 max-w-sm text-xs text-muted">
+              {config?.enabled
+                ? "Payments appear here the moment a customer is sent a prompt, including ones they cancel."
+                : "Once M-Pesa is configured, every attempt will be listed here with its receipt and a link to the order it paid for."}
+            </p>
+          </div>
+        ) : (
+          <>
+            <table className="hidden w-full lg:table">
+              <thead>
+                <tr className="border-b border-line bg-subtle/60 text-left text-[11px] uppercase tracking-wider text-muted">
+                  <th scope="col" className="px-4 py-2.5 font-semibold">When</th>
+                  <th scope="col" className="px-4 py-2.5 font-semibold">Customer</th>
+                  <th scope="col" className="px-4 py-2.5 font-semibold">Amount</th>
+                  <th scope="col" className="px-4 py-2.5 font-semibold">Receipt</th>
+                  <th scope="col" className="px-4 py-2.5 font-semibold">Status</th>
+                  <th scope="col" className="px-4 py-2.5 font-semibold">Order</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {payments.map((p) => (
+                  <tr key={p.id} className="align-top">
+                    <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">
+                      {new Date(p.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-sm font-semibold text-navy">{p.customer.name || "Customer"}</p>
+                      <p className="text-xs text-muted">{p.phone || p.customer.email || "—"}</p>
+                    </td>
+                    <td className="px-4 py-3 text-sm font-bold text-navy whitespace-nowrap">
+                      KSh {Number(p.amount || 0).toLocaleString("en-KE")}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-ink">{p.receipt || "—"}</td>
+                    <td className="px-4 py-3">
+                      <Badge status={statusLabel[p.status] || p.status} />
+                      {p.status === "failed" && p.result_desc && (
+                        <p className="mt-1 max-w-[16rem] text-[11px] text-muted">{p.result_desc}</p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      {p.order_id ? (
+                        <button
+                          type="button"
+                          onClick={() => onNavigate?.("orders")}
+                          className="font-mono font-semibold text-sienna underline underline-offset-2 hover:text-sienna-hover"
+                        >
+                          {p.order_id.slice(0, 8).toUpperCase()}
+                        </button>
+                      ) : (
+                        <span className="text-muted">Not ordered</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Phones: one card per attempt, same fields, no horizontal scroll. */}
+            <ul role="list" className="divide-y divide-stone-100 lg:hidden">
+              {payments.map((p) => (
+                <li key={p.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-navy truncate">{p.customer.name || "Customer"}</p>
+                      <p className="text-xs text-muted truncate">{p.phone || p.customer.email || "—"}</p>
+                    </div>
+                    <p className="shrink-0 text-sm font-bold text-navy">KSh {Number(p.amount || 0).toLocaleString("en-KE")}</p>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Badge status={statusLabel[p.status] || p.status} />
+                    <span className="text-[11px] text-muted">
+                      {new Date(p.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
+                    <span className="font-mono">{p.receipt || "No receipt"}</span>
+                    {p.order_id ? (
+                      <button
+                        type="button"
+                        onClick={() => onNavigate?.("orders")}
+                        className="font-mono font-semibold text-sienna underline underline-offset-2"
+                      >
+                        Order {p.order_id.slice(0, 8).toUpperCase()}
+                      </button>
+                    ) : (
+                      <span>Not ordered</span>
+                    )}
+                  </div>
+                  {p.status === "failed" && p.result_desc && (
+                    <p className="mt-1 text-[11px] text-muted">{p.result_desc}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PlaceholderTab({ icon, title, description }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
@@ -3136,7 +3374,7 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
           {activeTab==="orders"&&<OrdersTab orders={orders} books={books} onReload={loadOrders} showToast={showToast}/>}
           {activeTab==="books"&&<BooksTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}
           {activeTab==="customers"&&<CustomersTab users={users} orders={orders}/>}
-          {activeTab==="payments"&&<PlaceholderTab icon="💳" title="Payments" description="View M-Pesa transactions, card payments, refund history, and payout reports."/>}
+          {activeTab==="payments"&&<PaymentsTab onNavigate={setActiveTab} showToast={showToast}/>}
           {activeTab==="reports"&&<PlaceholderTab icon="📈" title="Reports" description="Generate sales, inventory, customer, and revenue reports. Export as CSV or PDF."/>}
           {activeTab==="inventory"&&<InventoryTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}
           {activeTab==="notifications"&&<NotificationsTab showToast={showToast}/>}

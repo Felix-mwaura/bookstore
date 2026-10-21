@@ -352,3 +352,73 @@ The storefront is fast, honest, server-rendered and usable from a 320 px phone t
 - **Contact details look provisional**, which is a trust problem no amount of code can fix.
 
 Close those, do the device pass, and the answer changes to yes. Everything else on the list is improvement, not a blocker.
+
+---
+
+## J. Follow-up: free delivery and M-Pesa go-live
+
+Two changes were made to the shop after this audit, and they interact, so they
+are recorded together.
+
+### 1. Delivery is now free
+
+`DELIVERY_FEE = 0` in `app/lib/site.js` is the only delivery figure in the app.
+Checkout, the basket drawer, the book page and the account/order pages all read
+it, and `place_order()` writes the same number. The paid totals therefore equal
+the sum of the books.
+
+**Affected code:** `app/lib/site.js`, `app/checkout/page.js`,
+`app/components/StoreShell.js`, `app/components/StoreHeader.js`,
+`app/components/HomeClient.js`, `app/page.js`, `app/books/[slug]/page.js`,
+`app/components/OrderView.js`, `app/admin/admin-client.js`, plus
+`supabase/migrations/20261021090000_free_delivery.sql`.
+
+**Schema impact:** none. One function body is replaced (`place_order`), no
+column, index, policy or grant is touched, and existing orders keep the fee they
+were actually charged. The migration adds one read-only helper,
+`delivery_fee_rule()`, used as a preflight check.
+
+**What must happen before taking money:** run that migration. Until it is
+applied, the database would add KSh 300 to orders under KSh 3,000 — a charge
+the customer never saw. The app defends itself: `/api/mpesa/status` reports
+M-Pesa unavailable while `delivery_fee_rule()` is missing or disagrees with
+`DELIVERY_FEE`, so checkout falls back to cash on delivery instead of charging
+someone whose order would then be refused.
+
+### 2. M-Pesa is wired end to end
+
+The Daraja routes already existed but could not have worked:
+
+- they priced the cart with `quote_cart()`, a database function that is not in
+  any migration in this repository, so a fresh database (or any database where
+  it was never created) failed every push;
+- `AccountReference` was `BookHaven-` plus 8 characters — 18 characters, over
+  Daraja's 12-character limit;
+- the checkout offered M-Pesa only when a **build-time** flag
+  (`NEXT_PUBLIC_MPESA_ENABLED`) was set, which let the UI and the API disagree;
+- a signed-in customer could press "Send M-Pesa request" before filling in the
+  delivery details, pay, and then have the order rejected by validation.
+
+What changed:
+
+| Area | Change |
+| --- | --- |
+| `app/api/mpesa/stk/route.js` | Prices from `books.price` + `DELIVERY_FEE`; short `AccountReference`; `TransactionDesc` within 13 chars; transaction type configurable |
+| `app/api/mpesa/status/route.js` | New. Reports whether a push can be sent, after checking both credentials and the database pricing rule |
+| `app/lib/mpesa.js` | Callback URL defaults to this site's own HTTPS address; rejects a non-HTTPS callback; `MPESA_TRANSACTION_TYPE` for till numbers |
+| `app/checkout/page.js` | M-Pesa tab appears only when the server says it can work; refuses to send until the delivery details are valid; restyled to the shop's system; live total on the amount row; no emoji |
+| `app/api/admin/payments/route.js` | New. Admin-only list of the last 100 attempts with customer, receipt, amount, status and the order it paid for |
+| `app/admin/admin-client.js` | Payments tab replaces the placeholder: configuration banner, counts, filters, table on desktop and cards on phones |
+
+**Security properties kept:** the amount is never read from the request; the
+pending `mpesa_payments` row is written before the prompt and is the only thing
+Safaricom's unsigned callback may update; the callback cannot create a payment
+or an order; a payment can back at most one order (`order_id is not null`
+check); `place_order()` re-verifies status, owner and amount, and still refuses
+orders it cannot price from the catalogue.
+
+**Still unverified:** no push has been sent to Safaricom from here, because
+there are no Daraja credentials and no sandbox access in this environment. The
+happy path, the PIN timeout, cancellation and the callback arriving before the
+browser polls are all reasoned from the API contract, not observed. Treat the
+first sandbox transaction as the real test.

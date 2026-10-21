@@ -187,8 +187,8 @@ export default async function BookPage({ params }) {
               </div>
 
               <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
-                Free delivery above KSh 3,000, otherwise a flat KSh 300. The delivery total is shown
-                on the checkout page before you confirm.
+                Delivery is free. The total on the checkout page is the price of the books — nothing
+                is added at the door.
               </p>
             </div>
 

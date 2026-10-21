@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BookCover } from "../components/BookCover";
 import { supabase } from "../lib/supabase";
 import { orderReference } from "../lib/orders";
-import { FREE_DELIVERY_THRESHOLD, STANDARD_DELIVERY_FEE } from "../lib/site";
+import { DELIVERY_FEE } from "../lib/site";
 
 function formatPhone(raw) {
   const d = String(raw || "").replace(/\D/g, "");
@@ -50,8 +50,7 @@ function StepBar({ step }) {
 function OrderSummary({ cart, total, onChangeQty, onRemove }) {
   // Same rule the server applies in place_order, imported rather than
   // duplicated so the displayed total cannot disagree with the charged one.
-  const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
-  const grand = total + delivery;
+  const grand = total + DELIVERY_FEE;
   return (
     <div className="bg-white rounded-card border border-line p-5 sm:p-6 lg:sticky lg:top-24">
       <h3 className="font-bold text-[#1B2A4A] text-lg mb-5">Order Summary</h3>
@@ -89,12 +88,11 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
       </div>
       <div className="border-t border-stone-100 mt-5 pt-4 space-y-2.5">
         <div className="flex justify-between text-sm"><span className="text-stone-500">Subtotal</span><span className="font-semibold">KSh {total.toLocaleString()}</span></div>
-        <div className="flex justify-between text-sm"><span className="text-stone-500">Delivery</span>{delivery === 0 ? <span className="font-semibold text-success">Free</span> : <span className="font-semibold">KSh {delivery.toLocaleString()}</span>}</div>
-        {delivery > 0 && <p className="text-[11px] text-amber-600 bg-amber-50 rounded-lg px-3 py-1.5">Add KSh {(FREE_DELIVERY_THRESHOLD - total).toLocaleString()} more for free delivery</p>}
+        <div className="flex justify-between text-sm"><span className="text-stone-500">Delivery</span><span className="font-semibold text-success">Free</span></div>
         <div className="flex justify-between text-base font-bold text-navy border-t border-line pt-3"><span>Total</span><span>KSh {grand.toLocaleString()}</span></div>
       </div>
       <div className="mt-5 pt-4 border-t border-line space-y-1.5">
-        <p className="text-xs text-muted">Delivery is free on orders of KSh 3,000 and above.</p>
+        <p className="text-xs text-muted">Delivery is free on every order — the total is the price of the books.</p>
         <p className="text-xs text-muted">You will see the full total before you confirm.</p>
       </div>
     </div>
@@ -195,7 +193,7 @@ function StepDetails({ data, onChange, onNext }) {
   );
 }
 
-function MpesaFlow({ phone, total, reference, items, onSuccess }) {
+function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess }) {
   const [stage, setStage] = useState("idle"); // idle | sending | waiting | polling | success | failed | cancelled
   const [mpesaPhone, setMpesaPhone] = useState(phone || "");
   const [phoneError, setPhoneError] = useState("");
@@ -263,10 +261,16 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
     return () => clearInterval(pollRef.current);
   }, [stage, checkoutRequestId, checkPaymentStatus]);
 
+  // The idle screen shows the live cart total; once a prompt is in flight it
+  // must keep showing the amount Safaricom was actually asked for.
+  const displayAmount = stage === "idle" ? total : chargedAmount;
+
   const sendSTK = async () => {
     setPhoneError("");
-    const formatted = formatPhone(mpesaPhone);
-    if (formatted.length < 12) { setPhoneError("Please enter a valid Safaricom number (07XX or 01XX)"); return; }
+    if (!isValidKenyanPhone(mpesaPhone)) {
+      setPhoneError("Enter a valid Safaricom number, for example 0712 345 678.");
+      return;
+    }
 
     setStage("sending");
     setErrorMsg("");
@@ -313,111 +317,119 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
   // ── IDLE ──
   if (stage === "idle") return (
     <div className="space-y-5">
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-5 flex gap-4">
-        <div className="w-12 h-12 bg-green-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-md">
-          <span className="text-white font-black text-lg">M</span>
+      <div className="flex items-start gap-3 rounded-control border border-line bg-subtle/60 p-4">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-control bg-[#2F7D4F]" aria-hidden="true">
+          <span className="text-sm font-black text-white">M</span>
         </div>
         <div>
-          <p className="font-bold text-green-800">Real M-Pesa STK Push</p>
-          <p className="text-sm text-green-700 mt-0.5">A payment prompt will be sent directly to your Safaricom number. Enter your M-Pesa PIN on your phone to complete.</p>
+          <p className="text-sm font-semibold text-navy">Pay with M-Pesa</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted">
+            We send a payment request to your phone. Enter your M-Pesa PIN there and this
+            page updates by itself — no code to copy.
+          </p>
         </div>
       </div>
 
       {errorMsg && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
+        <p className="rounded-control border border-error/30 bg-error/5 p-3 text-sm text-error" role="alert">
           {errorMsg}
-        </div>
+        </p>
       )}
 
       <div>
-        <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1.5">Safaricom Number</label>
-        <input type="tel" value={mpesaPhone} onChange={(e) => { setMpesaPhone(e.target.value); setPhoneError(""); }}
+        <label htmlFor="mpesa-phone" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">
+          Safaricom number
+        </label>
+        <input
+          id="mpesa-phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          value={mpesaPhone}
+          onChange={(e) => { setMpesaPhone(e.target.value); setPhoneError(""); }}
           placeholder="0712 345 678"
-          className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-green-200 transition ${phoneError ? "border-red-400 bg-red-50/50" : "border-[#E3DCCB] focus:border-green-500"}`} />
-        {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
-        <p className="text-xs text-muted mt-1.5">Safaricom lines only (07XX / 01XX)</p>
+          aria-invalid={phoneError ? "true" : undefined}
+          aria-describedby={phoneError ? "mpesa-phone-error" : "mpesa-phone-help"}
+          className={`min-h-11 w-full rounded-control border bg-white px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-sienna/20 ${phoneError ? "border-error" : "border-line focus:border-navy"}`}
+        />
+        {phoneError
+          ? <p id="mpesa-phone-error" className="mt-1 text-xs text-error">{phoneError}</p>
+          : <p id="mpesa-phone-help" className="mt-1.5 text-xs text-muted">Safaricom lines only (07XX / 01XX).</p>}
       </div>
 
-      <div className="bg-stone-50 rounded-xl p-4 flex justify-between items-center">
-        <span className="text-stone-500 text-sm">Amount to pay</span>
-        <span className="text-2xl font-black text-[#1B2A4A]">KSh {chargedAmount.toLocaleString()}</span>
+      <div className="flex items-center justify-between rounded-control bg-subtle px-4 py-3">
+        <span className="text-sm text-muted">Amount to pay</span>
+        <span className="text-xl font-bold text-navy">KSh {displayAmount.toLocaleString()}</span>
       </div>
 
-      <button onClick={sendSTK}
-        className="w-full bg-green-600 hover:bg-green-700 text-white py-4 rounded-xl font-bold text-base transition-all active:scale-95 flex items-center justify-center gap-2">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-        </svg>
-        Send M-Pesa Request
+      <button
+        type="button"
+        onClick={sendSTK}
+        disabled={!ready}
+        className="btn-primary w-full text-base disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-muted"
+      >
+        Send M-Pesa request
       </button>
+      {!ready && (
+        <p className="text-center text-xs text-muted">Add your delivery details above before paying.</p>
+      )}
     </div>
   );
 
   // ── SENDING ──
   if (stage === "sending") return (
-    <div className="text-center py-12 space-y-4">
-      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto animate-pulse">
-        <span className="text-green-600 font-black text-3xl">M</span>
+    <div className="space-y-3 py-10 text-center" role="status">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-subtle">
+        <span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-sienna" aria-hidden="true" />
       </div>
-      <p className="font-bold text-[#1B2A4A] text-lg">Connecting to Safaricom…</p>
-      <p className="text-stone-500 text-sm">Sending payment request to {mpesaPhone}</p>
-      <div className="flex justify-center gap-1.5 pt-2">
-        {[0,1,2].map(i => <div key={i} className="w-2.5 h-2.5 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: `${i*0.15}s` }} />)}
-      </div>
+      <p className="font-semibold text-navy">Sending the request to Safaricom…</p>
+      <p className="text-sm text-muted">{mpesaPhone}</p>
     </div>
   );
 
   // ── WAITING (STK sent, user needs to enter PIN on phone) ──
   if (stage === "waiting") return (
     <div className="space-y-5">
-      {/* Simulated phone screen */}
-      <div className="bg-green-600 rounded-2xl p-6 text-white text-center shadow-xl">
-        <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3">
-          <span className="font-black text-2xl">M</span>
-        </div>
-        <p className="font-black text-lg tracking-wide">M-PESA</p>
-        <p className="text-green-200 text-sm mt-1">Payment Request Sent ✓</p>
-        <div className="bg-white/10 rounded-xl p-4 mt-4 space-y-1">
-          <p className="text-green-100 text-xs">Pay To</p>
-          <p className="font-black text-base">BOOK HAVEN KENYA</p>
-          <p className="text-green-200 text-xs mt-2">Amount</p>
-          <p className="font-black text-3xl">KSh {chargedAmount.toLocaleString()}</p>
-          <p className="text-green-300 text-xs mt-2">Ref: {reference}</p>
-        </div>
+      <div className="rounded-card bg-navy p-5 text-cream">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-cream/70">M-Pesa request sent</p>
+        <p className="mt-2 text-3xl font-bold text-white">KSh {displayAmount.toLocaleString()}</p>
+        <p className="mt-1 text-sm text-cream/80">
+          to {mpesaPhone}{reference ? ` · ref ${reference}` : ""}
+        </p>
       </div>
 
-      {/* Instructions */}
-      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2">
-        <p className="font-bold text-amber-800 text-sm">📱 Check your phone!</p>
-        <ul className="text-xs text-amber-700 space-y-1">
-          <li>1. An M-Pesa prompt has been sent to <strong>{mpesaPhone}</strong></li>
-          <li>2. Enter your M-Pesa PIN on your phone</li>
-          <li>3. This page will update automatically once paid</li>
-        </ul>
+      <div className="rounded-control border border-line bg-white p-4">
+        <p className="text-sm font-semibold text-navy">Check your phone</p>
+        <ol className="mt-2 space-y-1.5 text-sm text-muted">
+          <li>1. A prompt from M-Pesa is waiting on your handset.</li>
+          <li>2. Enter your M-Pesa PIN to approve it.</li>
+          <li>3. This page updates on its own once it clears.</li>
+        </ol>
       </div>
 
-      {/* Countdown + polling indicator */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center gap-2 text-sm">
-          <div className={`w-2 h-2 rounded-full animate-pulse ${countdown > 15 ? "bg-green-500" : "bg-red-500"}`} />
-          <span className="text-stone-500">Waiting for payment · </span>
-          <span className={`font-bold tabular-nums ${countdown <= 15 ? "text-red-500" : "text-stone-700"}`}>{countdown}s</span>
+      <div className="space-y-2 text-center">
+        <div className="inline-flex items-center gap-2 text-sm" role="status">
+          <span className={`h-2 w-2 rounded-full ${countdown > 15 ? "bg-success" : "bg-warning"}`} aria-hidden="true" />
+          <span className="text-muted">Waiting for payment</span>
+          <span className={`font-semibold tabular-nums ${countdown <= 15 ? "text-warning" : "text-ink"}`}>{countdown}s</span>
         </div>
-        <div className="w-full bg-stone-100 rounded-full h-1.5">
-          <div className="h-1.5 rounded-full transition-all duration-1000"
-            style={{ width: `${(countdown / 60) * 100}%`, backgroundColor: countdown > 15 ? "#16a34a" : "#ef4444" }} />
-        </div>
-        <p className="text-xs text-muted">Checking payment status automatically…</p>
+        <p className="text-xs text-muted">Checking automatically. You can also check now.</p>
       </div>
 
       <div className="flex gap-3">
-        <button onClick={checkPaymentStatus}
-          className="flex-1 border border-green-200 text-green-700 hover:bg-green-50 py-3 rounded-xl font-semibold text-sm transition">
-          ↻ Check Now
+        <button
+          type="button"
+          onClick={checkPaymentStatus}
+          className="flex-1 rounded-control border border-line py-3 text-sm font-semibold text-navy transition hover:border-navy"
+        >
+          Check now
         </button>
-        <button onClick={reset}
-          className="flex-1 border border-[#E3DCCB] text-stone-500 hover:bg-stone-50 py-3 rounded-xl font-semibold text-sm transition">
-          ← Change Number
+        <button
+          type="button"
+          onClick={reset}
+          className="flex-1 rounded-control border border-line py-3 text-sm font-semibold text-muted transition hover:border-navy hover:text-navy"
+        >
+          Change number
         </button>
       </div>
     </div>
@@ -425,29 +437,29 @@ function MpesaFlow({ phone, total, reference, items, onSuccess }) {
 
   // ── SUCCESS ──
   if (stage === "success") return (
-    <div className="text-center py-8 space-y-4">
-      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-        <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="space-y-3 py-8 text-center" role="status">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/10">
+        <svg className="h-7 w-7 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
         </svg>
       </div>
-      <p className="font-bold text-[#1B2A4A] text-lg">Payment Confirmed! 🎉</p>
-      <p className="text-stone-500 text-sm">Your M-Pesa payment was successful</p>
+      <p className="font-semibold text-navy">Payment received</p>
+      <p className="text-sm text-muted">Saving your order…</p>
     </div>
   );
 
   // ── CANCELLED ──
   if (stage === "cancelled") return (
-    <div className="text-center py-8 space-y-4">
-      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-        <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="space-y-3 py-8 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-error/10">
+        <svg className="h-7 w-7 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
         </svg>
       </div>
-      <p className="font-bold text-[#1B2A4A]">Payment Cancelled</p>
-      <p className="text-stone-500 text-sm">You cancelled the M-Pesa request or it timed out.</p>
-      <button onClick={reset} className="bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-6 py-3 rounded-xl font-bold text-sm transition-all active:scale-95">
-        Try Again
+      <p className="font-semibold text-navy">Payment not completed</p>
+      <p className="text-sm text-muted">The request was cancelled or timed out. Nothing was charged.</p>
+      <button type="button" onClick={reset} className="btn-primary text-sm">
+        Try again
       </button>
     </div>
   );
@@ -495,17 +507,16 @@ function CodFlow({ total, onSuccess, disabled = false }) {
   );
 }
 
-// M-Pesa is offered only when the Daraja credentials are configured. Until
-// then the storefront takes cash on delivery and never shows a payment method
-// that would fail at the last step.
-const MPESA_ENABLED = process.env.NEXT_PUBLIC_MPESA_ENABLED === "true";
-
-function StepPayment({ details, total, items, reference, canPay, ready = true, onSuccess, onBack }) {
-  const [method, setMethod] = useState(MPESA_ENABLED ? "mpesa" : "cod");
-  const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
-  const grand = total + delivery;
+// Whether M-Pesa can be offered is decided by the server, which is the only
+// place that can see the Daraja credentials. A build-time flag used to gate
+// this, which meant the UI and the API could disagree after a settings change:
+// now the tab appears only when /api/mpesa/status says a real push can be sent.
+function StepPayment({ details, total, items, reference, canPay, ready = true, mpesaEnabled = false, onSuccess, onBack }) {
+  const [chosen, setChosen] = useState(null);
+  const method = chosen ?? (mpesaEnabled ? "mpesa" : "cod");
+  const grand = total + DELIVERY_FEE;
   const methods = [
-    ...(MPESA_ENABLED ? [{ id: "mpesa", label: "M-Pesa", sub: "STK Push", icon: "M", color: "bg-[#2F7D4F]" }] : []),
+    ...(mpesaEnabled ? [{ id: "mpesa", label: "M-Pesa", sub: "Pay from your phone", icon: "M", color: "bg-[#2F7D4F]" }] : []),
     { id: "cod", label: "Cash on delivery", sub: "Pay the rider", icon: "KSh", color: "bg-navy" },
   ];
 
@@ -544,7 +555,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, o
       </p>
       <div className={`grid gap-3 mb-7 ${methods.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
         {methods.map((m) => (
-          <button key={m.id} onClick={() => setMethod(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-[#B5532F] bg-[#B5532F]/5" : "border-[#E3DCCB] hover:border-stone-300 bg-white"}`}>
+          <button key={m.id} onClick={() => setChosen(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-[#B5532F] bg-[#B5532F]/5" : "border-[#E3DCCB] hover:border-stone-300 bg-white"}`}>
             <div className={`w-9 h-9 ${m.color} rounded-lg flex items-center justify-center mx-auto mb-2`}><span className="text-white font-black text-sm">{m.icon}</span></div>
             <p className={`text-xs font-bold leading-tight ${method === m.id ? "text-[#B5532F]" : "text-stone-700"}`}>{m.label}</p>
             <p className="text-[10px] text-muted mt-0.5">{m.sub}</p>
@@ -553,7 +564,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, o
       </div>
       <div className="bg-stone-50/50 rounded-2xl p-1">
         <div className="bg-white rounded-xl p-5 border border-stone-100">
-          {method === "mpesa" && <MpesaFlow phone={details.phone} total={grand} reference={reference} items={items} onSuccess={onSuccess} />}
+          {method === "mpesa" && <MpesaFlow phone={details.phone} total={grand} reference={reference} items={items} ready={ready} onSuccess={onSuccess} />}
           {method === "cod" && <CodFlow total={grand} onSuccess={onSuccess} disabled={!ready} />}
         </div>
       </div>
@@ -567,8 +578,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, o
 }
 
 function StepConfirmation({ order, reference, details, method, cart, total, saveError, stockError, saving, onRetry }) {
-  const delivery = total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE;
-  const grand = order?.total ?? total + delivery;
+  const grand = order?.total ?? total + DELIVERY_FEE;
   const methodLabels = { mpesa: "M-Pesa", cod: "Cash on Delivery" };
   // The reference customers quote to support is derived from the saved order
   // id. Before the order exists there is nothing real to quote, so we show
@@ -682,6 +692,9 @@ export default function CheckoutPage() {
   const [saveError, setSaveError] = useState(null);
   const [stockError, setStockError] = useState(null);
   const [signedIn, setSignedIn] = useState(null); // null = still checking
+  // Payment options come from the server, never from a build-time flag: only
+  // the server can see whether the Daraja credentials are present.
+  const [mpesaEnabled, setMpesaEnabled] = useState(false);
   const [details, setDetails] = useState({ firstName: "", lastName: "", email: "", phone: "", address: "", city: "", notes: "" });
 
 
@@ -784,6 +797,15 @@ export default function CheckoutPage() {
   };
 
   const removeItem = (id) => commitCart(cart.filter((item) => item.id !== id));
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/mpesa/status", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => { if (!cancelled) setMpesaEnabled(!!data?.enabled); })
+      .catch(() => { if (!cancelled) setMpesaEnabled(false); });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -933,7 +955,7 @@ export default function CheckoutPage() {
         <div className="lg:hidden bg-white border-b border-[#E3DCCB] px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-stone-600">Order total</span>
-            <span className="text-sm font-black text-[#1B2A4A]">KSh {(total + (total >= FREE_DELIVERY_THRESHOLD ? 0 : STANDARD_DELIVERY_FEE)).toLocaleString()}</span>
+            <span className="text-sm font-black text-[#1B2A4A]">KSh {(total + DELIVERY_FEE).toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-1.5">
             {cart.slice(0, 3).map((item, i) => (
@@ -975,6 +997,7 @@ export default function CheckoutPage() {
                     reference={reference}
                     canPay={signedIn === true}
                     ready={detailsValid}
+                    mpesaEnabled={mpesaEnabled}
                     onSuccess={handlePaymentSuccess}
                   />
                 </section>

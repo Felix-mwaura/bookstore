@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { clientForToken, bearerToken, serviceClient } from "../../lib/server";
 import { queueEmailDispatch } from "../../lib/email-dispatch";
+import { DELIVERY_FEE } from "../../lib/site";
 
 // GET /api/orders — the signed-in customer's own orders (RLS-enforced)
 export async function GET(request) {
@@ -155,6 +156,27 @@ export async function POST(request) {
     return NextResponse.json(
       { error: "That is a lot of orders in a short time. Please wait a few minutes or contact us." },
       { status: 429 }
+    );
+  }
+
+  // The order writer must agree with what the customer was shown. If the
+  // database still carries the old delivery charge (the free-delivery
+  // migration has not been applied), place_order() would add KSh 300 that the
+  // checkout never displayed. Refuse the order instead of taking money for a
+  // total the customer did not agree to.
+  const { data: rule, error: ruleError } = await serverClient.rpc("delivery_fee_rule");
+  if (ruleError || Number(rule) !== DELIVERY_FEE) {
+    console.error(
+      "/api/orders: delivery pricing is out of step with the app —",
+      ruleError ? ruleError.message : `database charges ${rule}, app expects ${DELIVERY_FEE}`,
+      "— apply supabase/migrations/20261021090000_free_delivery.sql"
+    );
+    return NextResponse.json(
+      {
+        error: "Checkout is being updated. Please try again in a few minutes — you have not been charged.",
+        code: "PRICING_NOT_READY",
+      },
+      { status: 503 }
     );
   }
 

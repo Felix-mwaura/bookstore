@@ -7,15 +7,23 @@ import {
   mpesaPassword,
   normalisePhone,
 } from "../../../lib/mpesa";
+import { DELIVERY_FEE } from "../../../lib/site";
 
 // POST /api/mpesa/stk
 //
 // Initiates an STK push for a signed-in customer.
 //
-// The amount is NOT taken from the request body. It is recomputed from the
-// books table with quote_cart(), so a client cannot pay KSh 1 for a KSh 4,950
-// order. The resulting mpesa_payments row is what place_order() later
-// verifies, so an attacker cannot forge a successful payment either.
+// The amount is NOT taken from the request body. It is recomputed here from
+// the books table and the delivery rule in app/lib/site.js, so a client cannot
+// pay KSh 1 for a KSh 4,950 order. The resulting mpesa_payments row is what
+// place_order() later verifies, so an attacker cannot forge a successful
+// payment either.
+//
+// Pricing used to call a quote_cart() database function. That function is not
+// in any migration in this repository, so the route depended on schema that
+// could not be reproduced or reviewed — and a fresh database broke M-Pesa
+// entirely. The arithmetic now lives in one place the repo owns, and
+// place_order() still recomputes the real total on insert.
 export async function POST(request) {
   const auth = await userFromRequest(request);
   if (!auth) return NextResponse.json({ error: "Please sign in to pay." }, { status: 401 });
@@ -84,7 +92,7 @@ export async function POST(request) {
   // re-checked atomically again in place_order() after payment.
   const { data: catalogue, error: catalogueError } = await db
     .from("books")
-    .select("id, title, stock_quantity, is_archived")
+    .select("id, title, price, stock_quantity, is_archived")
     .in("id", cleanItems.map((i) => i.id));
 
   if (catalogueError) {
@@ -108,17 +116,17 @@ export async function POST(request) {
     }
   }
 
-  // Server-authoritative price (subtotal + delivery).
-  const { data: amount, error: quoteError } = await db.rpc("quote_cart", {
-    p_items: cleanItems,
-  });
+  // Server-authoritative price: the catalogue prices just read above, plus
+  // the delivery rule. place_order() recomputes the same figures from the
+  // database before it writes anything, and refuses the order if the payment
+  // it can see does not cover that total.
+  const subtotal = cleanItems.reduce((sum, item) => {
+    const book = (catalogue || []).find((b) => b.id === item.id);
+    return sum + Number(book?.price || 0) * item.quantity;
+  }, 0);
+  const amount = subtotal + DELIVERY_FEE;
 
-  if (quoteError) {
-    const msg = quoteError.message || "";
-    if (msg.includes("INSUFFICIENT") || msg.includes("BOOK_NOT_FOUND") || msg.includes("INVALID")) {
-      return NextResponse.json({ error: "Some items in your cart are no longer available." }, { status: 409 });
-    }
-    console.error("/api/mpesa/stk quote_cart:", msg);
+  if (!Number.isFinite(amount) || amount < 1) {
     return NextResponse.json({ error: "Could not price your cart. Please try again." }, { status: 500 });
   }
 
@@ -141,14 +149,16 @@ export async function POST(request) {
       BusinessShortCode: config.shortcode,
       Password: password,
       Timestamp: timestamp,
-      TransactionType: "CustomerPayBillOnline",
-      Amount: Math.ceil(Number(amount)),
+      TransactionType: config.transactionType,
+      Amount: Math.ceil(amount),
       PartyA: formattedPhone,
       PartyB: config.shortcode,
       PhoneNumber: formattedPhone,
       CallBackURL: config.callbackUrl,
-      AccountReference: `BookHaven-${user.id.slice(0, 8)}`,
-      TransactionDesc: "Book Haven order",
+      // Daraja rejects an AccountReference longer than 12 characters and a
+      // description longer than 13, which used to make every push fail.
+      AccountReference: `BH-${user.id.slice(0, 8)}`,
+      TransactionDesc: "BookHaven",
     }),
     cache: "no-store",
   });
@@ -173,7 +183,7 @@ export async function POST(request) {
     checkout_request_id: stkData.CheckoutRequestID,
     merchant_request_id: stkData.MerchantRequestID,
     user_id: user.id,
-    expected_amount: Math.ceil(Number(amount)),
+    expected_amount: Math.ceil(amount),
     status: "pending",
   });
 
@@ -188,7 +198,7 @@ export async function POST(request) {
   return NextResponse.json({
     success: true,
     checkoutRequestId: stkData.CheckoutRequestID,
-    amount: Math.ceil(Number(amount)),
+    amount: Math.ceil(amount),
     message: "STK push sent",
   });
 }

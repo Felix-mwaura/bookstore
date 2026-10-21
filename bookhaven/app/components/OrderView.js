@@ -141,7 +141,10 @@ export default function OrderView({ order }) {
 
               <div className="mt-4 pt-4 border-t border-stone-100 text-sm">
                 <p className="text-stone-500">
-                  Payment method: <span className="text-stone-800 font-semibold">{order.payment_method === "cod" ? "Cash on delivery" : order.payment_method}</span>
+                  Payment method: <span className="text-stone-800 font-semibold">{{
+                    cod: "Cash on delivery",
+                    mpesa: "M-Pesa",
+                  }[order.payment_method] || order.payment_method}</span>
                 </p>
                 {order.payment_ref && (
                   <p className="text-stone-500 mt-1">
