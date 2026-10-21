@@ -33,7 +33,7 @@ export default function AdminError({ error, reset }) {
         )}
 
         {error?.digest && (
-          <p className="text-xs text-stone-400 mb-6">
+          <p className="text-xs text-muted mb-6">
             Reference: <span className="font-mono">{error.digest}</span> — quote this when asking for help.
           </p>
         )}
