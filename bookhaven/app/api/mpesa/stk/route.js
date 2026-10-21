@@ -132,8 +132,27 @@ export async function POST(request) {
 
   const tokenResult = await mpesaAccessToken(config);
   if (tokenResult.error) {
-    console.error("/api/mpesa/stk: OAuth failed");
-    return NextResponse.json({ error: "M-Pesa is temporarily unavailable. Please try again." }, { status: 502 });
+    // This is the step that fails when the credentials belong to the other
+    // Daraja environment, or when a key was regenerated. Log Safaricom's own
+    // words (never a credential) so the failure is diagnosable from the
+    // deployment logs, and point the admin at the checker.
+    console.error("/api/mpesa/stk: OAuth failed", {
+      environment: config.environment,
+      environmentAssumed: config.environmentAssumed,
+      status: tokenResult.status ?? null,
+      code: tokenResult.code ?? null,
+      message: tokenResult.message ?? null,
+      hint: "Run /api/mpesa/token as an admin, or open Admin → Payments → Test connection.",
+    });
+
+    return NextResponse.json(
+      {
+        error:
+          "We couldn't reach M-Pesa just now. You have not been charged — pay on delivery, or try again in a minute.",
+        code: "MPESA_UNAVAILABLE",
+      },
+      { status: 502 }
+    );
   }
 
   const timestamp = mpesaTimestamp();
@@ -167,11 +186,19 @@ export async function POST(request) {
 
   if (stkData.ResponseCode !== "0" || !stkData.CheckoutRequestID) {
     console.error("/api/mpesa/stk: STK rejected", {
+      environment: config.environment,
+      shortcode: config.shortcode,
+      transactionType: config.transactionType,
+      callbackHost: config.callbackUrl,
       code: stkData.errorCode || stkData.ResponseCode,
       message: stkData.errorMessage || stkData.ResponseDescription,
     });
     return NextResponse.json(
-      { error: stkData.errorMessage || "M-Pesa could not send the payment prompt. Please try again." },
+      {
+        error:
+          "M-Pesa could not send the payment prompt. You have not been charged — pay on delivery, or try again.",
+        code: "STK_REJECTED",
+      },
       { status: 502 }
     );
   }

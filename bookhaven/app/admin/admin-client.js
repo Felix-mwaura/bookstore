@@ -2157,135 +2157,52 @@ function CustomersTab({ users, orders }) {
         {/* Phones: a card per order. The table below needs ten columns and is
             unusable at 360px, so the same data is laid out as a card with the
             full detail panel one tap away. */}
+        {/* Phones: one card per customer. The table below carries seven
+            columns and is unreadable at 360px. This is the same data. */}
         <ul role="list" className="lg:hidden divide-y divide-stone-100">
-          {paginated.map((o) => {
-            const payFlow = PAYMENT_FLOW[o.payment_status] || [];
-            const isOpen = expanded === o.id;
+          {filtered.map((u) => {
+            const orderCount = getUserOrders(u.id).length;
+            const ltv = getLTV(u.id);
             return (
-              <li key={o.id} className="p-4">
+              <li key={u.id} className="p-4">
                 <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(o.id)}
-                    onChange={() => toggleSelected(o.id)}
-                    aria-label={`Select order ${o.id.slice(0, 8)}`}
-                    className="mt-1 h-4 w-4 rounded border-stone-300"
-                  />
+                  <Avatar name={`${u.first_name} ${u.last_name}`} email={u.email} />
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-xs text-sienna">{o.id.slice(0, 8).toUpperCase()}</p>
-                    <p className="mt-1 text-sm font-semibold text-navy truncate">
-                      {o.delivery_details?.firstName} {o.delivery_details?.lastName}
+                    <p className="truncate text-sm font-semibold text-navy">
+                      {[u.first_name, u.last_name].filter(Boolean).join(" ") || "No name"}
                     </p>
-                    <p className="text-xs text-muted truncate">
-                      {o.delivery_details?.phone}
-                      {o.delivery_details?.city ? ` · ${o.delivery_details.city}` : ""}
-                    </p>
+                    <p className="truncate text-xs text-muted">{u.email || "—"}</p>
+                    <p className="mt-0.5 text-xs text-muted">{u.phone || "No phone"}</p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-navy">KSh {(o.total || 0).toLocaleString()}</p>
-                    <p className={`mt-1 text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-[#8A5A15]"}`}>
-                      {PAYMENT_LABEL[o.payment_status] || o.payment_status}
-                    </p>
-                  </div>
+                  <Badge status={u.role || "customer"} />
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Badge status={o.status} />
-                  <select
-                    value={o.status}
-                    onChange={(e) => updateStatus(o.id, e.target.value)}
-                    disabled={updating === o.id || isTerminal(o.status)}
-                    aria-label={`Fulfilment status for order ${o.id.slice(0, 8)}`}
-                    className="min-h-11 text-xs bg-white border border-line rounded-control px-2 outline-none focus:border-navy disabled:opacity-50"
-                  >
-                    <option value={o.status}>{o.status}</option>
-                    {(STATUS_FLOW[o.status] || []).map((st) => <option key={st} value={st}>{st}</option>)}
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(isOpen ? null : o.id)}
-                    aria-expanded={isOpen}
-                    aria-controls={`order-details-${o.id}`}
-                    className="ml-auto min-h-11 px-2 text-xs font-semibold text-sienna underline underline-offset-2"
-                  >
-                    {isOpen ? "Hide details" : "Details"}
-                  </button>
-                </div>
-
-                {isOpen && (
-                  <div id={`order-details-${o.id}`} className="mt-3 rounded-card border border-line bg-stone-50 p-3 text-xs">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Items</p>
-                    <ul className="space-y-2">
-                      {(o.items || []).map((item, i) => {
-                        const book = bookById.get(String(item.id));
-                        return (
-                          <li key={i} className="flex items-center gap-2">
-                            <div className="w-8 h-11 rounded bg-stone-200 overflow-hidden shrink-0">
-                              {book?.cover_url && (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={book.cover_url} alt="" className="w-full h-full object-cover" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-navy truncate">{item.title}</p>
-                              <p className="text-[10px] text-muted">Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}</p>
-                            </div>
-                            <p className="font-bold text-navy">KSh {((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
-                          </li>
-                        );
-                      })}
-                    </ul>
-
-                    <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
-                      <p className="font-semibold text-navy">Delivery</p>
-                      <p>{o.delivery_details?.address}</p>
-                      <p>{o.delivery_details?.city}</p>
-                      {(o.delivery_details?.instructions || o.delivery_details?.notes) && (
-                        <p className="italic">“{o.delivery_details.instructions || o.delivery_details.notes}”</p>
-                      )}
-                    </div>
-
-                    <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
-                      <p>Subtotal <span className="float-right font-semibold text-navy">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
-                      <p>Delivery <span className="float-right font-semibold text-navy">{Number(o.delivery_fee) > 0 ? `KSh ${Number(o.delivery_fee).toLocaleString()}` : "Free"}</span></p>
-                      <p>Total <span className="float-right font-bold text-navy">KSh {(o.total ?? 0).toLocaleString()}</span></p>
-                      {o.payment_ref && <p>Receipt <span className="float-right font-mono">{o.payment_ref}</span></p>}
-                      {o.courier && <p>Courier <span className="float-right">{o.courier}</span></p>}
-                    </div>
-
-                    {payFlow.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {payFlow.map((st) => (
-                          <button
-                            key={st}
-                            type="button"
-                            disabled={updating === o.id}
-                            onClick={() => updatePayment(o.id, st)}
-                            className="min-h-11 px-3 rounded-control border border-line bg-white text-[11px] font-semibold text-ink disabled:opacity-40"
-                          >
-                            {st === "paid" ? "Mark paid" : st === "failed" ? "Mark failed" : st === "refund_pending" ? "Start refund" : st === "refunded" ? "Mark refunded" : "Reset to unpaid"}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {!isTerminal(o.status) && (
-                      <button
-                        type="button"
-                        onClick={() => setConfirm({ orderId: o.id })}
-                        className="mt-3 w-full min-h-11 rounded-control border border-error/30 text-xs font-bold text-error hover:bg-error/5"
-                      >
-                        Cancel this order
-                      </button>
-                    )}
+                <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 border-t border-line pt-2 text-xs">
+                  <div className="flex gap-1.5">
+                    <dt className="text-muted">Orders</dt>
+                    <dd className="font-bold text-navy">{orderCount}</dd>
                   </div>
-                )}
+                  <div className="flex gap-1.5">
+                    <dt className="text-muted">Lifetime</dt>
+                    <dd className="font-bold text-success">
+                      {ltv > 0 ? `KSh ${ltv.toLocaleString("en-KE")}` : "—"}
+                    </dd>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <dt className="text-muted">Joined</dt>
+                    <dd className="text-ink">
+                      {u.created_at
+                        ? new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "2-digit" })
+                        : "—"}
+                    </dd>
+                  </div>
+                </dl>
               </li>
             );
           })}
-          {paginated.length === 0 && (
+          {filtered.length === 0 && (
             <li className="px-4 py-12 text-center">
-              <p className="text-sm text-muted">No orders match this view.</p>
+              <p className="text-sm text-muted">No customers match this search.</p>
             </li>
           )}
         </ul>
@@ -2398,135 +2315,64 @@ function UsersTab({ users, orders, session, showToast }) {
         {/* Phones: a card per order. The table below needs ten columns and is
             unusable at 360px, so the same data is laid out as a card with the
             full detail panel one tap away. */}
+        {/* Phones: one card per user, with the same role control as the
+            table. Changing a role is the one action this tab exists for, so
+            it is not hidden behind a breakpoint. */}
         <ul role="list" className="lg:hidden divide-y divide-stone-100">
-          {paginated.map((o) => {
-            const payFlow = PAYMENT_FLOW[o.payment_status] || [];
-            const isOpen = expanded === o.id;
+          {filtered.map((u) => {
+            const isYou = u.id === session?.id;
+            const userOrders = orders.filter((o) => o.user_id === u.id);
             return (
-              <li key={o.id} className="p-4">
+              <li key={u.id} className="p-4">
                 <div className="flex items-start gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selected.includes(o.id)}
-                    onChange={() => toggleSelected(o.id)}
-                    aria-label={`Select order ${o.id.slice(0, 8)}`}
-                    className="mt-1 h-4 w-4 rounded border-stone-300"
-                  />
+                  <Avatar name={`${u.first_name} ${u.last_name}`} email={u.email} />
                   <div className="min-w-0 flex-1">
-                    <p className="font-mono text-xs text-sienna">{o.id.slice(0, 8).toUpperCase()}</p>
-                    <p className="mt-1 text-sm font-semibold text-navy truncate">
-                      {o.delivery_details?.firstName} {o.delivery_details?.lastName}
+                    <p className="truncate text-sm font-semibold text-navy">
+                      {[u.first_name, u.last_name].filter(Boolean).join(" ") || "No name"}
+                      {isYou && <span className="ml-1 text-[10px] font-bold text-sienna">(you)</span>}
                     </p>
-                    <p className="text-xs text-muted truncate">
-                      {o.delivery_details?.phone}
-                      {o.delivery_details?.city ? ` · ${o.delivery_details.city}` : ""}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-navy">KSh {(o.total || 0).toLocaleString()}</p>
-                    <p className={`mt-1 text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-[#8A5A15]"}`}>
-                      {PAYMENT_LABEL[o.payment_status] || o.payment_status}
+                    <p className="truncate text-xs text-muted">{u.email || "—"}</p>
+                    <p className="mt-0.5 text-xs text-muted">
+                      {userOrders.length} {userOrders.length === 1 ? "order" : "orders"}
+                      {u.created_at
+                        ? ` · joined ${new Date(u.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "2-digit" })}`
+                        : ""}
                     </p>
                   </div>
+                  <Badge status={u.role || "customer"} />
                 </div>
 
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <Badge status={o.status} />
+                <div className="mt-3 border-t border-line pt-2">
+                  <label htmlFor={`role-${u.id}`} className="sr-only">
+                    Role for {u.email || "this user"}
+                  </label>
                   <select
-                    value={o.status}
-                    onChange={(e) => updateStatus(o.id, e.target.value)}
-                    disabled={updating === o.id || isTerminal(o.status)}
-                    aria-label={`Fulfilment status for order ${o.id.slice(0, 8)}`}
-                    className="min-h-11 text-xs bg-white border border-line rounded-control px-2 outline-none focus:border-navy disabled:opacity-50"
+                    id={`role-${u.id}`}
+                    value={u.role || "customer"}
+                    disabled={isYou || updating === u.id}
+                    onChange={(e) => {
+                      // Pass the CURRENT role: toggleRole flips it, and the
+                      // confirmation dialog wording ("Remove administrator
+                      // access?") is written from the same side.
+                      const next = e.target.value;
+                      if (next === (u.role || "customer")) return;
+                      setRoleConfirm({ id: u.id, role: u.role || "customer", label: u.email || "this user" });
+                    }}
+                    className="min-h-11 w-full rounded-control border border-line bg-white px-3 text-sm outline-none focus:border-navy disabled:opacity-50"
                   >
-                    <option value={o.status}>{o.status}</option>
-                    {(STATUS_FLOW[o.status] || []).map((st) => <option key={st} value={st}>{st}</option>)}
+                    <option value="customer">customer</option>
+                    <option value="admin">admin</option>
                   </select>
-                  <button
-                    type="button"
-                    onClick={() => setExpanded(isOpen ? null : o.id)}
-                    aria-expanded={isOpen}
-                    aria-controls={`order-details-${o.id}`}
-                    className="ml-auto min-h-11 px-2 text-xs font-semibold text-sienna underline underline-offset-2"
-                  >
-                    {isOpen ? "Hide details" : "Details"}
-                  </button>
+                  {isYou && (
+                    <p className="mt-1 text-[11px] text-muted">You cannot change your own role.</p>
+                  )}
                 </div>
-
-                {isOpen && (
-                  <div id={`order-details-${o.id}`} className="mt-3 rounded-card border border-line bg-stone-50 p-3 text-xs">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Items</p>
-                    <ul className="space-y-2">
-                      {(o.items || []).map((item, i) => {
-                        const book = bookById.get(String(item.id));
-                        return (
-                          <li key={i} className="flex items-center gap-2">
-                            <div className="w-8 h-11 rounded bg-stone-200 overflow-hidden shrink-0">
-                              {book?.cover_url && (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={book.cover_url} alt="" className="w-full h-full object-cover" />
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <p className="font-semibold text-navy truncate">{item.title}</p>
-                              <p className="text-[10px] text-muted">Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}</p>
-                            </div>
-                            <p className="font-bold text-navy">KSh {((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
-                          </li>
-                        );
-                      })}
-                    </ul>
-
-                    <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
-                      <p className="font-semibold text-navy">Delivery</p>
-                      <p>{o.delivery_details?.address}</p>
-                      <p>{o.delivery_details?.city}</p>
-                      {(o.delivery_details?.instructions || o.delivery_details?.notes) && (
-                        <p className="italic">“{o.delivery_details.instructions || o.delivery_details.notes}”</p>
-                      )}
-                    </div>
-
-                    <div className="mt-3 border-t border-line pt-2 space-y-0.5 text-muted">
-                      <p>Subtotal <span className="float-right font-semibold text-navy">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
-                      <p>Delivery <span className="float-right font-semibold text-navy">{Number(o.delivery_fee) > 0 ? `KSh ${Number(o.delivery_fee).toLocaleString()}` : "Free"}</span></p>
-                      <p>Total <span className="float-right font-bold text-navy">KSh {(o.total ?? 0).toLocaleString()}</span></p>
-                      {o.payment_ref && <p>Receipt <span className="float-right font-mono">{o.payment_ref}</span></p>}
-                      {o.courier && <p>Courier <span className="float-right">{o.courier}</span></p>}
-                    </div>
-
-                    {payFlow.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-1.5">
-                        {payFlow.map((st) => (
-                          <button
-                            key={st}
-                            type="button"
-                            disabled={updating === o.id}
-                            onClick={() => updatePayment(o.id, st)}
-                            className="min-h-11 px-3 rounded-control border border-line bg-white text-[11px] font-semibold text-ink disabled:opacity-40"
-                          >
-                            {st === "paid" ? "Mark paid" : st === "failed" ? "Mark failed" : st === "refund_pending" ? "Start refund" : st === "refunded" ? "Mark refunded" : "Reset to unpaid"}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-
-                    {!isTerminal(o.status) && (
-                      <button
-                        type="button"
-                        onClick={() => setConfirm({ orderId: o.id })}
-                        className="mt-3 w-full min-h-11 rounded-control border border-error/30 text-xs font-bold text-error hover:bg-error/5"
-                      >
-                        Cancel this order
-                      </button>
-                    )}
-                  </div>
-                )}
               </li>
             );
           })}
-          {paginated.length === 0 && (
+          {filtered.length === 0 && (
             <li className="px-4 py-12 text-center">
-              <p className="text-sm text-muted">No orders match this view.</p>
+              <p className="text-sm text-muted">No users match this search.</p>
             </li>
           )}
         </ul>
@@ -2677,6 +2523,8 @@ function PaymentsTab({ onNavigate, showToast }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [testing, setTesting] = useState(false);
+  const [test, setTest] = useState(null);
 
   const load = useCallback(async (status) => {
     setLoading(true);
@@ -2703,6 +2551,30 @@ function PaymentsTab({ onNavigate, showToast }) {
   useEffect(() => { load(filter); }, [load, filter]);
 
   const statusLabel = { completed: "Paid", pending: "Pending", failed: "Failed" };
+
+  // "Why is M-Pesa unavailable?" is not answerable from a generic message, so
+  // the owner can ask the server to probe both Daraja hosts and report which
+  // one these credentials belong to.
+  const runConnectionTest = async () => {
+    setTesting(true);
+    setTest(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+      const res = await fetch("/api/mpesa/token", {
+        headers: { authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || `Test failed (${res.status})`);
+      setTest(json);
+    } catch (err) {
+      setTest({ ok: false, problem: "request-failed", advice: err.message });
+    } finally {
+      setTesting(false);
+    }
+  };
+
   const summary = data?.summary;
   const config = data?.configuration;
   const payments = data?.payments || [];
@@ -2745,6 +2617,14 @@ function PaymentsTab({ onNavigate, showToast }) {
           >
             Refresh
           </button>
+          <button
+            type="button"
+            onClick={runConnectionTest}
+            disabled={testing}
+            className="min-h-9 rounded-control border border-navy bg-navy px-3 text-xs font-semibold text-white transition hover:bg-sienna disabled:opacity-60"
+          >
+            {testing ? "Testing…" : "Test connection"}
+          </button>
         </div>
       </div>
 
@@ -2774,6 +2654,68 @@ function PaymentsTab({ onNavigate, showToast }) {
           <span aria-hidden="true">✓</span>
           M-Pesa is live · {config.environment === "sandbox" ? "Safaricom sandbox" : "production"}
         </p>
+      )}
+
+      {test && (
+        <div className={`mb-4 rounded-control border p-4 ${test.ok ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`} role="status">
+          <p className={`text-sm font-semibold ${test.ok ? "text-green-900" : "text-amber-900"}`}>
+            {test.ok ? "M-Pesa authentication works" : "M-Pesa authentication is failing"}
+          </p>
+
+          {test.advice && (
+            <p className={`mt-1 text-xs leading-relaxed ${test.ok ? "text-green-800" : "text-amber-800"}`}>
+              {test.advice}
+            </p>
+          )}
+
+          {Array.isArray(test.checks) && (
+            <ul className="mt-3 space-y-1.5">
+              {test.checks.map((check) => (
+                <li key={check.environment} className="flex flex-wrap items-baseline gap-x-2 text-xs">
+                  <span aria-hidden="true">{check.ok ? "✓" : "×"}</span>
+                  <span className="font-semibold text-ink">{check.environment}</span>
+                  <span className="text-muted">
+                    {check.ok
+                      ? "token issued"
+                      : `${check.status ? `HTTP ${check.status}` : "no response"}${check.code ? ` · ${check.code}` : ""}${check.message ? ` · ${check.message}` : ""}`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {test.configured && (
+            <dl className="mt-3 grid gap-x-6 gap-y-1 border-t border-current/10 pt-3 text-xs sm:grid-cols-2">
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">Host in use</dt>
+                <dd className="font-semibold text-ink">{test.environment}{test.environmentAssumed ? " (assumed)" : ""}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">Shortcode</dt>
+                <dd className="font-mono font-semibold text-ink">{test.shortcode || "—"}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">Transaction type</dt>
+                <dd className="font-semibold text-ink">{test.transactionType}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">Callback</dt>
+                <dd className="max-w-[60%] truncate font-mono text-ink" title={test.callbackHost}>{test.callbackHost}</dd>
+              </div>
+            </dl>
+          )}
+
+          {test.shortcodeLooksLikeSandboxTest && test.environment === "production" && (
+            <p className="mt-3 text-xs text-amber-800">
+              174379 is Safaricom&apos;s sandbox test shortcode. With production credentials, use the
+              paybill or till number from your Daraja app instead.
+            </p>
+          )}
+
+          <button type="button" onClick={() => setTest(null)} className="mt-3 text-xs font-semibold text-muted underline">
+            Dismiss
+          </button>
+        </div>
       )}
 
       {error && (

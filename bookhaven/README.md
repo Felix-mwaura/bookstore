@@ -34,6 +34,23 @@ Node 20+ is required.
 | `ANTHROPIC_API_KEY` | **server only** | Optional. Enables the read-only assistant in `/admin` |
 | `ANTHROPIC_MODEL` | **server only** | Optional model override (default `claude-sonnet-4-5`) |
 
+### M-Pesa says "not available"
+
+Open **Admin → Payments → Test connection**. It probes both Daraja hosts and
+tells you which one these credentials belong to, so the usual failures name
+themselves:
+
+| What the test says | What it means |
+| --- | --- |
+| works on `production`, but the app is using `sandbox` | `MPESA_ENV` is not set. Add `MPESA_ENV=production` and redeploy. |
+| rejected by both hosts | The consumer key or secret is wrong, or the secret was regenerated in the portal. Copy both again. |
+| no response | The server could not reach Safaricom at all. |
+| shortcode `••••174379` with production | 174379 is Safaricom's sandbox test shortcode; use your paybill or till number. |
+
+The checkout only shows the M-Pesa tab when a push can actually be sent, so a
+configuration problem never takes a customer's money and leaves them without
+an order. The customer-facing message deliberately says nothing technical.
+
 M-Pesa switches itself on when the four credentials above are present **and**
 the delivery rule in the database matches `DELIVERY_PERCENT` in `app/lib/site.js`.
 Until then the checkout offers cash on delivery only, and `/admin → Payments`
