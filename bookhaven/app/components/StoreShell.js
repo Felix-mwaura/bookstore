@@ -5,7 +5,7 @@ import Link from "next/link";
 
 import { BookCover } from "./BookCover";
 import { bookPath } from "../lib/book-url";
-import { FREE_DELIVERY_THRESHOLD, formatKsh } from "../lib/site";
+import { formatKsh } from "../lib/site";
 import { useDialog } from "../lib/useDialog";
 import { STORE_CONTACT } from "../lib/site";
 import { StoreContext, useStore, useStoreState } from "../lib/store-state";
@@ -23,8 +23,7 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
   if (!isOpen) return null;
 
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const remaining = Math.max(0, FREE_DELIVERY_THRESHOLD - total);
-  const progress = Math.min(100, Math.round((total / FREE_DELIVERY_THRESHOLD) * 100));
+
 
   return (
     <div className="fixed inset-0 z-[60]">
@@ -139,20 +138,7 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
               </div>
               <div className="mt-1.5 flex justify-between text-sm">
                 <span className="text-muted">Delivery</span>
-                <span className="font-semibold text-navy">
-                  {remaining === 0 ? "Free" : "Calculated at checkout"}
-                </span>
-              </div>
-
-              <div className="mt-3">
-                <div className="h-1.5 w-full rounded-full bg-subtle" aria-hidden="true">
-                  <div className="h-1.5 rounded-full bg-sienna transition-all duration-200" style={{ width: `${progress}%` }} />
-                </div>
-                <p className="mt-2 text-xs text-muted" role="status">
-                  {remaining === 0
-                    ? "Delivery is free on this order."
-                    : `Add ${formatKsh(remaining)} more for free delivery.`}
-                </p>
+                <span className="font-semibold text-success">Free</span>
               </div>
 
               <div className="mt-3 flex justify-between border-t border-line pt-3 text-base font-bold text-navy">
@@ -164,7 +150,7 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
             <Link href="/checkout" onClick={close} className="btn-primary mt-3 w-full text-sm">
               Checkout
             </Link>
-            <p className="mt-2 text-center text-xs text-muted">Delivery is added on the next step, before you pay.</p>
+            <p className="mt-2 text-center text-xs text-muted">Free delivery — the total is the price of the books.</p>
           </div>
         )}
       </div>
@@ -185,8 +171,8 @@ export function StoreFooter() {
               <span className="font-playfair text-lg font-bold text-white">Book Haven</span>
             </Link>
             <p className="mt-3 text-sm leading-relaxed text-cream/70">
-              Books in Kenyan shillings, delivered nationwide. Free over KSh 3,000,
-              a flat KSh 300 below that.
+              Books in Kenyan shillings, delivered nationwide. Delivery is free —
+              the total you see is the price of the books.
             </p>
           </div>
 

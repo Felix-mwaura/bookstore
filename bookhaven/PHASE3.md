@@ -93,7 +93,7 @@ The storefront carried content that was not true:
 | Six named customer testimonials, "4.9/5 · 2,400+ readers" | "How it works" — three steps describing the actual flow |
 | "2,000+ titles", "15K+ readers", "6+ years", founder story with named staff | Live counts from the books table, and a description of the shop's actual pricing and tracking |
 | "Up to 40% Off Bestselling Titles" | The deepest real discount, calculated from `original_price` |
-| "Free delivery in Nairobi over KSh 3,000" | The rule the server actually applies: free over KSh 3,000, flat KSh 300 below, nationwide |
+| "Free delivery in Nairobi over KSh 3,000" | The rule the server actually applies. Delivery is now free on every order, so this says exactly that |
 | "30-day return policy" | "Order tracking" — a promise the product keeps |
 | Newsletter: "You're in! Check your inbox soon" with no request made | Real insert into `newsletter_subscribers`, honest copy, duplicate-safe |
 | 12 hard-coded books in `app/books.js` (unused, but a trap for anyone editing it) | Deleted |

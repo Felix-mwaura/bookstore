@@ -1,6 +1,7 @@
 import HomeClient from "./components/HomeClient";
 import StoreLayout from "./components/StoreLayout";
 import { getCatalogueStats, getStorefrontBooks } from "./lib/catalogue";
+import { mpesaConfig } from "./lib/mpesa";
 
 // The homepage is rendered on the server so the shelf, the hero covers and
 // the real catalogue counts are in the HTML a crawler (or a slow phone)
@@ -13,7 +14,7 @@ export default async function Home() {
 
   return (
     <StoreLayout>
-      <HomeClient initialBooks={books} stats={stats} />
+      <HomeClient initialBooks={books} stats={stats} mpesaEnabled={!mpesaConfig().error} />
     </StoreLayout>
   );
 }

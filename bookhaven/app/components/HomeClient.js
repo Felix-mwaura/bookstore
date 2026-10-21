@@ -223,7 +223,7 @@ function ShelfFacts({ stats }) {
     { value: stats.titles.toLocaleString("en-KE"), label: "titles on the shelf" },
     { value: stats.categories.toLocaleString("en-KE"), label: "genres to browse" },
     { value: stats.inStock.toLocaleString("en-KE"), label: "ready to ship" },
-    { value: "KSh 3,000", label: "free delivery from" },
+    { value: "Free", label: "delivery on every order" },
   ];
 
   return (
@@ -233,8 +233,9 @@ function ShelfFacts({ stats }) {
           <div>
             <SectionHeading eyebrow="About the shop" title="A bookshop for Kenyan readers" />
             <p className="mt-4 text-sm leading-relaxed text-muted sm:text-base">
-              Prices are in Kenyan shillings and delivery is worked out up front: free above KSh 3,000,
-              a flat KSh 300 below it. You see the total before you confirm — no charges added at the door.
+              Prices are in Kenyan shillings and delivery is included: the total you see is the
+              price of the books. Nothing is added at the door, and the full total is on screen
+              before you confirm.
             </p>
             <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
               We deliver countrywide and every order can be followed from your account.
@@ -262,11 +263,16 @@ function ShelfFacts({ stats }) {
 
 /* ── trust strip (only claims the shop actually keeps) ── */
 
-function TrustStrip() {
+function TrustStrip({ mpesaEnabled }) {
+  // Claims about payment only appear when the shop can actually take that
+  // payment: the homepage is rendered on the server, which is the one place
+  // that knows whether the Daraja credentials are present.
   const items = [
-    { title: "Free delivery from KSh 3,000", body: "Flat KSh 300 below that." },
+    { title: "Free delivery", body: "On every order, countrywide." },
     { title: "Order tracking", body: "Every order has a reference." },
-    { title: "Pay on delivery", body: "Or by M-Pesa once it is live." },
+    mpesaEnabled
+      ? { title: "Pay with M-Pesa", body: "Or in cash on delivery." }
+      : { title: "Pay on delivery", body: "Cash when the books arrive." },
   ];
 
   return (
@@ -399,7 +405,7 @@ function Contact() {
 
 /* ── page ─────────────────────────────────────────────── */
 
-export default function HomeClient({ initialBooks = [], stats: catalogueStats }) {
+export default function HomeClient({ initialBooks = [], stats: catalogueStats, mpesaEnabled = false }) {
   const books = initialBooks;
 
   // Counts come from the server query over the whole shelf, not from the
@@ -422,7 +428,7 @@ export default function HomeClient({ initialBooks = [], stats: catalogueStats })
       <NewArrivals books={books} />
       <HowItWorks />
       <ShelfFacts stats={stats} />
-      <TrustStrip />
+      <TrustStrip mpesaEnabled={mpesaEnabled} />
       <Newsletter />
       <Contact />
     </>

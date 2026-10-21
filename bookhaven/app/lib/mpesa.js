@@ -1,6 +1,8 @@
 // Server-only helpers for the Safaricom Daraja (M-Pesa) API.
 // Credentials are read from process.env and are never sent to the browser.
 
+import { SITE_URL } from "./site.js";
+
 const SANDBOX_BASE = "https://sandbox.safaricom.co.ke";
 const PRODUCTION_BASE = "https://api.safaricom.co.ke";
 
@@ -9,18 +11,29 @@ export function mpesaConfig() {
   const secret = process.env.MPESA_CONSUMER_SECRET;
   const shortcode = process.env.MPESA_SHORTCODE;
   const passkey = process.env.MPESA_PASSKEY;
-  const callbackUrl = process.env.MPESA_CALLBACK_URL;
+
+  // The callback is optional: it defaults to this site's own HTTPS address,
+  // which is what it has to be anyway. Keeping it overridable matters when a
+  // preview deployment must report to a stable domain, and it removes a
+  // setting that is easy to get wrong (a trailing slash or http:// makes
+  // Safaricom reject the whole push).
+  const callbackUrl = (
+    process.env.MPESA_CALLBACK_URL || `${SITE_URL}/api/mpesa/callback`
+  ).trim();
 
   const missing = [
     !key && "MPESA_CONSUMER_KEY",
     !secret && "MPESA_CONSUMER_SECRET",
     !shortcode && "MPESA_SHORTCODE",
     !passkey && "MPESA_PASSKEY",
-    !callbackUrl && "MPESA_CALLBACK_URL",
   ].filter(Boolean);
 
   if (missing.length) {
     return { error: `M-Pesa is not configured. Missing: ${missing.join(", ")}` };
+  }
+
+  if (!/^https:\/\//.test(callbackUrl)) {
+    return { error: "MPESA_CALLBACK_URL must be a public HTTPS address." };
   }
 
   const base =
@@ -28,7 +41,12 @@ export function mpesaConfig() {
       ? PRODUCTION_BASE
       : SANDBOX_BASE;
 
-  return { key, secret, shortcode, passkey, callbackUrl, base };
+  // Paybill numbers use CustomerPayBillOnline; a Buy Goods (till) number must
+  // use CustomerBuyGoodsOnline or Daraja rejects the request.
+  const transactionType =
+    (process.env.MPESA_TRANSACTION_TYPE || "").trim() || "CustomerPayBillOnline";
+
+  return { key, secret, shortcode, passkey, callbackUrl, base, transactionType };
 }
 
 export function mpesaTimestamp(date = new Date()) {

@@ -28,10 +28,17 @@ Node 20+ is required.
 | `MPESA_CONSUMER_SECRET` | **server only** | Daraja app consumer secret |
 | `MPESA_SHORTCODE` | **server only** | Paybill / till number |
 | `MPESA_PASSKEY` | **server only** | STK push passkey |
-| `MPESA_CALLBACK_URL` | **server only** | Public HTTPS callback URL |
+| `MPESA_CALLBACK_URL` | **server only** | Optional. Defaults to `https://<site>/api/mpesa/callback`; must be public HTTPS |
 | `MPESA_ENV` | **server only** | `sandbox` (default) or `production` |
+| `MPESA_TRANSACTION_TYPE` | **server only** | Optional. `CustomerPayBillOnline` (default) or `CustomerBuyGoodsOnline` for a till |
 | `ANTHROPIC_API_KEY` | **server only** | Optional. Enables the read-only assistant in `/admin` |
 | `ANTHROPIC_MODEL` | **server only** | Optional model override (default `claude-sonnet-4-5`) |
+
+M-Pesa switches itself on when the four credentials above are present **and**
+the delivery rule in the database matches `DELIVERY_FEE` in `app/lib/site.js`.
+Until then the checkout offers cash on delivery only, and `/admin → Payments`
+says which of the two is missing. Checkout never shows a payment method that
+would fail at the last step.
 
 If the two `NEXT_PUBLIC_*` values are missing, the app falls back to the
 project's public URL and anon key so an existing deployment keeps working.
@@ -53,16 +60,28 @@ The schema lives in Supabase (project `luniopceavtkljywukyi`). Key objects:
 - `set_order_status(p_order_id, p_new_status, p_admin_id, p_admin_email)` —
   service-role only. Atomic transition + single restock on cancellation +
   activity log entry.
-- `quote_cart(p_items)` — server-side price quote used before an STK push.
+- `delivery_fee_rule()` — returns the delivery charge the app uses (currently
+  `0`). `/api/mpesa/status` refuses to enable M-Pesa when this is missing or
+  disagrees with `DELIVERY_FEE`, so a customer is never charged a total the
+  database would reject.
 - `restock_order`, `book_has_orders` — internal helpers.
 - Storage bucket `book-covers` (public read, 2 MB limit, JPEG/PNG/WebP).
+
+Pricing before an M-Pesa prompt is deliberately *not* a database round-trip
+any more: `/api/mpesa/stk` reads `books.price` with the service role and
+applies `DELIVERY_FEE`, and `place_order()` recomputes both before it writes
+anything. That removes the old `quote_cart()` dependency, which was never in a
+migration in this repository.
 
 Orders cannot be written directly by any browser role: the `orders` table has
 only SELECT policies. All inserts and status changes go through the functions
 above, called with the service role from `/api/orders` and `/api/admin/orders`.
 
-Delivery rule (single source of truth, mirrored in Postgres and the checkout
-UI): free over KSh 3,000, otherwise KSh 300. There is no COD surcharge.
+Delivery rule: delivery is free, so an order total is the sum of the books.
+`DELIVERY_FEE` in `app/lib/site.js` is the number the checkout, the basket and
+the STK route use; `place_order()` writes the same figure, and
+`delivery_fee_rule()` exposes it so M-Pesa can refuse to switch on while the
+two disagree. There is no COD surcharge.
 
 ## Security model
 

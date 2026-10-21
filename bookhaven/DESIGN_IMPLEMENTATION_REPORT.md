@@ -155,8 +155,10 @@ DESIGN_RESEARCH.md                          research, direction, record
 AUDIT_PHASE4.md                             audit updated with this pass
 ```
 
-Not touched: Supabase schema, RLS policies, auth callbacks, cart storage keys,
-order creation, M-Pesa routes, `place_order()`, any environment secret.
+Not touched at the time: Supabase schema, RLS policies, auth callbacks, cart
+storage keys, order creation, M-Pesa routes, `place_order()`, any environment
+secret. (The delivery work afterwards did change `place_order()`'s fee line and
+the M-Pesa routes — see the addendum.)
 
 ---
 
@@ -223,3 +225,23 @@ auth guards and RLS were not modified.
    Daraja sandbox as part of going live.
 6. **Admin customer/user/notification tables** still use `overflow-x-auto`; they
    are usable but not converted to the phone-card pattern the orders table now has.
+
+---
+
+## Addendum — free delivery and M-Pesa
+
+This report covers the design pass. Two commercial changes were made after it,
+and they alter two statements above:
+
+- **Delivery is no longer charged.** The copy that said "free above KSh 3,000,
+  a flat KSh 300 below it" is gone from the homepage, the header strip, the
+  footer, the book page, the basket and checkout. Every total is now the price
+  of the books. The database rule is changed by
+  `supabase/migrations/20261021090000_free_delivery.sql`, which has to be
+  applied — see `AUDIT_PHASE4.md` §J.
+- **M-Pesa is no longer "deferred".** It is implemented end to end and switches
+  itself on when the Daraja credentials are present and the database agrees that
+  delivery is free. The admin's Payments tab, previously a placeholder, now
+  lists real attempts with receipt, status and customer. It has still never
+  spoken to Safaricom from this environment, so the sandbox transaction is
+  yours to run.
