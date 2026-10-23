@@ -24,9 +24,12 @@ function wasEdited(review) {
   if (!review.updated_at || !review.created_at) return false;
   const created = new Date(review.created_at).getTime();
   const updated = new Date(review.updated_at).getTime();
-  // updated_at moves only when the rating or the words changed, so any
-  // measurable gap means a real edit rather than a touch.
-  return Number.isFinite(created) && Number.isFinite(updated) && updated - created > 60_000;
+  // The database only moves updated_at when the rating, the headline or the
+  // text actually changes — a moderation touch does not count. So any gap
+  // beyond clock noise is a real edit. This used to be 60 seconds, which
+  // hid edits made within a minute of posting (found by editing a review
+  // 45 seconds after posting it and watching the marker fail to appear).
+  return Number.isFinite(created) && Number.isFinite(updated) && updated - created > 1_000;
 }
 
 function initials(name) {
