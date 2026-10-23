@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/server";
+import { readJsonBody, SMALL_BODY } from "../../lib/request-guard";
 
 // POST /api/newsletter — add an address to the announcement list.
 //
@@ -35,12 +36,11 @@ function tooMany(key) {
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
 
 export async function POST(request) {
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
+  const body = parsed.body;
 
   // A hidden field only a bot fills in. Treat a filled trap as success so the
   // bot does not learn to avoid it.

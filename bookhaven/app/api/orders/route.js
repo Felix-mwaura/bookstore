@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { clientForToken, bearerToken, serviceClient } from "../../lib/server";
 import { queueEmailDispatch } from "../../lib/email-dispatch";
 import { DELIVERY_PERCENT } from "../../lib/site";
+import { readJsonBody, ORDER_BODY } from "../../lib/request-guard";
 
 // GET /api/orders — the signed-in customer's own orders (RLS-enforced)
 export async function GET(request) {
@@ -82,12 +83,11 @@ export async function POST(request) {
   const { data: { user }, error: userError } = await client.auth.getUser(token);
   if (userError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: ORDER_BODY });
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
+  const body = parsed.body;
 
   const { items, deliveryDetails, paymentMethod, checkoutRequestId, idempotencyKey } = body || {};
 
