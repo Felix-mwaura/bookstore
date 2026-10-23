@@ -26,7 +26,8 @@ Node 20+ is required.
 | `ADMIN_EMAIL` | **server only** | Optional owner account that cannot be demoted |
 | `MPESA_CONSUMER_KEY` | **server only** | Daraja app consumer key |
 | `MPESA_CONSUMER_SECRET` | **server only** | Daraja app consumer secret |
-| `MPESA_SHORTCODE` | **server only** | Paybill / till number |
+| `MPESA_SHORTCODE` | **server only** | Paybill / till number, as issued to the Daraja app |
+| `MPESA_STORE_NUMBER` | **server only** | Optional. The till, when it differs from the short code |
 | `MPESA_PASSKEY` | **server only** | STK push passkey |
 | `MPESA_CALLBACK_URL` | **server only** | Optional. Defaults to `https://<site>/api/mpesa/callback`; must be public HTTPS |
 | `MPESA_ENV` | **server only** | `sandbox` (default) or `production` |

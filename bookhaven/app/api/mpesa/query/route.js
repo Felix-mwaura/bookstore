@@ -73,7 +73,9 @@ export async function POST(request) {
   }
 
   const timestamp = mpesaTimestamp();
-  const password = mpesaPassword(config.shortcode, config.passkey, timestamp);
+  // Must match the push exactly, or Safaricom cannot find the request: the
+  // same business short code, and a password signed with it.
+  const password = mpesaPassword(config.businessShortCode, config.passkey, timestamp);
 
   const queryRes = await fetch(`${tokenResult.base ?? config.base}/mpesa/stkpushquery/v1/query`, {
     method: "POST",
@@ -82,7 +84,7 @@ export async function POST(request) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      BusinessShortCode: config.shortcode,
+      BusinessShortCode: config.businessShortCode,
       Password: password,
       Timestamp: timestamp,
       CheckoutRequestID: checkoutRequestId,

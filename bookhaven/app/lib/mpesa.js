@@ -21,6 +21,7 @@ export function mpesaConfig() {
   const key = clean(process.env.MPESA_CONSUMER_KEY);
   const secret = clean(process.env.MPESA_CONSUMER_SECRET);
   const shortcode = clean(process.env.MPESA_SHORTCODE);
+  const storeNumber = clean(process.env.MPESA_STORE_NUMBER);
   const passkey = clean(process.env.MPESA_PASSKEY);
 
   // The callback is optional: it defaults to this site's own HTTPS address,
@@ -58,13 +59,28 @@ export function mpesaConfig() {
   const transactionType =
     clean(process.env.MPESA_TRANSACTION_TYPE) || "CustomerPayBillOnline";
 
-  // Which kind of shortcode this is, read off its shape. Safaricom issues
+  // A Buy Goods merchant has TWO numbers, and they are not interchangeable:
+  //
+  //   Till / store number  what the customer keys in to pay you, and what the
+  //                        money is settled into (e.g. 7 digits);
+  //   Short code           the merchant number the Daraja app was created
+  //                        against (e.g. 6 digits), which is what the passkey
+  //                        belongs to.
+  //
+  // An STK push is addressed to the STORE, so for Buy Goods the store number
+  // is what belongs in BusinessShortCode / PartyB / the password. When the
+  // two differ, MPESA_STORE_NUMBER carries the store; when they do not (the
+  // common case, and every paybill) it stays unset and the short code is used
+  // for both. Nothing is inferred from the digits — that only warns.
+  const businessShortCode = storeNumber || shortcode;
+
+  // Which kind of number this is, read off its shape. Safaricom issues
   // 6-digit paybill numbers and 7-digit till numbers, and 174379 is the
   // sandbox test paybill. This only feeds a warning — the transaction type
   // stays something the owner declares, never something guessed.
-  const digits = /^\d+$/.test(shortcode) ? shortcode.length : 0;
+  const digits = /^\d+$/.test(businessShortCode) ? businessShortCode.length : 0;
   const shortcodeKind =
-    shortcode === "174379" ? "sandbox-test"
+    businessShortCode === "174379" ? "sandbox-test"
     : digits === 7 ? "till"
     : digits === 6 ? "paybill"
     : "unknown";
@@ -73,6 +89,8 @@ export function mpesaConfig() {
     key,
     secret,
     shortcode,
+    storeNumber: storeNumber || null,
+    businessShortCode,
     passkey,
     callbackUrl,
     base,
@@ -171,8 +189,8 @@ export async function mpesaDiagnostics() {
       problem = "transaction-type";
       advice =
         config.shortcodeKind === "till"
-          ? `Short code ••••${config.shortcode.slice(-4)} is 7 digits, which is a Buy Goods (till) number, but the app is sending it as a paybill. Set MPESA_TRANSACTION_TYPE=CustomerBuyGoodsOnline and redeploy — until then Daraja refuses the push and no prompt reaches the phone.`
-          : `Short code ••••${config.shortcode.slice(-4)} is 6 digits, which is a paybill, but the app is sending it as Buy Goods. Remove MPESA_TRANSACTION_TYPE (the default is CustomerPayBillOnline) and redeploy.`;
+          ? `Short code ••••${config.businessShortCode.slice(-4)} is 7 digits, which is a Buy Goods (till) number, but the app is sending it as a paybill. Set MPESA_TRANSACTION_TYPE=CustomerBuyGoodsOnline and redeploy — until then Daraja refuses the push and no prompt reaches the phone.`
+          : `Short code ••••${config.businessShortCode.slice(-4)} is 6 digits, which is a paybill, but the app is sending it as Buy Goods. Remove MPESA_TRANSACTION_TYPE (the default is CustomerPayBillOnline) and redeploy.`;
     }
   }
 
@@ -183,8 +201,10 @@ export async function mpesaDiagnostics() {
     environment: config.environment,
     environmentAssumed: config.environmentAssumed,
     shortcode: config.shortcode ? `••••${config.shortcode.slice(-4)}` : null,
+    storeNumber: config.storeNumber ? `••••${config.storeNumber.slice(-4)}` : null,
+    businessShortCode: `••••${config.businessShortCode.slice(-4)}`,
     shortcodeKind: config.shortcodeKind,
-    shortcodeLooksLikeSandboxTest: config.shortcode === "174379",
+    shortcodeLooksLikeSandboxTest: config.businessShortCode === "174379",
     transactionType: config.transactionType,
     callbackHost: (() => {
       try {

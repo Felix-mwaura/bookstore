@@ -157,7 +157,10 @@ export async function POST(request) {
   }
 
   const timestamp = mpesaTimestamp();
-  const password = mpesaPassword(config.shortcode, config.passkey, timestamp);
+  // Password = base64(business short code + passkey + timestamp), and the
+  // business short code is the STORE for a till, so all three use the same
+  // number. Mixing them yields "Invalid Password" at the push.
+  const password = mpesaPassword(config.businessShortCode, config.passkey, timestamp);
 
   const stkRes = await fetch(`${tokenResult.base ?? config.base}/mpesa/stkpush/v1/processrequest`, {
     method: "POST",
@@ -166,13 +169,13 @@ export async function POST(request) {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      BusinessShortCode: config.shortcode,
+      BusinessShortCode: config.businessShortCode,
       Password: password,
       Timestamp: timestamp,
       TransactionType: config.transactionType,
       Amount: Math.ceil(amount),
       PartyA: formattedPhone,
-      PartyB: config.shortcode,
+      PartyB: config.businessShortCode,
       PhoneNumber: formattedPhone,
       CallBackURL: config.callbackUrl,
       // Daraja rejects an AccountReference longer than 12 characters and a
@@ -188,6 +191,8 @@ export async function POST(request) {
   if (stkData.ResponseCode !== "0" || !stkData.CheckoutRequestID) {
     console.error("/api/mpesa/stk: STK rejected", {
       environment: config.environment,
+      businessShortCode: config.businessShortCode,
+      storeNumber: config.storeNumber,
       shortcode: config.shortcode,
       transactionType: config.transactionType,
       callbackHost: config.callbackUrl,
