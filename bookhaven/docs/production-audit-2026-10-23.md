@@ -365,7 +365,11 @@ kittens moving around the scene).
   (floor, rug, shelf, plant, book stack, mug) and four kittens: Mochi (cream, navy ribbon),
   Biscuit (orange), Shadow (asleep on the books) and Ash (sitting, tail swishing). Pure SVG
   and CSS transforms; no image files, no animation library, no canvas.
-- `app/login/page.js` — the page shell, the card, and the same three forms as before.
+- `app/login/page.js` — now a **server component** that reads `mode`, `tab` and `next` from
+  the query string, so the room, headline and labels are in the first HTML byte. It used to
+  render nothing but "Loading…" until JavaScript arrived.
+- `app/login/AuthClient.js` — the interactive half: the three forms, the password
+  checklist, the Supabase calls and the redirects.
 
 **Behaviour that did not change**
 
@@ -400,6 +404,23 @@ kittens moving around the scene).
 - Labels are real `<label for>` elements; errors are wired with `aria-describedby` and
   `aria-invalid`; the password checklist changes icon as well as colour.
 - Two smaller kittens are hidden below `sm` and `lg` so phones get less movement.
+
+**Open redirect**
+
+`next` is accepted only if it starts with a single `/`, does not start with `//`, does not
+start with `/\`, and is under 300 characters. Checked against the running build:
+`?next=//evil.com` and `?next=\\evil.com` produce plain `/login` links, while
+`?next=/account/orders` is carried through the tab links as
+`/login?tab=register&next=%2Faccount%2Forders`.
+
+**Also fixed while here**
+
+`app/checkout/page.js` moved to an `unconfirmed` stage when the 60-second M-Pesa window
+closed, but no screen was ever written for it, so `MpesaFlow` returned `undefined` and React
+threw. In practice a customer whose payment was not confirmed within a minute hit a blank
+checkout. There is now a real screen for that state: it does not claim failure, tells the
+customer not to pay twice, offers "Check again" (which restarts both the countdown and the
+polling) and "Change number".
 
 **Not verified**
 

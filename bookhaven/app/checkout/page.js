@@ -466,6 +466,45 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
     </div>
   );
 
+  // ── UNCONFIRMED (the 60s window closed without a settled answer) ──
+  // Nothing here says the payment failed, because it may not have. The one
+  // thing the customer must not do is pay twice.
+  if (stage === "unconfirmed") return (
+    <div className="space-y-5">
+      <div className="rounded-control border border-line bg-white p-5">
+        <p className="text-sm font-semibold text-navy">We are still confirming this payment</p>
+        <p className="mt-2 text-sm leading-relaxed text-muted">
+          Safaricom has not sent us a final answer for {mpesaPhone ? <span className="font-medium text-ink">{mpesaPhone}</span> : "this number"} yet.
+          If your M-Pesa SMS shows the money left your account, <strong className="font-semibold text-ink">do not pay again</strong> —
+          your order is completed as soon as the confirmation arrives.
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-muted">
+          Nothing was charged twice and no order has been created yet.
+        </p>
+      </div>
+
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setCountdown(60);
+            setStage("waiting");
+          }}
+          className="flex-1 rounded-control bg-navy py-3 text-sm font-semibold text-white transition hover:bg-navy-hover"
+        >
+          Check again
+        </button>
+        <button
+          type="button"
+          onClick={reset}
+          className="flex-1 rounded-control border border-line py-3 text-sm font-semibold text-navy transition hover:border-navy"
+        >
+          Change number
+        </button>
+      </div>
+    </div>
+  );
+
   // ── SUCCESS ──
   if (stage === "success") return (
     <div className="space-y-3 py-8 text-center" role="status">
