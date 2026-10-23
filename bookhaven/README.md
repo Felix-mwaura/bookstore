@@ -34,6 +34,13 @@ Node 20+ is required.
 | `ANTHROPIC_API_KEY` | **server only** | Optional. Enables the read-only assistant in `/admin` |
 | `ANTHROPIC_MODEL` | **server only** | Optional model override (default `claude-sonnet-4-5`) |
 
+### Setting up live M-Pesa
+
+[`MPESA_SETUP.md`](MPESA_SETUP.md) is the full guide: which credentials the
+Daraja portal gives you, which of the seven variables are required, how to set
+them in Vercel, how to verify before taking a real payment, and what each
+failure message means.
+
 ### M-Pesa says "not available"
 
 Open **Admin → Payments → Test connection**. It probes both Daraja hosts and
