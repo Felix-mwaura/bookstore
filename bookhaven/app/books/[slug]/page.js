@@ -5,10 +5,14 @@ import { BookCover } from "../../components/BookCover";
 import BookDescription from "../../components/BookDescription";
 import BuyBar from "../../components/BuyBar";
 import ProductCard from "../../components/ProductCard";
+import ReviewsSection from "../../components/ReviewsSection";
+import { StarRating } from "../../components/StarRating";
 import StoreLayout from "../../components/StoreLayout";
 import { getBookById, getRelatedBooks, bookPath, bookSlug, parseBookSlug } from "../../lib/catalogue";
 import { categorySlug } from "../../lib/categories";
 import { stockState } from "../../lib/stock";
+import { getBookRating, getBookReviews } from "../../lib/reviews";
+import { REVIEWS_PER_PAGE, isReviewSort, parsePage, parseStars } from "../../lib/review-limits";
 import { SITE_NAME, SITE_URL, deliveryFeeFor, formatKsh, absoluteUrl } from "../../lib/site";
 
 // Rendered per request rather than cached.
@@ -48,8 +52,9 @@ export async function generateMetadata({ params }) {
   };
 }
 
-export default async function BookPage({ params }) {
+export default async function BookPage({ params, searchParams }) {
   const { slug } = await params;
+  const query = (await searchParams) ?? {};
   const id = parseBookSlug(slug);
   const book = id ? await getBookById(id) : null;
 
@@ -59,7 +64,19 @@ export default async function BookPage({ params }) {
   const canonicalSlug = bookSlug(book);
   if (canonicalSlug !== slug) permanentRedirect(`/books/${canonicalSlug}`);
 
-  const related = await getRelatedBooks(book);
+  // Review state comes from the URL so every page — a rating filter, a sort
+  // order, page 2 — is its own shareable, crawlable address, and the list
+  // stays a server render rather than a client fetch.
+  const reviewSort = isReviewSort(query.rv_sort) ? query.rv_sort : "recent";
+  const reviewStars = parseStars(query.rv_stars);
+  const reviewPage = parsePage(query.rv_page);
+
+  const [related, rating, reviewResult] = await Promise.all([
+    getRelatedBooks(book),
+    getBookRating(book.id),
+    getBookReviews({ bookId: book.id, sort: reviewSort, stars: reviewStars, page: reviewPage, pageSize: REVIEWS_PER_PAGE }),
+  ]);
+
   const state = stockState(book);
   const inStock = state.canBuy;
   const discount = book.original_price && book.original_price > book.price
@@ -80,6 +97,20 @@ export default async function BookPage({ params }) {
     ...(book.cover_url ? { image: book.cover_url } : {}),
     ...(book.category ? { genre: book.category } : {}),
     url: absoluteUrl(bookPath(book)),
+    // Only ever from real, visible, published reviews. A book nobody has
+    // reviewed carries no rating in structured data — which is why the
+    // invented `books.rating` column is not consulted here.
+    ...(rating.count > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: rating.average.toFixed(1),
+            reviewCount: rating.count,
+            bestRating: 5,
+            worstRating: 1,
+          },
+        }
+      : {}),
     offers: {
       "@type": "Offer",
       price: book.price,
@@ -166,6 +197,21 @@ export default async function BookPage({ params }) {
             <h1 className="mt-2 text-2xl font-bold leading-tight text-navy sm:text-3xl lg:text-4xl">{book.title}</h1>
             <p className="mt-1.5 text-base text-muted">by {book.author}</p>
 
+            <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {rating.count > 0 ? (
+                <>
+                  <StarRating value={rating.average} size="md" showValue count={rating.count} />
+                  <a href="#reviews" className="text-xs font-semibold text-sienna underline-offset-2 hover:underline">
+                    Read {rating.count === 1 ? "the review" : `${rating.count} reviews`}
+                  </a>
+                </>
+              ) : (
+                <a href="#reviews" className="text-xs font-semibold text-muted underline-offset-2 hover:text-sienna hover:underline">
+                  Be the first to review this book
+                </a>
+              )}
+            </div>
+
             {/* One panel for everything that decides the purchase: price,
                 stock, quantity, the action. Reading and reference material
                 sits below it, so the buy controls are never split by prose. */}
@@ -213,6 +259,14 @@ export default async function BookPage({ params }) {
             )}
           </div>
         </div>
+
+        <ReviewsSection
+          book={{ id: book.id, slug: canonicalSlug, title: book.title }}
+          summary={rating}
+          result={reviewResult}
+          sort={reviewSort}
+          stars={reviewStars}
+        />
 
         {related.length > 0 && (
           <section className="mt-14 border-t border-line pt-8">

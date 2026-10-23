@@ -120,6 +120,19 @@ export async function PATCH(request) {
     return NextResponse.json({ error: "Could not update the order" }, { status: 500 });
   }
 
+  // Marking an order Delivered can unlock the "Verified purchase" badge on
+  // reviews that customer already left for books in it. The badge itself is
+  // always derived in the database from order history; this call only makes
+  // the affected rows be recomputed now rather than on their next edit.
+  // A failure here must never fail the order update, so it is awaited and
+  // logged rather than thrown.
+  if (status === "Delivered" && data?.user_id) {
+    const { error: refreshError } = await adminClient.rpc("refresh_review_verification", {
+      p_user_id: data.user_id,
+    });
+    if (refreshError) console.error("review badge refresh:", refreshError.message);
+  }
+
   // The confirmation email was queued inside the same transaction; this only
   // nudges delivery along. A failure here leaves the row queued.
   queueEmailDispatch();

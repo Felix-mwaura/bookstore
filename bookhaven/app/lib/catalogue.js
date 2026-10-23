@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabase-config";
+import { attachRatings } from "./reviews";
+import { toPublicBook } from "./book-shape";
 
 // Catalogue reads are public (the `books` table has a read policy for
 // everyone), so they run on a cookie-less anon client. That keeps the
@@ -15,32 +17,10 @@ function catalogueClient() {
 // without bundling the Supabase client.
 export { slugifyTitle, bookSlug, bookPath, parseBookSlug } from "./book-url";
 
-/** A row shape safe to hand to client components (no server-only fields). */
-export function toPublicBook(row) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    title: row.title,
-    author: row.author,
-    price: row.price,
-    original_price: row.original_price ?? null,
-    rating: row.rating ?? null,
-    reviews: row.reviews ?? 0,
-    category: row.category,
-    format: row.format,
-    isbn: row.isbn ?? null,
-    badge: row.badge ?? null,
-    stock: row.stock ?? null,
-    stock_quantity: row.stock_quantity ?? 0,
-    cover: row.cover ?? null,
-    cover_url: row.cover_url ?? null,
-    description: row.description ?? "",
-    pages: row.pages ?? null,
-    publisher: row.publisher ?? null,
-    year: row.year ?? null,
-    tags: Array.isArray(row.tags) ? row.tags : [],
-  };
-}
+// The row→public mapping lives in ./book-shape so it can be unit-tested
+// without the Supabase client (Node ESM cannot resolve the extensionless
+// import below).
+export { toPublicBook } from "./book-shape";
 
 /** Rows for the storefront: never archived, never the internal fields. */
 export async function getStorefrontBooks(limit = 60) {
@@ -53,7 +33,7 @@ export async function getStorefrontBooks(limit = 60) {
     .limit(limit);
 
   if (error) return [];
-  return (data || []).map(toPublicBook);
+  return attachRatings((data || []).map(toPublicBook));
 }
 
 export async function getBookById(id) {
@@ -66,7 +46,8 @@ export async function getBookById(id) {
     .maybeSingle();
 
   if (error || !data) return null;
-  return toPublicBook(data);
+  const [book] = await attachRatings([toPublicBook(data)]);
+  return book || null;
 }
 
 /** Other titles in the same category, falling back to popular picks. */
@@ -78,7 +59,10 @@ export async function getRelatedBooks(book, limit = 4) {
     .eq("is_archived", false)
     .eq("category", book.category)
     .neq("id", book.id)
-    .order("rating", { ascending: false })
+    // Featured first, then newest. This used to order by books.rating —
+    // a column of invented numbers — so "related" was ranked by fiction.
+    .order("is_featured", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit);
 
   const related = (data || []).map(toPublicBook);
@@ -89,7 +73,8 @@ export async function getRelatedBooks(book, limit = 4) {
     .select("*")
     .eq("is_archived", false)
     .neq("id", book.id)
-    .order("reviews", { ascending: false })
+    .order("is_featured", { ascending: false })
+    .order("id", { ascending: false })
     .limit(limit);
 
   const seen = new Set(related.map((b) => b.id));
@@ -99,7 +84,7 @@ export async function getRelatedBooks(book, limit = 4) {
     seen.add(row.id);
     related.push(row);
   }
-  return related;
+  return attachRatings(related);
 }
 
 /** Real catalogue statistics — never invented marketing numbers. */
@@ -201,7 +186,7 @@ export async function queryCatalogue({
 
   const total = count ?? (data || []).length;
   return {
-    books: (data || []).map(toPublicBook),
+    books: await attachRatings((data || []).map(toPublicBook)),
     total,
     pages: Math.max(1, Math.ceil(total / pageSize)),
     page: currentPage,

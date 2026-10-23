@@ -66,7 +66,31 @@ export async function GET(request) {
     console.error("GET /api/admin/books:", error.message);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-  return NextResponse.json({ books: data }, { headers: { "Cache-Control": "no-store" } });
+
+  // Real ratings, from real reviews. The `rating` and `reviews` columns on
+  // `books` hold invented numbers (4.5 by default) and are never displayed;
+  // this overwrites them in the response so the Products table shows the
+  // truth, or nothing at all.
+  const ids = (data || []).map((book) => book.id);
+  const summaries = new Map();
+  if (ids.length > 0) {
+    const { data: rows } = await adminClient
+      .from("book_rating_summary")
+      .select("book_id, average_rating, review_count")
+      .in("book_id", ids);
+    for (const row of rows || []) {
+      summaries.set(Number(row.book_id), {
+        rating: Number(row.average_rating),
+        reviews: Number(row.review_count),
+      });
+    }
+  }
+  const books = (data || []).map((book) => {
+    const summary = summaries.get(Number(book.id));
+    return { ...book, rating: summary ? summary.rating : null, reviews: summary ? summary.reviews : 0 };
+  });
+
+  return NextResponse.json({ books }, { headers: { "Cache-Control": "no-store" } });
 }
 
 // POST /api/admin/books — create
@@ -82,7 +106,10 @@ export async function POST(request) {
   if (vError) return NextResponse.json({ error: vError }, { status: 400 });
 
   const { data, error } = await adminClient
-    .from("books").insert({ ...fields, rating: 4.5, reviews: 0, tags: [] }).select().single();
+    // `rating` is written as null, not 4.5: a brand-new book has no reviews,
+    // and seeding it with a flattering default is exactly the invented
+    // number this change set removes. Real figures come from book_reviews.
+    .from("books").insert({ ...fields, rating: null, reviews: 0, tags: [] }).select().single();
   if (error) {
     console.error("POST /api/admin/books:", error.message);
     return NextResponse.json({ error: error.message }, { status: error.code === "23505" ? 409 : 500 });
