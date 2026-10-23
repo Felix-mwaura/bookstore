@@ -1,9 +1,20 @@
 -- Book Haven — customer ratings and reviews
 --
--- STATUS: NEW — 2026-10-23. NOT APPLIED to production. It only ADDS objects
--- (one table, one view, four functions, indexes and policies) and touches no
--- existing row, so it is safe to run on the live database, but it is written
--- to be reviewed and applied deliberately rather than automatically.
+-- STATUS: APPLIED 2026-10-23 to luniopceavtkljywukyi, recorded as version
+-- 20261023162927 (see supabase_migrations.schema_migrations; the file was
+-- renamed to that version so `supabase db push` does not replay it). It only
+-- ADDS objects — one table, one view, four functions, indexes and policies —
+-- and touched no existing row. Verified afterwards:
+--
+--   to_regclass('public.book_reviews')                          -> book_reviews
+--   relrowsecurity on book_reviews                              -> true
+--   pg_policy rows for book_reviews                             -> 6
+--   trigger book_reviews_before_write enabled                   -> 1
+--   has_column_privilege('anon','book_reviews','user_id','SELECT')     -> false
+--   has_column_privilege('authenticated','book_reviews','is_published','UPDATE') -> false
+--   has_column_privilege('authenticated','book_reviews','rating','UPDATE')       -> true
+--   has_function_privilege('authenticated','my_book_review(bigint)','EXECUTE')   -> true
+--   has_function_privilege('anon','my_book_review(bigint)','EXECUTE')            -> false
 --
 -- Everything here is idempotent: running it twice changes nothing the second
 -- time. It is wrapped in a single transaction, so a failure half-way leaves
@@ -219,6 +230,10 @@ end;
 $function$;
 
 revoke all on function public.book_reviews_before_write() from public;
+-- Same default-privileges note as my_book_review. A function returning
+-- `trigger` cannot be called directly anyway, but it should not be callable
+-- by name at all.
+revoke all on function public.book_reviews_before_write() from anon, authenticated;
 
 drop trigger if exists book_reviews_before_write on public.book_reviews;
 create trigger book_reviews_before_write
@@ -377,6 +392,13 @@ as $function$
 $function$;
 
 revoke all on function public.my_book_review(bigint) from public;
+-- Supabase's default privileges grant EXECUTE on new functions in `public`
+-- to anon and authenticated explicitly, which `revoke ... from public` does
+-- not undo. On the live project anon turned out to still hold this one; it
+-- was revoked by hand and is revoked here so a fresh database matches.
+-- (Harmless either way — with no token auth.uid() is null, so the function
+-- returns no rows — but "harmless" is not the same as "intended".)
+revoke all on function public.my_book_review(bigint) from anon;
 grant execute on function public.my_book_review(bigint) to authenticated;
 
 -- ── 9. Delivery → badge refresh ─────────────────────────────────────────

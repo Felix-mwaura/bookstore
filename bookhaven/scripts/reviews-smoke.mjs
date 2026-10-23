@@ -98,7 +98,7 @@ eq("headline limit", REVIEW_TITLE_MAX, 100);
 // ── 7. The migration text says what it should ───────────────────────────────
 section("7. Migration guard rails");
 import { readFile } from "node:fs/promises";
-const sql = await readFile(new URL("../supabase/migrations/20261023140000_book_reviews.sql", import.meta.url), "utf8");
+const sql = await readFile(new URL("../supabase/migrations/20261023162927_book_reviews.sql", import.meta.url), "utf8");
 for (const needle of [
   "unique (book_id, user_id)",
   "check (rating between 1 and 5)",

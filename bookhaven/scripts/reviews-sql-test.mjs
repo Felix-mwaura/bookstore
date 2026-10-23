@@ -1,4 +1,4 @@
-// Runs supabase/migrations/20261023140000_book_reviews.sql against a real
+// Runs supabase/migrations/20261023162927_book_reviews.sql against a real
 // Postgres (PGlite, PG 17) with a Supabase-shaped scaffold, then attacks it.
 //
 // This is the closest thing to the live database that can run without
@@ -26,7 +26,7 @@ try {
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
-const MIGRATION = join(here, "..", "supabase", "migrations", "20261023140000_book_reviews.sql");
+const MIGRATION = join(here, "..", "supabase", "migrations", "20261023162927_book_reviews.sql");
 
 const failures = [];
 let passes = 0;

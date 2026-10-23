@@ -3,7 +3,7 @@
 // A plain module with no imports, so the client bundle can use the same
 // numbers as the server without pulling the Supabase client in with them.
 // These MUST match the CHECK constraints in
-// supabase/migrations/20261023140000_book_reviews.sql — the database is the
+// supabase/migrations/20261023162927_book_reviews.sql — the database is the
 // enforcement, this is only what the form says before a request is sent.
 
 export const REVIEW_MIN_CHARS = 10;
