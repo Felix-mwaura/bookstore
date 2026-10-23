@@ -21,7 +21,11 @@ export function mpesaConfig() {
   const key = clean(process.env.MPESA_CONSUMER_KEY);
   const secret = clean(process.env.MPESA_CONSUMER_SECRET);
   const shortcode = clean(process.env.MPESA_SHORTCODE);
-  const storeNumber = clean(process.env.MPESA_STORE_NUMBER);
+  // Two names for the same thing: MPESA_TILL_NUMBER is what a merchant calls
+  // it and what the M-Pesa Business app prints; MPESA_STORE_NUMBER is the
+  // Daraja word. Either works, and one value cannot be set twice.
+  const storeNumber =
+    clean(process.env.MPESA_TILL_NUMBER) || clean(process.env.MPESA_STORE_NUMBER);
   const passkey = clean(process.env.MPESA_PASSKEY);
 
   // The callback is optional: it defaults to this site's own HTTPS address,
@@ -67,9 +71,12 @@ export function mpesaConfig() {
   //                        against (e.g. 6 digits), which is what the passkey
   //                        belongs to.
   //
-  // An STK push is addressed to the STORE, so for Buy Goods the store number
+  // Both are 7 digits on many live tills, so the digits cannot tell you which
+  // is which — only the M-Pesa Business account screen can.
+  //
+  // An STK push is addressed to the STORE, so for Buy Goods the till number
   // is what belongs in BusinessShortCode / PartyB / the password. When the
-  // two differ, MPESA_STORE_NUMBER carries the store; when they do not (the
+  // two differ, MPESA_TILL_NUMBER carries the till; when they do not (the
   // common case, and every paybill) it stays unset and the short code is used
   // for both. Nothing is inferred from the digits — that only warns.
   const businessShortCode = storeNumber || shortcode;

@@ -74,10 +74,10 @@ charged. When the two numbers differ, set:
 
 ```
 MPESA_SHORTCODE=654321       <- the Daraja app's number, as before
-MPESA_STORE_NUMBER=7001234   <- the till the customer pays
+MPESA_TILL_NUMBER=7001234    <- the till the customer pays
 ```
 
-Leave `MPESA_STORE_NUMBER` empty when the two are the same number (common on
+Leave `MPESA_TILL_NUMBER` empty when the two are the same number (common on
 paybills, and on tills where Safaricom issued one number). The app never
 guesses: with it unset, the short code is used for both and nothing changes.
 
@@ -104,7 +104,7 @@ step, the store number is the value to correct.
 
 | Variable | Default | When to change it |
 | --- | --- | --- |
-| `MPESA_STORE_NUMBER` | the short code | When the **till** differs from the short code (§1). Otherwise leave empty. |
+| `MPESA_TILL_NUMBER` | the short code | When the **till** differs from the short code (§1). Otherwise leave empty. |
 | `MPESA_TRANSACTION_TYPE` | `CustomerPayBillOnline` | Set `CustomerBuyGoodsOnline` for a till |
 | `MPESA_CALLBACK_URL` | `https://<site>/api/mpesa/callback` | Only if the callback must be on a different domain. Must be public HTTPS |
 
@@ -134,7 +134,7 @@ the portal and the M-Pesa Business app.
 
 **Dashboard:** Project → **Settings** → **Environment Variables** → add each key,
 target **Production**, type **Sensitive** (except `MPESA_ENV`,
-`MPESA_TRANSACTION_TYPE` and `MPESA_STORE_NUMBER`, which are harmless and
+`MPESA_TRANSACTION_TYPE` and `MPESA_TILL_NUMBER`, which are harmless and
 easier to read as *Plain*).
 
 Three rules that have each cost an hour on this project:
@@ -175,7 +175,7 @@ itself; read these lines:
 - *M-Pesa authentication works* — Safaricom issued a token, which is a
   credential check that costs nothing and moves no money.
 - *Short code (Daraja app)* — must match the portal.
-- *Till / store number* — appears only when `MPESA_STORE_NUMBER` is set; must
+- *Till / store number* — appears only when `MPESA_TILL_NUMBER` is set; must
   match the M-Pesa Business app.
 - *Payment sent to* — the number the push actually addresses, with its kind
   (Buy Goods (till) or paybill).
