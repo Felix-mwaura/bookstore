@@ -5,27 +5,27 @@ against this repository and, read-only, against the live Supabase project
 `luniopceavtkljywukyi` and the production deployment
 `https://bookstore-puce-sigma.vercel.app`.
 
-**Nothing was deployed, no environment variable was changed, no migration was applied to
-production, and no live payment or email was triggered.** Every statement below about the
-live system is something that was queried or attempted, and the result is quoted.
+**Update, same day:** the two migrations were authorised by the owner and applied at
+11:36 UTC. Their status below has been corrected, and section 8 records what was verified
+afterwards. No environment variable was changed, no live payment or email was triggered,
+and every statement about the live system is something that was queried or attempted.
 
 ---
 
 ## 0. Verdict
 
-**Release is BLOCKED**, for one reason: the two migrations in this change set are not
-applied. Application code alone now refuses a forged callback, but the database backstops
-(exact-amount payment check, receipt uniqueness, callback preservation) only exist once
-those migrations run.
+**Release is UNBLOCKED for the three conditions below.** Both migrations are applied and
+verified (section 8). Two owner actions remain before launch, and neither is a code defect:
+real contact details, and email delivery with a verified domain.
 
 | Release gate condition | Status |
 | --- | --- |
 | A forged callback can complete a payment | **Pass (code)** — verified with mocked provider; fails closed on every path |
 | A customer can promote themselves to admin | **Pass (live + code)** — production already refuses it; repository now reproduces the guard |
-| Critical RLS is unverified | **Fail** — verified, and two gaps remain until migrations are applied |
+| Critical RLS is unverified | **Pass** — verified after the migrations: customers cannot self-promote, browsers cannot write orders/books/payments, the subscriber list is no longer readable by `anon` |
 
-Once `20261023120000` and `20261023120100` are applied and the checks at the end of those
-files pass, the gate moves to "pass, with owner actions outstanding" (section 7).
+Both migrations are now applied (`20261023113622`, `20261023113634`) and the post-apply
+checks in section 8 pass, so the gate is "pass, with owner actions outstanding" (section 9).
 
 ---
 
@@ -134,15 +134,16 @@ was not required before completion.
 
 | # | Finding | Evidence | Status |
 | --- | --- | --- | --- |
-| 1 | Role guard exists in production but **not in the repository** | `trg_protect_profile_role` present and enabled; no migration creates it | **Fixed in repository** (migration, not applied) |
-| 2 | `authenticated` has table-wide `UPDATE` on `profiles` | `information_schema` | Fixed by column-level grants (migration) |
-| 3 | `anon`/`authenticated` hold INSERT/UPDATE/DELETE/TRUNCATE on `orders`, `mpesa_payments`, `books` | table privileges query | Writes are blocked today only because no policy permits them. Fixed by revoke (migration) |
-| 4 | `newsletter_subscribers` policy `Anyone can subscribe` is `FOR ALL WITH CHECK (true)` with **no USING clause** | `pg_policy.polcmd='a'`, `polqual IS NULL` | **Live gap.** PostgreSQL uses the USING expression for the read side, and a missing USING defaults to true, so `anon` can read — and delete — every row in that table. The table is empty today (0 rows), so no data was exposed, but every subscriber would be as soon as one exists. Narrowed to INSERT-only in the migration |
+| 1 | Role guard exists in production but **not in the repository** | `trg_protect_profile_role` present and enabled; no migration created it | **Fixed and applied** |
+| 2 | `authenticated` has table-wide `UPDATE` on `profiles` | `information_schema` | **Fixed and applied** — column-level grants |
+| 3 | `anon`/`authenticated` hold INSERT/UPDATE/DELETE/TRUNCATE on `orders`, `mpesa_payments`, `books` | table privileges query | **Fixed and applied** — write grants revoked |
+| 4 | `newsletter_subscribers` policy `Anyone can subscribe` is `FOR ALL WITH CHECK (true)` with **no USING clause** | `pg_policy.polcmd='a'`, `polqual IS NULL` | **Live gap.** PostgreSQL uses the USING expression for the read side, and a missing USING defaults to true, so `anon` can read — and delete — every row in that table. The table is empty today (0 rows), so no data was exposed, but every subscriber would be as soon as one exists. **Fixed and applied** — the policy was dropped and browser writes revoked |
 
-Rows 1–3 and 4 are fixed in `20261023120100_profile_role_and_write_surface.sql`, which
-re-creates the live trigger **verbatim** (a no-op in production) and adds the column
-privileges, so applying it cannot change current production behaviour except by closing
-row 4.
+Rows 1–4 are fixed by `20261023113634_profile_role_and_write_surface.sql`, now applied. It
+re-created the live trigger **verbatim**, so the only behaviour change in production was
+closing rows 2–4. Re-checked afterwards: a customer still updates their own name, and a
+customer updating their own role now fails before the trigger even runs
+(`42501 permission denied for table profiles`).
 
 ### What is already correct
 
@@ -179,7 +180,7 @@ calling the function, so this was **not reachable through the shipping UI** — 
 reachable by anything else that calls the function, and it is exactly the kind of bug that
 returns when a caller is added.
 
-Fixed in `20261023120000`: lines are merged per book before stock is checked, and rows are
+Fixed in `20261023113622`: lines are merged per book before stock is checked, and rows are
 locked in ascending id order so two concurrent orders cannot deadlock.
 
 Also fixed: a non-numeric `quantity` used to escape the inner `BEGIN…EXCEPTION` block and
@@ -271,10 +272,8 @@ unaffected.
 
 - No test against real Daraja. That would move money (rule: no live financial transactions).
   All provider behaviour is mocked.
-- No test against the live Supabase database. The new migrations are unapplied, so their SQL
-  has been reviewed but not executed anywhere. They are written to be idempotent and are
-  wrapped in `begin/commit`; the verification queries at the bottom of each file are the
-  checks to run immediately after applying.
+- No test against the live Supabase database beyond the post-apply verification in section 8.
+  No end-to-end order was placed against it.
 - No browser or device testing, no screen-reader run, no Lighthouse pass.
 
 ---
@@ -283,21 +282,39 @@ unaffected.
 
 | File | Status |
 | --- | --- |
-| `20261023120000_mpesa_callback_integrity.sql` | **NEW — not applied.** Adds `mpesa_callbacks`, receipt uniqueness, `place_order` exact-amount + receipt + line aggregation, `mpesa_payments` write revokes |
-| `20261023120100_profile_role_and_write_surface.sql` | **NEW — not applied.** Re-creates the live role trigger verbatim, column-level `profiles` grants, revokes browser writes on `orders`/`books`/`newsletter_subscribers`, narrows the newsletter policy to INSERT |
-| `20261020030000_profile_role_hardening.sql` | **Rewritten as a comment-only "superseded" pointer.** It was never applied; applying it now would create a second, differently-named trigger |
-| `20261020000000`, `20261020010000`, `20261020020000`, `20261021110000` | Unchanged. Note that `20261021110000_delivery_rate.sql` **is live** but is **absent from `supabase_migrations.schema_migrations`** — it was applied by hand. Every statement in it matches the deployed function |
+| `20261023113622_mpesa_callback_integrity.sql` | **APPLIED 2026-10-23.** `mpesa_callbacks`, receipt uniqueness, `place_order` exact-amount + receipt + line aggregation, `mpesa_payments` write revokes |
+| `20261023113634_profile_role_and_write_surface.sql` | **APPLIED 2026-10-23.** Creates the role trigger (production already had it, so no behaviour change), column-level `profiles` grants, revokes browser writes on `orders`/`books`/`newsletter_subscribers`, narrows the newsletter policy to INSERT-only |
+| `20261020030000_profile_role_hardening.sql` | **Comment-only "superseded" pointer.** Never applied; applying it would have created a second, differently-named trigger |
+| `20261020000000`, `20261020010000`, `20261020020000`, `20261021110000` | Unchanged. `20261021110000_delivery_rate.sql` **is live** but was applied by hand and is still **absent from `supabase_migrations.schema_migrations`** |
 
-Applying `20261023120000` **replaces the deployed `place_order`**. The new definition was
-diffed against `pg_get_functiondef()` of the live function; the only differences are the
-payment guard and the line aggregation described above.
+Both files were applied through the Supabase migration API, so they are recorded as
+`20261023113622` and `20261023113634` in `supabase_migrations.schema_migrations` — the file
+names were changed to those timestamps so a future `supabase db push` does not try to replay
+them. The SQL submitted was these files' statements with the explanatory comments removed;
+the post-apply checks below confirm every object and guard is present.
 
----
+### Post-apply verification (run against the live project)
+
+| Check | Result |
+| --- | --- |
+| `to_regclass('public.mpesa_callbacks')` | `mpesa_callbacks` |
+| `pg_indexes` for `mpesa_payments_receipt_key` | 1 row |
+| `has_table_privilege('anon','mpesa_payments','UPDATE')` | `false` |
+| `place_order` body | contains `v_wanted` (line merge), `order by key::bigint` (lock order), `v_pay.mpesa_receipt is null` and `v_pay.amount is distinct from v_total` |
+| Customer updating their own **name** under RLS | succeeds |
+| Customer updating their own **role** under RLS | **fails** — `42501 permission denied for table profiles` |
+| `trg_protect_profile_role` | present, enabled (`tgenabled='O'`) |
+| `has_table_privilege('authenticated','orders','INSERT')` | `false` |
+| `has_table_privilege('authenticated','books','UPDATE')` | `false` |
+| `has_table_privilege('anon','newsletter_subscribers','DELETE')` | `false` |
+
+Applying `20261023113622` **replaced the deployed `place_order`**. The new definition was
+diffed against `pg_get_functiondef()` before and after; the only differences are the payment
+guard and the line aggregation described above.
 
 ## 9. Owner actions
 
-1. **Apply the two migrations** (SQL editor or `supabase db push`), in order, then run the
-   verification queries at the end of each. **Until then, release stays blocked.**
+1. ~~Apply the two migrations.~~ **Done 2026-10-23** (section 8).
 2. **Real contact details**: email, phone, location, hours — or accept that the site publishes
    placeholders.
 3. **Email**: buy/verify a domain, then set `RESEND_API_KEY` and `EMAIL_FROM` as Supabase
@@ -318,14 +335,14 @@ payment guard and the line aggregation described above.
 | --- | --- |
 | Forged callback cannot complete a payment | **Pass (code, mocked tests)** |
 | Callback verified server-to-server with Daraja | **Pass (code)** |
-| Exact amount enforced | **Pass (code)**; database backstop **blocked** on migration |
-| Receipt stored and unique | **Pass (code)**; unique index **blocked** on migration |
-| Unmatched callbacks preserved | **Pass (code)**; table **blocked** on migration |
-| Role escalation blocked | **Pass (live + code)**; repository reproduction **blocked** on migration |
-| Browser cannot write orders/books/payments | **Blocked** on migration |
-| Subscriber list not readable by `anon` | **Blocked** on migration |
+| Exact amount enforced | **Pass** — code and database |
+| Receipt stored and unique | **Pass** — unique index live |
+| Unmatched callbacks preserved | **Pass** — `mpesa_callbacks` live |
+| Role escalation blocked | **Pass** — two layers (trigger + column grants) |
+| Browser cannot write orders/books/payments | **Pass** |
+| Subscriber list not readable by `anon` | **Pass** |
 | Order totals recomputed server-side | **Pass** |
-| Duplicate cart lines cannot oversell | **Pass (code)**; **blocked** on migration |
+| Duplicate cart lines cannot oversell | **Pass** |
 | Idempotent order creation | **Pass** |
 | Admin routes authorised server-side | **Pass** |
 | Assistant is read-only and bounded | **Pass** |
@@ -333,3 +350,63 @@ payment guard and the line aggregation described above.
 | No secrets in the repository or the logs | **Pass** |
 | Build, lint, existing tests | **Pass** |
 | End-to-end paid order has ever succeeded | **Fail — never observed** |
+
+---
+
+## 11. Appendix — sign-up / sign-in page
+
+Requested separately from the audit: rebuild `/login` to match the supplied reference
+(warm cream room, headline and feature list on the left, a white form card on the right,
+kittens moving around the scene).
+
+**What was built**
+
+- `app/components/KittenScene.js` + `app/components/kitten-scene.module.css` — the room
+  (floor, rug, shelf, plant, book stack, mug) and four kittens: Mochi (cream, navy ribbon),
+  Biscuit (orange), Shadow (asleep on the books) and Ash (sitting, tail swishing). Pure SVG
+  and CSS transforms; no image files, no animation library, no canvas.
+- `app/login/page.js` — the page shell, the card, and the same three forms as before.
+
+**Behaviour that did not change**
+
+- Same `signIn` / `signUp` / `resetPasswordForEmail` calls, same redirect rules
+  (`next` must be a same-origin path), same admin-vs-customer destination lookup, same
+  "already signed in → leave the page" effect, same email-confirmation state.
+- The sign-in form is byte-for-byte the same logic; the reset form is the same.
+- No phone field on sign-up: it was optional, it is still collected at checkout, and it can
+  be added in `/account`. This matches the reference, which has name, email and password.
+
+**Changes that are deliberate**
+
+- **Password rules are now real.** The reference shows a four-item checklist. The form now
+  *enforces* all four (8+ characters, one uppercase, one number, one symbol) rather than
+  only the 8-character rule. This is enforced in the sign-up form; Supabase's own project
+  minimum is 6 characters and was left alone, so a script calling the auth API directly
+  would not be held to it. The checklist is only shown where it applies (sign-up).
+- **No "Continue with Google".** Google is disabled on this Supabase project
+  (`external_google_enabled: false`) and nothing in the code calls
+  `signInWithOAuth`. Showing the button would be a dead control.
+- **The primary button is navy on this page**, as in the reference, instead of the store's
+  sienna. Sienna stays the colour for inline links; contrast is unchanged at 13:1.
+- Names are captured as one "Full name" field and split into first / remaining names for
+  the existing profile metadata.
+
+**Accessibility and motion**
+
+- Decorative layer is `aria-hidden` and `pointer-events: none`; it never covers the form or
+  takes a click. Kittens are behind the content.
+- `prefers-reduced-motion: reduce` stops every animation and parks the kittens in fixed
+  positions.
+- Labels are real `<label for>` elements; errors are wired with `aria-describedby` and
+  `aria-invalid`; the password checklist changes icon as well as colour.
+- Two smaller kittens are hidden below `sm` and `lg` so phones get less movement.
+
+**Not verified**
+
+- No browser or device was available in this environment, so there is **no screenshot, no
+  cross-browser check, no Lighthouse run and no screen-reader run**. Layout was reasoned
+  against the four breakpoints and the build, lint and HTTP checks pass, but visual review
+  on a real screen is still owed.
+- No account was created and no sign-in was performed: that would write real users into the
+  production project. The form logic is unchanged apart from the name split and the
+  stronger password rule.
