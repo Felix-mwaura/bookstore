@@ -139,7 +139,7 @@ function validateDetails(data) {
   return found;
 }
 
-function StepDetails({ data, onChange, onNext }) {
+function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember, onRemember }) {
   const [errors, setErrors] = useState({});
 
   const validate = () => validateDetails(data);
@@ -168,6 +168,36 @@ function StepDetails({ data, onChange, onNext }) {
       <p className="text-[11px] font-bold uppercase tracking-widest text-sienna">Step 1 of 3</p>
       <h2 className="mt-1 text-xl sm:text-2xl font-bold text-navy">Delivery details</h2>
       <p className="text-muted text-sm mt-1 mb-5">Where should we send your books?</p>
+
+      {/* Saved addresses. Only rendered for a signed-in customer who has one,
+          so a first-time buyer sees the plain form and nothing else. */}
+      {saved.length > 0 && (
+        <div className="mb-5 rounded-xl border border-line bg-stone-50 p-3">
+          <label htmlFor="checkout-saved-address" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">
+            Use a saved address
+          </label>
+          <select
+            id="checkout-saved-address"
+            defaultValue=""
+            onChange={(e) => {
+              const chosen = saved.find((a) => a.id === e.target.value);
+              if (chosen) onPickSaved?.(chosen);
+              // Return the control to its prompt so the same address can be
+              // picked again after editing a field by hand.
+              e.target.value = "";
+            }}
+            className="min-h-11 w-full rounded-xl border border-[#E3DCCB] bg-white px-4 text-sm outline-none transition focus:border-[#B5532F]"
+          >
+            <option value="">Choose a saved address…</option>
+            {saved.map((a) => (
+              <option key={a.id} value={a.id}>
+                {(a.label || "Address") + " — " + a.address + ", " + a.city}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Field label="First name" name="firstName" placeholder="Grace" autoComplete="given-name" value={data.firstName} onChange={handleChange} error={errors.firstName} />
         <Field label="Last name" name="lastName" placeholder="Wambui" autoComplete="family-name" value={data.lastName} onChange={handleChange} error={errors.lastName} />
@@ -189,6 +219,17 @@ function StepDetails({ data, onChange, onNext }) {
             className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#B5532F]" />
         </div>
       </div>
+
+      <label className="mt-4 flex items-start gap-2 text-sm text-muted">
+        <input
+          type="checkbox"
+          checked={remember}
+          onChange={(e) => onRemember?.(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-line"
+        />
+        <span>Save this address to my account for next time</span>
+      </label>
+
       <button type="button" onClick={handleNext} className="btn-primary w-full mt-8 text-base">
         Continue to payment
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
@@ -679,8 +720,14 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, m
           {method === "cod" && <CodFlow total={grand} onSuccess={onSuccess} disabled={!ready} />}
         </div>
       </div>
+      <p className="mt-5 text-center text-xs leading-relaxed text-muted">
+        Paying places an order under our{" "}
+        <Link href="/terms" className="font-semibold text-sienna underline-offset-2 hover:underline">terms of sale</Link>.
+        Delivery is {DELIVERY_PERCENT}% of the book total, shown above before you pay —{" "}
+        <Link href="/help#delivery" className="font-semibold text-sienna underline-offset-2 hover:underline">how delivery works</Link>.
+      </p>
       {onBack && (
-        <button type="button" onClick={onBack} className="mt-5 text-sm text-muted hover:text-navy underline underline-offset-2">
+        <button type="button" onClick={onBack} className="mt-4 text-sm text-muted hover:text-navy underline underline-offset-2">
           Back to delivery details
         </button>
       )}
@@ -807,6 +854,10 @@ export default function CheckoutPage() {
   // the server can see whether the Daraja credentials are present.
   const [mpesaEnabled, setMpesaEnabled] = useState(false);
   const [details, setDetails] = useState({ firstName: "", lastName: "", email: "", phone: "", address: "", city: "", notes: "" });
+  // Saved addresses and the "remember this one" choice. Both only apply to a
+  // signed-in customer; a guest checkout never sees the picker.
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [rememberAddress, setRememberAddress] = useState(true);
 
 
   // There is deliberately no invented "order reference" here. Before the
@@ -927,6 +978,76 @@ export default function CheckoutPage() {
     return () => { cancelled = true; };
   }, []);
 
+  // Load the customer's saved addresses once we know they are signed in.
+  // Failure is silent on purpose: the delivery form still works without them.
+  useEffect(() => {
+    if (signedIn !== true) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const res = await fetch("/api/adresses", {
+          headers: { authorization: `Bearer ${session.access_token}` },
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (!cancelled) setSavedAddresses(Array.isArray(json?.addresses) ? json.addresses : []);
+      } catch {
+        // Ignored: an address book is a convenience, not a checkout blocker.
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [signedIn]);
+
+  const useSavedAddress = (addr) => {
+    setDetails((prev) => ({
+      ...prev,
+      address: addr.address || "",
+      city: addr.city || "",
+      phone: addr.phone || prev.phone,
+      firstName: addr.name?.split(" ")[0] || prev.firstName,
+      lastName: addr.name?.split(" ").slice(1).join(" ") || prev.lastName,
+    }));
+  };
+
+  // Store the address after a successful order. Deduplicated against what is
+  // already saved; a failure here must never surface as an order error,
+  // because the order itself is already safely in the database.
+  const rememberDeliveryAddress = async (session) => {
+    if (!rememberAddress || !session) return;
+    const name = [details.firstName, details.lastName].filter(Boolean).join(" ").trim();
+    if (!name || !details.address || !details.city || !details.phone) return;
+
+    const duplicate = savedAddresses.some(
+      (a) => a.address === details.address && a.city === details.city && a.phone === details.phone
+    );
+    if (duplicate) return;
+
+    try {
+      await fetch("/api/adresses", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          label: "Home",
+          name,
+          address: details.address,
+          city: details.city,
+          phone: details.phone,
+          is_default: savedAddresses.length === 0,
+        }),
+      });
+    } catch {
+      // Ignored by design — see the note above.
+    }
+  };
+
   const updateDetail = (key, val) => setDetails((p) => ({ ...p, [key]: val }));
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const detailsValid = Object.keys(validateDetails(details)).length === 0;
@@ -971,6 +1092,7 @@ export default function CheckoutPage() {
       setStep(3);
       // Only empty the basket once the order really exists in the database.
       localStorage.removeItem("bh_cart");
+      void rememberDeliveryAddress(session);
     } catch (err) {
       console.error("Order save failed:", err);
       setSaveError(err.message || "Could not save your order.");
@@ -1097,6 +1219,10 @@ export default function CheckoutPage() {
                 <StepDetails
                   data={details}
                   onChange={updateDetail}
+                  saved={savedAddresses}
+                  onPickSaved={useSavedAddress}
+                  remember={rememberAddress}
+                  onRemember={setRememberAddress}
                   onNext={() => document.getElementById("payment-block")?.scrollIntoView({ behavior: "smooth", block: "start" })}
                 />
 

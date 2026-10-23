@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BookCover } from "./BookCover";
+import { BuyAgainButton, ReviewPrompt } from "./OrderActions";
 import {
   FULFILMENT_STEPS,
   FULFILMENT_META,
@@ -77,7 +78,8 @@ export default function OrderView({ order }) {
             <h1 className="text-2xl sm:text-3xl font-bold text-[#1B2A4A]">Order {orderReference(order.id)}</h1>
             <p className="text-sm text-stone-500 mt-1">Placed {formatDate(order.created_at, true)}</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <BuyAgainButton items={items} className="w-full sm:w-auto" />
             <span className={`px-3 py-1 rounded-full text-xs font-bold border ${toneClass(status.tone)}`}>{status.label}</span>
             <span className={`px-3 py-1 rounded-full text-xs font-bold border ${toneClass(payment.tone)}`}>{payment.label}</span>
           </div>
@@ -121,6 +123,9 @@ export default function OrderView({ order }) {
                       <p className="text-xs text-stone-500">
                         {item.author} · Qty {item.quantity || 1} × {formatKsh(item.price)}
                       </p>
+                      {order.status === "Delivered" && (
+                        <p className="mt-1"><ReviewPrompt item={item} /></p>
+                      )}
                     </div>
                     <p className="text-sm font-bold shrink-0">{formatKsh((item.price || 0) * (item.quantity || 1))}</p>
                   </li>

@@ -165,7 +165,7 @@ export function StoreFooter() {
   return (
     <footer className="bg-navy text-cream/80 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 md:col-span-1">
             <Link href="/" className="inline-flex items-center">
               <span className="font-playfair text-lg font-bold text-white">Book Haven</span>
@@ -192,6 +192,18 @@ export function StoreFooter() {
               <li><Link href="/account" className="hover:text-white transition">Orders &amp; tracking</Link></li>
               <li><Link href="/login" className="hover:text-white transition">Sign in</Link></li>
               <li><Link href="/login?tab=register" className="hover:text-white transition">Create an account</Link></li>
+            </ul>
+          </div>
+
+          <div>
+            <h2 className="text-sm font-bold text-white mb-3">Help</h2>
+            <ul className="space-y-2 text-sm">
+              <li><Link href="/help#delivery" className="hover:text-white transition">Delivery</Link></li>
+              <li><Link href="/help#returns" className="hover:text-white transition">Returns</Link></li>
+              <li><Link href="/help#payment" className="hover:text-white transition">Payment &amp; M-Pesa</Link></li>
+              <li><Link href="/about" className="hover:text-white transition">About Book Haven</Link></li>
+              <li><Link href="/privacy" className="hover:text-white transition">Privacy</Link></li>
+              <li><Link href="/terms" className="hover:text-white transition">Terms of sale</Link></li>
             </ul>
           </div>
 
