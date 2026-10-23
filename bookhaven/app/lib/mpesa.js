@@ -333,3 +333,66 @@ export async function mpesaAccessToken({ key, secret, base }) {
 
   return { token: data.access_token, expiresIn: data.expires_in };
 }
+
+/**
+ * Ask Daraja whether a given CheckoutRequestID actually succeeded.
+ *
+ * This is the server-to-server check that a public callback body cannot fake.
+ * It is deliberately limited to a verdict:
+ *
+ *   { ok: true,  resultCode, resultDesc, checkoutRequestId }
+ *   { ok: false, reason, httpStatus, resultDesc }
+ *
+ * `ok: false` means "Safaricom did not give us a verdict" (network, auth,
+ * 5xx, unparsable body) — never "failed". Callers must keep the payment
+ * pending in that case rather than inferring an outcome.
+ *
+ * Daraja's STK query response does NOT include Amount or MpesaReceiptNumber,
+ * so a positive answer here proves the transaction completed but cannot by
+ * itself prove the amount or supply the receipt an order needs. The verified
+ * callback remains the only source for those.
+ */
+export async function stkQuery({ config, accessToken, base, checkoutRequestId }) {
+  const timestamp = mpesaTimestamp();
+  const password = mpesaPassword(config.businessShortCode, config.passkey, timestamp);
+
+  let res;
+  try {
+    res = await fetch(`${base}/mpesa/stkpushquery/v1/query`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        BusinessShortCode: config.businessShortCode,
+        Password: password,
+        Timestamp: timestamp,
+        CheckoutRequestID: checkoutRequestId,
+      }),
+      cache: "no-store",
+    });
+  } catch (err) {
+    return { ok: false, reason: "network", httpStatus: null, resultDesc: err?.message || "" };
+  }
+
+  const data = await res.json().catch(() => ({}));
+  const code = Number(data.ResultCode);
+
+  if (!Number.isFinite(code)) {
+    return {
+      ok: false,
+      reason: "no_result_code",
+      httpStatus: res.status,
+      resultDesc: data.ResultDesc || data.errorMessage || data.error || "",
+    };
+  }
+
+  return {
+    ok: true,
+    httpStatus: res.status,
+    resultCode: code,
+    resultDesc: data.ResultDesc ?? null,
+    checkoutRequestId: data.CheckoutRequestID ?? null,
+  };
+}

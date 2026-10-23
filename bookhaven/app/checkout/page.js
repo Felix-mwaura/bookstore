@@ -253,7 +253,11 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
       setCountdown((c) => {
         if (c <= 1) {
           clearInterval(timerRef.current);
+          // Last chance to see a confirmed payment before we admit we do not
+          // know. The server only reports success once Safaricom's callback
+          // has been verified, so silence here genuinely means "unknown".
           checkPaymentStatus();
+          setStage((current) => (current === "waiting" ? "unconfirmed" : current));
           return 0;
         }
         return c - 1;
@@ -472,6 +476,47 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
       </div>
       <p className="font-semibold text-navy">Payment received</p>
       <p className="text-sm text-muted">Saving your order…</p>
+    </div>
+  );
+
+  // ── UNCONFIRMED ──
+  // The prompt was sent but neither the callback nor a status check has
+  // confirmed it. We do not know, so we say so — and we never invite a second
+  // payment for the same order while the first might still land.
+  if (stage === "unconfirmed") return (
+    <div className="space-y-4 rounded-control border border-line bg-white p-5">
+      <div className="space-y-2 text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-warning/10">
+          <span className="text-2xl font-bold text-warning" aria-hidden="true">?</span>
+        </div>
+        <p className="font-semibold text-navy">Still confirming your payment</p>
+        <p className="text-sm text-muted">
+          We have not heard back from M-Pesa yet. If your phone shows an M-Pesa
+          message for KSh {displayAmount.toLocaleString()}, the payment went
+          through — <strong className="font-semibold text-navy">do not pay again</strong>.
+          Your order is saved as soon as the confirmation arrives.
+        </p>
+      </div>
+      <div className="flex gap-3">
+        <button
+          type="button"
+          onClick={() => {
+            setCountdown(60);
+            setStage("waiting");
+            checkPaymentStatus();
+          }}
+          className="flex-1 rounded-control border border-line py-3 text-sm font-semibold text-navy transition hover:border-navy"
+        >
+          Check again
+        </button>
+        <button
+          type="button"
+          onClick={reset}
+          className="flex-1 rounded-control border border-line py-3 text-sm font-semibold text-muted transition hover:border-navy hover:text-navy"
+        >
+          Use another number
+        </button>
+      </div>
     </div>
   );
 

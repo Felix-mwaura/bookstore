@@ -8,6 +8,7 @@ import {
   normalisePhone,
 } from "../../../lib/mpesa";
 import { deliveryFeeFor } from "../../../lib/site";
+import { readJsonBody, ORDER_BODY } from "../../../lib/request-guard";
 
 // POST /api/mpesa/stk
 //
@@ -30,12 +31,11 @@ export async function POST(request) {
 
   const { user } = auth;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: ORDER_BODY });
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
+  const body = parsed.body;
 
   const { phone, items } = body || {};
 
@@ -156,6 +156,34 @@ export async function POST(request) {
     );
   }
 
+  // ── Record the expectation BEFORE the prompt is sent ──────────────────
+  //
+  // The payment intent used to be inserted after the push returned, which
+  // meant a push that succeeded but whose insert failed left money in flight
+  // with no record of what it was for. It is created first now: the row
+  // carries the authenticated customer and the server-computed amount, and
+  // CheckoutRequestID/MerchantRequestID are attached to it once Daraja
+  // answers. A callback that arrives in between cannot match a row that has
+  // no CheckoutRequestID yet, so /api/mpesa/callback preserves it in
+  // mpesa_callbacks for reconciliation instead of dropping it.
+  const { data: intent, error: intentError } = await db
+    .from("mpesa_payments")
+    .insert({
+      user_id: user.id,
+      expected_amount: Math.ceil(amount),
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (intentError || !intent?.id) {
+    console.error("/api/mpesa/stk: could not record payment intent:", intentError?.message);
+    return NextResponse.json(
+      { error: "Could not start the payment safely. Please try again." },
+      { status: 500 }
+    );
+  }
+
   const timestamp = mpesaTimestamp();
   // Password = base64(business short code + passkey + timestamp), and the
   // business short code is the STORE for a till, so all three use the same
@@ -189,6 +217,24 @@ export async function POST(request) {
   const stkData = await stkRes.json().catch(() => ({}));
 
   if (stkData.ResponseCode !== "0" || !stkData.CheckoutRequestID) {
+    // Nothing was charged, so close the intent rather than leaving a pending
+    // row that looks like a payment the customer abandoned.
+    const { error: closeError } = await db
+      .from("mpesa_payments")
+      .update({
+        status: "failed",
+        result_code: Number(stkData.ResponseCode ?? stkData.errorCode) || null,
+        result_desc: String(
+          stkData.errorMessage || stkData.ResponseDescription || "STK push was rejected"
+        ).slice(0, 500),
+      })
+      .eq("id", intent.id)
+      .eq("status", "pending");
+
+    if (closeError) {
+      console.error("/api/mpesa/stk: could not close the rejected intent:", closeError.message);
+    }
+
     console.error("/api/mpesa/stk: STK rejected", {
       environment: config.environment,
       businessShortCode: config.businessShortCode,
@@ -209,21 +255,44 @@ export async function POST(request) {
     );
   }
 
-  // Record the expectation BEFORE any callback can arrive. The callback may
-  // only update this row — it can never insert one. If this write fails we
-  // must not hand the customer a payment prompt we cannot reconcile.
-  const { error: insertError } = await db.from("mpesa_payments").insert({
-    checkout_request_id: stkData.CheckoutRequestID,
-    merchant_request_id: stkData.MerchantRequestID,
-    user_id: user.id,
-    expected_amount: Math.ceil(amount),
-    status: "pending",
-  });
+  // Attach Daraja's identifiers to the intent created before the push. Until
+  // this succeeds the row cannot be matched by a callback, so it is retried
+  // and, if it still fails, reported loudly: the customer has a live prompt
+  // and we must not pretend the payment is untraceable.
+  let attached = false;
+  let attachError = null;
+  for (let attempt = 0; attempt < 3 && !attached; attempt += 1) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+    const { error } = await db
+      .from("mpesa_payments")
+      .update({
+        checkout_request_id: stkData.CheckoutRequestID,
+        merchant_request_id: stkData.MerchantRequestID || null,
+      })
+      .eq("id", intent.id);
+    if (error) {
+      attachError = error;
+      continue;
+    }
+    attached = true;
+  }
 
-  if (insertError) {
-    console.error("/api/mpesa/stk: could not record payment intent:", insertError.message);
+  if (!attached) {
+    // Not a secret (it is shown to the browser that started the payment), and
+    // the only way to reconcile the charge if the callback cannot find its row.
+    console.error("/api/mpesa/stk: COULD NOT ATTACH CHECKOUT ID — reconcile manually", {
+      paymentIntentId: intent.id,
+      checkoutRequestId: stkData.CheckoutRequestID,
+      merchantRequestId: stkData.MerchantRequestID ?? null,
+      error: attachError?.message || null,
+    });
     return NextResponse.json(
-      { error: "Could not start the payment safely. Please try again." },
+      {
+        error:
+          "The payment prompt was sent, but we could not record it. Do not pay again — contact us with your M-Pesa message and we will sort it out.",
+        code: "INTENT_ATTACH_FAILED",
+        checkoutRequestId: stkData.CheckoutRequestID,
+      },
       { status: 500 }
     );
   }
