@@ -67,24 +67,44 @@ two numbers side by side:
 | **Till Number** | store number | `7001234` | What the customer enters to pay you, and where the money settles. This is the number on your sticker. |
 | **Short Code** | `MPESA_SHORTCODE` | `654321` | The merchant number your Daraja app — and its passkey — were created against. |
 
-An STK push is addressed to the **store**, so that is what goes in
-`BusinessShortCode`, `PartyB`, and the password (`base64(shortcode + passkey +
-timestamp)`), because Safaricom checks the password against the number being
-charged. When the two numbers differ, set:
+They are used for **different jobs**, and swapping them is what produces
+Safaricom's `Merchant does not exist`:
+
+| Field in the STK request | Which number | Why |
+| --- | --- | --- |
+| `BusinessShortCode` | the **short code** (`MPESA_SHORTCODE`) | the number the Daraja app and its Go Live approval belong to |
+| `Password` | the **short code** | `base64(shortcode + passkey + timestamp)` — the passkey is only valid for the short code |
+| `PartyB` | the **till** (`MPESA_TILL_NUMBER`) | where the customer's money settles |
+
+An STK push is signed by the merchant Safaricom knows (`BusinessShortCode` +
+passkey) and paid into the till (`PartyB`). Putting the till in
+`BusinessShortCode` — and building the password from it — asks Daraja to charge
+a merchant it has never heard of, because no passkey was ever issued for that
+number. Login still succeeds, which is what makes it confusing.
+
+When the two numbers differ, set:
 
 ```
-MPESA_SHORTCODE=654321       <- the Daraja app's number, as before
-MPESA_TILL_NUMBER=7001234    <- the till the customer pays
+MPESA_SHORTCODE=654321       <- the Daraja app's number: signs the request
+MPESA_TILL_NUMBER=7001234    <- the till: receives the money
 ```
 
-Leave `MPESA_TILL_NUMBER` empty when the two are the same number (common on
-paybills, and on tills where Safaricom issued one number). The app never
-guesses: with it unset, the short code is used for both and nothing changes.
+Leave `MPESA_TILL_NUMBER` empty when the two are the same number (every
+paybill, and tills where Safaricom issued one number). The app never guesses:
+with it unset, the till falls back to the short code and nothing changes.
 
-Admin → Payments shows **both** numbers and a line reading *Payment sent to*
-`••••1234`, so you can see which one is being charged without reading code. If
-Safaricom answers `Invalid Password` or `Invalid Short Code` at the payment
-step, the store number is the value to correct.
+Admin → Payments shows both, as *Short code (signing)* and *Payment sent to
+(till)*, so you can see which number signs and which one gets paid without
+reading code.
+
+**Symptom → cause:**
+
+| Safaricom says | What is wrong |
+| --- | --- |
+| `Merchant does not exist` | `BusinessShortCode` is not the number the app/passkey was issued for — usually the till has been put there |
+| `Invalid Password` | `MPESA_PASSKEY` does not belong to `MPESA_SHORTCODE`, or there is whitespace in it |
+| `Invalid Short Code` | `MPESA_SHORTCODE` is wrong or has a non-digit character |
+| `Invalid TransactionType` | `MPESA_TRANSACTION_TYPE` does not match the number (till needs `CustomerBuyGoodsOnline`) |
 
 ---
 

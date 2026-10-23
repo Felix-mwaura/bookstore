@@ -63,31 +63,36 @@ export function mpesaConfig() {
   const transactionType =
     clean(process.env.MPESA_TRANSACTION_TYPE) || "CustomerPayBillOnline";
 
-  // A Buy Goods merchant has TWO numbers, and they are not interchangeable:
+  // A Buy Goods merchant has TWO numbers, and Daraja uses them for different
+  // jobs. Swapping them is what produces "Merchant does not exist": Daraja
+  // only recognises the number the Daraja app, its Go Live approval and its
+  // passkey were issued against.
   //
-  //   Till / store number  what the customer keys in to pay you, and what the
-  //                        money is settled into (e.g. 7 digits);
-  //   Short code           the merchant number the Daraja app was created
-  //                        against (e.g. 6 digits), which is what the passkey
-  //                        belongs to.
+  //   Short code (MPESA_SHORTCODE)   the head-office number that owns the app
+  //                                  and the passkey. Daraja signs with this.
+  //   Till (MPESA_TILL_NUMBER)       the store number the customer pays into.
   //
-  // Both are 7 digits on many live tills, so the digits cannot tell you which
-  // is which — only the M-Pesa Business account screen can.
+  // So the request is signed as:
   //
-  // An STK push is addressed to the STORE, so for Buy Goods the till number
-  // is what belongs in BusinessShortCode / PartyB / the password. When the
-  // two differ, MPESA_TILL_NUMBER carries the till; when they do not (the
-  // common case, and every paybill) it stays unset and the short code is used
-  // for both. Nothing is inferred from the digits — that only warns.
-  const businessShortCode = storeNumber || shortcode;
+  //   BusinessShortCode = the short code
+  //   Password          = base64(short code + passkey + timestamp)
+  //   PartyB            = the till
+  //
+  // Building the password from the till asks Daraja to authenticate a merchant
+  // it has never heard of — the passkey is only valid for the short code. A
+  // paybill has no separate till, so PartyB falls back to the short code and
+  // every other number stays exactly as it was.
+  const businessShortCode = shortcode;
+  const partyB = storeNumber || shortcode;
 
-  // Which kind of number this is, read off its shape. Safaricom issues
+  // Which kind of number is being paid, read off its shape. Safaricom issues
   // 6-digit paybill numbers and 7-digit till numbers, and 174379 is the
-  // sandbox test paybill. This only feeds a warning — the transaction type
-  // stays something the owner declares, never something guessed.
-  const digits = /^\d+$/.test(businessShortCode) ? businessShortCode.length : 0;
+  // sandbox test paybill. It is read from PartyB because that is the number
+  // the money goes to. This only feeds a warning — the transaction type stays
+  // something the owner declares, never something guessed.
+  const digits = /^\d+$/.test(partyB) ? partyB.length : 0;
   const shortcodeKind =
-    businessShortCode === "174379" ? "sandbox-test"
+    partyB === "174379" ? "sandbox-test"
     : digits === 7 ? "till"
     : digits === 6 ? "paybill"
     : "unknown";
@@ -98,6 +103,7 @@ export function mpesaConfig() {
     shortcode,
     storeNumber: storeNumber || null,
     businessShortCode,
+    partyB,
     passkey,
     callbackUrl,
     base,
@@ -196,8 +202,8 @@ export async function mpesaDiagnostics() {
       problem = "transaction-type";
       advice =
         config.shortcodeKind === "till"
-          ? `Short code ••••${config.businessShortCode.slice(-4)} is 7 digits, which is a Buy Goods (till) number, but the app is sending it as a paybill. Set MPESA_TRANSACTION_TYPE=CustomerBuyGoodsOnline and redeploy — until then Daraja refuses the push and no prompt reaches the phone.`
-          : `Short code ••••${config.businessShortCode.slice(-4)} is 6 digits, which is a paybill, but the app is sending it as Buy Goods. Remove MPESA_TRANSACTION_TYPE (the default is CustomerPayBillOnline) and redeploy.`;
+          ? `The payment is addressed to till ••••${config.partyB.slice(-4)}, which is a Buy Goods number, but the app is sending it as a paybill. Set MPESA_TRANSACTION_TYPE=CustomerBuyGoodsOnline and redeploy — until then Daraja refuses the push and no prompt reaches the phone.`
+          : `The payment is addressed to ••••${config.partyB.slice(-4)}, which is a paybill, but the app is sending it as Buy Goods. Remove MPESA_TRANSACTION_TYPE (the default is CustomerPayBillOnline) and redeploy.`;
     }
   }
 
@@ -209,9 +215,15 @@ export async function mpesaDiagnostics() {
     environmentAssumed: config.environmentAssumed,
     shortcode: config.shortcode ? `••••${config.shortcode.slice(-4)}` : null,
     storeNumber: config.storeNumber ? `••••${config.storeNumber.slice(-4)}` : null,
-    businessShortCode: `••••${config.businessShortCode.slice(-4)}`,
+    // `businessShortCode` has always meant "the number the customer pays" and
+    // the admin panel labels it that way, so it keeps that meaning here and
+    // now carries PartyB. The number Daraja actually signs the request with is
+    // reported separately as `signingShortCode` — they are different numbers
+    // for a Buy Goods till, and reading the wrong one is the whole bug.
+    businessShortCode: `••••${config.partyB.slice(-4)}`,
+    signingShortCode: `••••${config.businessShortCode.slice(-4)}`,
     shortcodeKind: config.shortcodeKind,
-    shortcodeLooksLikeSandboxTest: config.businessShortCode === "174379",
+    shortcodeLooksLikeSandboxTest: config.partyB === "174379",
     transactionType: config.transactionType,
     callbackHost: (() => {
       try {
