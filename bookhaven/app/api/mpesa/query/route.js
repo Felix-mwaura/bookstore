@@ -53,7 +53,7 @@ export async function POST(request) {
   // Only the customer who started this payment may query it.
   const { data: payment, error: lookupError } = await db
     .from("mpesa_payments")
-    .select("id, status, expected_amount, amount, mpesa_receipt")
+    .select("id, status, expected_amount, amount, mpesa_receipt, result_code, result_desc")
     .eq("checkout_request_id", checkoutRequestId)
     .eq("user_id", auth.user.id)
     .maybeSingle();
@@ -82,11 +82,31 @@ export async function POST(request) {
   }
 
   if (payment.status === "failed") {
+    // Only ResultCode 1032 is a customer cancellation and only 1037 is a
+    // timeout. A row marked failed by any other code — "Merchant does not
+    // exist", a bad passkey, an invalid short code — used to be reported as
+    // a cancellation too, which told the customer they had cancelled
+    // something they never saw. Those are our failures, and they are logged
+    // as such.
+    const code = Number(payment.result_code);
+    const flagged = Number.isFinite(code);
+    const customerCancelled = flagged && code === 1032;
+    const timedOut = flagged && code === 1037;
+
+    console.error("/api/mpesa/query: payment already marked failed", {
+      paymentId: payment.id,
+      resultCode: flagged ? code : null,
+      resultDesc: payment.result_desc ?? null,
+      attributedTo: customerCancelled ? "customer-cancelled" : timedOut ? "timeout" : "merchant-or-configuration",
+    });
+
     return NextResponse.json({
       success: false,
       pending: false,
-      cancelled: true,
-      timedOut: false,
+      cancelled: customerCancelled,
+      timedOut,
+      failed: !customerCancelled && !timedOut,
+      resultCode: flagged ? code : null,
       resultDesc: "This payment did not go through.",
     });
   }
@@ -135,6 +155,19 @@ export async function POST(request) {
   });
 
   if (verdict.action === "failed") {
+    // Safaricom's own words, on the server, so a rejected push can be
+    // diagnosed from the deployment logs without the customer having to
+    // describe the screen they saw. No secret is in a ResultCode/ResultDesc.
+    const customerCancelled = verdict.resultCode === 1032;
+    const timedOut = verdict.resultCode === 1037;
+
+    console.error("/api/mpesa/query: Safaricom reported a failure", {
+      paymentId: payment.id,
+      resultCode: verdict.resultCode ?? null,
+      resultDesc: verdict.resultDesc || verdict.reason,
+      attributedTo: customerCancelled ? "customer-cancelled" : timedOut ? "timeout" : "merchant-or-configuration",
+    });
+
     const { error } = await db
       .from("mpesa_payments")
       .update({
@@ -152,8 +185,10 @@ export async function POST(request) {
     return NextResponse.json({
       success: false,
       pending: false,
-      cancelled: verdict.reason === "CANCELLED",
-      timedOut: verdict.reason === "TIMEOUT",
+      cancelled: customerCancelled,
+      timedOut,
+      failed: !customerCancelled && !timedOut,
+      resultCode: verdict.resultCode ?? null,
       resultDesc: verdict.resultDesc || verdict.reason,
     });
   }

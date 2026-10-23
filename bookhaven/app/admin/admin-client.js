@@ -2707,20 +2707,17 @@ function PaymentsTab({ onNavigate, showToast }) {
                 <dd className="font-semibold text-ink">{test.environment}{test.environmentAssumed ? " (assumed)" : ""}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Short code <span className="text-[11px]">(Daraja app)</span></dt>
-                <dd className="text-right font-mono font-semibold text-ink">{test.shortcode || "—"}</dd>
+                <dt className="text-muted">Short code <span className="text-[11px]">(signing)</span></dt>
+                <dd className="text-right font-mono font-semibold text-ink">
+                  {test.signingShortCode || test.shortcode || "—"}
+                  <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">owns the passkey</span>
+                </dd>
               </div>
-              {test.storeNumber && (
-                <div className="flex justify-between gap-3">
-                  <dt className="text-muted">Till / store number</dt>
-                  <dd className="text-right font-mono font-semibold text-ink">{test.storeNumber}</dd>
-                </div>
-              )}
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Payment sent to</dt>
+                <dt className="text-muted">Payment sent to{test.shortcodeKind === "till" ? " (till)" : ""}</dt>
                 <dd className="text-right font-mono font-semibold text-ink">
                   {test.businessShortCode || test.shortcode || "—"}
-                  {test.shortcodeKind === "till" && <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">Buy Goods (till)</span>}
+                  {test.shortcodeKind === "till" && <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">Buy Goods</span>}
                   {test.shortcodeKind === "paybill" && <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">paybill</span>}
                 </dd>
               </div>
@@ -2737,10 +2734,11 @@ function PaymentsTab({ onNavigate, showToast }) {
 
           {test.storeNumber && (
             <p className="mt-3 rounded-control border border-current/20 p-3 text-xs leading-relaxed">
-              Your till and your Daraja short code are different numbers. The customer pays the
-              till, so the app addresses the payment to <span className="font-mono">{test.businessShortCode}</span>.
-              If Safaricom answers &quot;invalid password&quot; or &quot;invalid short code&quot;, that
-              number is the one to change.
+              Your till and your Daraja short code are different numbers, and they are used for
+              different jobs: the request is signed with <span className="font-mono">{test.signingShortCode}</span>{" "}
+              (the number the passkey belongs to) and the money settles into{" "}
+              <span className="font-mono">{test.businessShortCode}</span> (the till the customer pays).
+              Swapping them is what Safaricom answers with &quot;Merchant does not exist&quot;.
             </p>
           )}
 

@@ -185,9 +185,11 @@ export async function POST(request) {
   }
 
   const timestamp = mpesaTimestamp();
-  // Password = base64(business short code + passkey + timestamp), and the
-  // business short code is the STORE for a till, so all three use the same
-  // number. Mixing them yields "Invalid Password" at the push.
+  // Password = base64(business short code + passkey + timestamp). The short
+  // code is the head-office number the Daraja app and the passkey belong to —
+  // NOT the till. Signing with the till is what Safaricom answers with
+  // "Merchant does not exist", because the passkey is only valid for the
+  // short code. The till travels separately, as PartyB.
   const password = mpesaPassword(config.businessShortCode, config.passkey, timestamp);
 
   const stkRes = await fetch(`${tokenResult.base ?? config.base}/mpesa/stkpush/v1/processrequest`, {
@@ -203,7 +205,9 @@ export async function POST(request) {
       TransactionType: config.transactionType,
       Amount: Math.ceil(amount),
       PartyA: formattedPhone,
-      PartyB: config.businessShortCode,
+      // The till the customer pays into. For a paybill this is the same
+      // number as BusinessShortCode; for a Buy Goods merchant it is not.
+      PartyB: config.partyB,
       PhoneNumber: formattedPhone,
       CallBackURL: config.callbackUrl,
       // Daraja rejects an AccountReference longer than 12 characters and a
@@ -238,6 +242,7 @@ export async function POST(request) {
     console.error("/api/mpesa/stk: STK rejected", {
       environment: config.environment,
       businessShortCode: config.businessShortCode,
+      partyB: config.partyB,
       storeNumber: config.storeNumber,
       shortcode: config.shortcode,
       transactionType: config.transactionType,

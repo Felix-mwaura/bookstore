@@ -110,25 +110,40 @@ withEnv({ ...creds, MPESA_SHORTCODE: "174379" }, () => {
   check("174379 is the sandbox test paybill", mpesaConfig().shortcodeKind, "sandbox-test");
 });
 
-// ── till vs short code: the store is what gets addressed ────────
-// A Buy Goods merchant has a till (what the customer pays) and a short code
-// (what the Daraja app and its passkey were issued against). They are
-// different numbers, and the push must go to the store.
+// ── till vs short code: sign with the short code, pay the till ──
+// A Buy Goods merchant has a till (where the money settles) and a short code
+// (what the Daraja app and its passkey were issued against). Daraja signs the
+// request with the short code and pays the till — swapping them is what it
+// answers with "Merchant does not exist".
 withEnv({ ...creds, MPESA_SHORTCODE: "654321", MPESA_STORE_NUMBER: "7001234", MPESA_TRANSACTION_TYPE: "CustomerBuyGoodsOnline" }, () => {
   const config = mpesaConfig();
   check("the Daraja short code is kept", config.shortcode, "654321");
   check("the store number is kept", config.storeNumber, "7001234");
-  check("the payment is addressed to the store", config.businessShortCode, "7001234");
-  check("…and is treated as a till", config.shortcodeKind, "till");
+  check("the request is signed with the short code", config.businessShortCode, "654321");
+  check("the payment is addressed to the till", config.partyB, "7001234");
+  check("…and the till is what is treated as Buy Goods", config.shortcodeKind, "till");
 });
 
 withEnv({ ...creds, MPESA_SHORTCODE: "654321", MPESA_TILL_NUMBER: "7001234", MPESA_TRANSACTION_TYPE: "CustomerBuyGoodsOnline" }, () => {
-  check("MPESA_TILL_NUMBER is accepted too", mpesaConfig().businessShortCode, "7001234");
+  const config = mpesaConfig();
+  check("MPESA_TILL_NUMBER is accepted too", config.partyB, "7001234");
+  check("…while the signing number stays the short code", config.businessShortCode, "654321");
+});
+
+// The live shape this fix was written for: a 7-digit short code and a
+// different 7-digit till. The digits cannot distinguish them, so only the
+// declared env vars can — and each must end up in its own field.
+withEnv({ ...creds, MPESA_SHORTCODE: "9874839", MPESA_TILL_NUMBER: "3228507", MPESA_TRANSACTION_TYPE: "CustomerBuyGoodsOnline" }, () => {
+  const config = mpesaConfig();
+  check("a 7-digit short code still signs", config.businessShortCode, "9874839");
+  check("…and the separate till is PartyB", config.partyB, "3228507");
+  check("a 7-digit till is still Buy Goods", config.shortcodeKind, "till");
 });
 
 withEnv({ ...creds, MPESA_SHORTCODE: "247247", MPESA_TRANSACTION_TYPE: "CustomerPayBillOnline" }, () => {
   const config = mpesaConfig();
-  check("without a store number the short code is used", config.businessShortCode, "247247");
+  check("without a till the short code is used for both", config.businessShortCode, "247247");
+  check("…including PartyB", config.partyB, "247247");
   check("…and no store is invented", config.storeNumber, null);
   check("a paybill stays a paybill", config.shortcodeKind, "paybill");
 });

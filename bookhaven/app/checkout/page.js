@@ -239,12 +239,17 @@ function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember
 }
 
 function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, onFallback }) {
-  const [stage, setStage] = useState("idle"); // idle | sending | waiting | polling | success | failed | cancelled
+  const [stage, setStage] = useState("idle"); // idle | sending | waiting | polling | success | failed | cancelled | unconfirmed
   const [mpesaPhone, setMpesaPhone] = useState(phone || "");
   const [phoneError, setPhoneError] = useState("");
   const [countdown, setCountdown] = useState(60);
   const [checkoutRequestId, setCheckoutRequestId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+  // Safaricom's own verdict when a payment failed for a reason that is not
+  // the customer's: a rejected short code, a bad passkey, a merchant Daraja
+  // does not recognise. Kept so the screen can promise "you did not cancel
+  // this" honestly.
+  const [failure, setFailure] = useState(null);
   // True when the failure was on our side (no M-Pesa prompt ever reached
   // the phone), so the customer can switch to pay-on-delivery instead of
   // being stuck on a dead end.
@@ -278,9 +283,23 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
         setStage("success");
         setTimeout(() => onSuccess("mpesa", checkoutRequestId), 1200);
       } else if (data.cancelled || data.timedOut) {
+        // Only a real customer cancellation (1032) or timeout (1037) lands
+        // here; the server separates those from every other failure.
         clearInterval(timerRef.current);
         clearInterval(pollRef.current);
         setStage("cancelled");
+      } else if (data.pending === false) {
+        // A failure Safaricom reported that was not a cancellation — most
+        // often a merchant or configuration error. The customer never saw a
+        // prompt, or saw one that failed for our reasons, so do not tell them
+        // they cancelled it.
+        clearInterval(timerRef.current);
+        clearInterval(pollRef.current);
+        setFailure({
+          resultCode: data.resultCode ?? null,
+          resultDesc: data.resultDesc || "",
+        });
+        setStage("failed");
       }
       // Otherwise still pending — the customer may not have entered their
       // PIN yet, so keep polling until the countdown ends.
@@ -370,6 +389,7 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
     setStage("idle");
     setCheckoutRequestId(null);
     setErrorMsg("");
+    setFailure(null);
   };
 
   // ── IDLE ──
@@ -600,7 +620,49 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
     </div>
   );
 
+  // ── FAILED (not the customer's doing) ──
+  // Safaricom refused the payment for a reason that is ours — a short code or
+  // passkey it does not recognise, a merchant that "does not exist". The
+  // customer did nothing wrong and is told nothing they cannot act on; the
+  // code goes to the console and, from there, to support.
+  if (stage === "failed") return (
+    <div className="space-y-3 py-8 text-center">
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-error/10">
+        <svg className="h-7 w-7 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </div>
+      <p className="font-semibold text-navy">Payment not completed</p>
+      <p className="text-sm text-muted">
+        Payment could not be started. Please try again or contact support.
+      </p>
+      <p className="text-xs text-muted">Nothing was charged.</p>
+      {failure?.resultCode !== null && failure?.resultCode !== undefined && (
+        <p className="text-[11px] text-muted">
+          Reference for support: M-Pesa result {failure.resultCode}
+          {failure.resultDesc ? ` — ${failure.resultDesc}` : ""}
+        </p>
+      )}
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+        <button type="button" onClick={reset} className="btn-primary text-sm">
+          Try again
+        </button>
+        {onFallback && (
+          <button
+            type="button"
+            onClick={() => { reset(); onFallback(); }}
+            className="min-h-11 rounded-control border border-line px-4 text-sm font-semibold text-navy transition hover:border-navy"
+          >
+            Pay on delivery instead
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   // ── CANCELLED ──
+  // Reached only for ResultCode 1032 (cancelled on the phone) or 1037
+  // (timed out), so the sentence below is always true.
   if (stage === "cancelled") return (
     <div className="space-y-3 py-8 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-error/10">
