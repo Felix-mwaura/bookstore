@@ -2701,9 +2701,19 @@ function PaymentsTab({ onNavigate, showToast }) {
                 <dd className="font-semibold text-ink">{test.environment}{test.environmentAssumed ? " (assumed)" : ""}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Short code</dt>
+                <dt className="text-muted">Short code <span className="text-[11px]">(Daraja app)</span></dt>
+                <dd className="text-right font-mono font-semibold text-ink">{test.shortcode || "—"}</dd>
+              </div>
+              {test.storeNumber && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted">Till / store number</dt>
+                  <dd className="text-right font-mono font-semibold text-ink">{test.storeNumber}</dd>
+                </div>
+              )}
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted">Payment sent to</dt>
                 <dd className="text-right font-mono font-semibold text-ink">
-                  {test.shortcode || "—"}
+                  {test.businessShortCode || test.shortcode || "—"}
                   {test.shortcodeKind === "till" && <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">Buy Goods (till)</span>}
                   {test.shortcodeKind === "paybill" && <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">paybill</span>}
                 </dd>
@@ -2717,6 +2727,15 @@ function PaymentsTab({ onNavigate, showToast }) {
                 <dd className="max-w-[60%] truncate font-mono text-ink" title={test.callbackHost}>{test.callbackHost}</dd>
               </div>
             </dl>
+          )}
+
+          {test.storeNumber && (
+            <p className="mt-3 rounded-control border border-current/20 p-3 text-xs leading-relaxed">
+              Your till and your Daraja short code are different numbers. The customer pays the
+              till, so the app addresses the payment to <span className="font-mono">{test.businessShortCode}</span>.
+              If Safaricom answers &quot;invalid password&quot; or &quot;invalid short code&quot;, that
+              number is the one to change.
+            </p>
           )}
 
           {test.problem === "transaction-type" && (

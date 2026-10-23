@@ -33,6 +33,7 @@ const ENV_KEYS = [
   "MPESA_CONSUMER_KEY",
   "MPESA_CONSUMER_SECRET",
   "MPESA_SHORTCODE",
+  "MPESA_STORE_NUMBER",
   "MPESA_PASSKEY",
   "MPESA_ENV",
   "MPESA_CALLBACK_URL",
@@ -98,7 +99,7 @@ withEnv({ ...creds, MPESA_ENV: "PRODUCTION" }, () => {
 // Six digits is a paybill, seven is a till, and 174379 is Safaricom's
 // sandbox test paybill. This only raises a warning; it never rewrites the
 // declared transaction type.
-withEnv({ ...creds, MPESA_SHORTCODE: "9874839" }, () => {
+withEnv({ ...creds, MPESA_SHORTCODE: "7001234" }, () => {
   check("a 7-digit short code is a till", mpesaConfig().shortcodeKind, "till");
 });
 withEnv({ ...creds, MPESA_SHORTCODE: "247247" }, () => {
@@ -106,6 +107,25 @@ withEnv({ ...creds, MPESA_SHORTCODE: "247247" }, () => {
 });
 withEnv({ ...creds, MPESA_SHORTCODE: "174379" }, () => {
   check("174379 is the sandbox test paybill", mpesaConfig().shortcodeKind, "sandbox-test");
+});
+
+// ── till vs short code: the store is what gets addressed ────────
+// A Buy Goods merchant has a till (what the customer pays) and a short code
+// (what the Daraja app and its passkey were issued against). They are
+// different numbers, and the push must go to the store.
+withEnv({ ...creds, MPESA_SHORTCODE: "654321", MPESA_STORE_NUMBER: "7001234", MPESA_TRANSACTION_TYPE: "CustomerBuyGoodsOnline" }, () => {
+  const config = mpesaConfig();
+  check("the Daraja short code is kept", config.shortcode, "654321");
+  check("the store number is kept", config.storeNumber, "7001234");
+  check("the payment is addressed to the store", config.businessShortCode, "7001234");
+  check("…and is treated as a till", config.shortcodeKind, "till");
+});
+
+withEnv({ ...creds, MPESA_SHORTCODE: "247247", MPESA_TRANSACTION_TYPE: "CustomerPayBillOnline" }, () => {
+  const config = mpesaConfig();
+  check("without a store number the short code is used", config.businessShortCode, "247247");
+  check("…and no store is invented", config.storeNumber, null);
+  check("a paybill stays a paybill", config.shortcodeKind, "paybill");
 });
 
 // ── values pasted out of a dashboard text box ───────────────────
@@ -184,4 +204,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("mpesa test passed — environment detection, value cleaning, shortcode shape, probe reporting, host resolution and request signing");
+console.log("mpesa test passed — environment detection, value cleaning, till vs short code, probe reporting, host resolution and request signing");
