@@ -34,6 +34,7 @@ const ENV_KEYS = [
   "MPESA_CONSUMER_SECRET",
   "MPESA_SHORTCODE",
   "MPESA_STORE_NUMBER",
+  "MPESA_TILL_NUMBER",
   "MPESA_PASSKEY",
   "MPESA_ENV",
   "MPESA_CALLBACK_URL",
@@ -119,6 +120,10 @@ withEnv({ ...creds, MPESA_SHORTCODE: "654321", MPESA_STORE_NUMBER: "7001234", MP
   check("the store number is kept", config.storeNumber, "7001234");
   check("the payment is addressed to the store", config.businessShortCode, "7001234");
   check("…and is treated as a till", config.shortcodeKind, "till");
+});
+
+withEnv({ ...creds, MPESA_SHORTCODE: "654321", MPESA_TILL_NUMBER: "7001234", MPESA_TRANSACTION_TYPE: "CustomerBuyGoodsOnline" }, () => {
+  check("MPESA_TILL_NUMBER is accepted too", mpesaConfig().businessShortCode, "7001234");
 });
 
 withEnv({ ...creds, MPESA_SHORTCODE: "247247", MPESA_TRANSACTION_TYPE: "CustomerPayBillOnline" }, () => {
