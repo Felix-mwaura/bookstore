@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
+import AddressBook from "../components/AddressBook";
 import StoreLayout from "../components/StoreLayout";
 import {
   FULFILMENT_META,
@@ -62,6 +63,7 @@ function LoadingPanel() {
 
 const TABS = [
   { id: "orders", label: "Orders" },
+  { id: "addresses", label: "Addresses" },
   { id: "profile", label: "Profile" },
   { id: "security", label: "Password" },
 ];
@@ -424,6 +426,9 @@ export default function AccountPage() {
             )}
           </section>
         )}
+
+        {/* ── addresses ───────────────────────────────────── */}
+        {activeTab === "addresses" && <AddressBook />}
 
         {/* ── profile ────────────────────────────────────── */}
         {activeTab === "profile" && (

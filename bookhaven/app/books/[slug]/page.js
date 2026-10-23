@@ -9,9 +9,10 @@ import ReviewsSection from "../../components/ReviewsSection";
 import { StarRating } from "../../components/StarRating";
 import StoreLayout from "../../components/StoreLayout";
 import { getBookById, getRelatedBooks, bookPath, bookSlug, parseBookSlug } from "../../lib/catalogue";
+import { getServerUser, supabaseServer } from "../../lib/supabase-server";
 import { categorySlug } from "../../lib/categories";
 import { stockState } from "../../lib/stock";
-import { getBookRating, getBookReviews } from "../../lib/reviews";
+import { getBookRating, getBookReviews, getViewerReviewId } from "../../lib/reviews";
 import { REVIEWS_PER_PAGE, isReviewSort, parsePage, parseStars } from "../../lib/review-limits";
 import { SITE_NAME, SITE_URL, deliveryFeeFor, formatKsh, absoluteUrl } from "../../lib/site";
 
@@ -71,10 +72,17 @@ export default async function BookPage({ params, searchParams }) {
   const reviewStars = parseStars(query.rv_stars);
   const reviewPage = parsePage(query.rv_page);
 
-  const [related, rating, reviewResult] = await Promise.all([
+  // Who is reading? Only used to label their own review in the list. The
+  // customer-scoped client is needed because my_book_review() reads auth.uid(),
+  // and the public client has no session.
+  const { user } = await getServerUser();
+  const viewerClient = user ? await supabaseServer() : null;
+
+  const [related, rating, reviewResult, viewerReviewId] = await Promise.all([
     getRelatedBooks(book),
     getBookRating(book.id),
     getBookReviews({ bookId: book.id, sort: reviewSort, stars: reviewStars, page: reviewPage, pageSize: REVIEWS_PER_PAGE }),
+    getViewerReviewId(book.id, viewerClient),
   ]);
 
   const state = stockState(book);
@@ -266,6 +274,7 @@ export default async function BookPage({ params, searchParams }) {
           result={reviewResult}
           sort={reviewSort}
           stars={reviewStars}
+          viewerReviewId={viewerReviewId}
         />
 
         {related.length > 0 && (

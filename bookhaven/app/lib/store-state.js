@@ -14,6 +14,24 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { addItem, capFor, removeItem, stepQuantity, totals } from "./cart.js";
+import { planSignIn, planToggle } from "./wishlist-sync.js";
+import { toPublicBook } from "./book-shape.js";
+
+// The auth client is loaded on demand rather than imported at the top of the
+// file. Two reasons: this module is imported by scripts/store-wiring.mjs with
+// no bundler, where the Supabase client's extensionless imports do not
+// resolve; and most page loads never need it. A failure to load simply means
+// the wishlist stays local, which is the signed-out behaviour anyway.
+async function authClient() {
+  try {
+    const mod = await import("./supabase.js");
+    return mod.supabase || null;
+  } catch {
+    return null;
+  }
+}
+
+const WISHLIST_OWNER_KEY = "bh_wishlist_owner";
 
 const StoreContext = createContext(null);
 
@@ -32,6 +50,11 @@ export function useStoreState() {
   // than from a stale render closure — otherwise a fast double-click only
   // added one copy.
   const cartRef = useRef([]);
+  // Same idea for saved books: a rapid toggle works from the latest list
+  // rather than from a stale closure.
+  const wishlistRef = useRef([]);
+  // Set from the auth session; null while signed out.
+  const tokenRef = useRef(null);
 
   const toastTimer = useRef(null);
 
@@ -60,6 +83,10 @@ export function useStoreState() {
   }, []);
 
   // Persist after hydration, and only when the data actually changed.
+  useEffect(() => {
+    wishlistRef.current = wishlist;
+  }, [wishlist]);
+
   useEffect(() => {
     cartRef.current = cart;
     if (!hydrated) return;
@@ -181,16 +208,179 @@ export function useStoreState() {
     [commit]
   );
 
+  // Write one saved-book change to the account. Fire and forget: the local
+  // list is the thing the customer sees, and a failed write is retried by the
+  // next sign-in reconciliation rather than blocking the button.
+  const syncWishlist = useCallback(async (bookId, action) => {
+    const token = tokenRef.current;
+    if (!token) return;
+    try {
+      await fetch("/api/wishlist", {
+        method: action === "add" ? "POST" : "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ bookId }),
+      });
+    } catch {}
+  }, []);
+
   const toggleWishlist = useCallback(
     (book) => {
-      setWishlist((prev) => {
-        const exists = prev.some((b) => b.id === book.id);
-        showToast(exists ? "Removed from saved books" : "Saved for later");
-        return exists ? prev.filter((b) => b.id !== book.id) : [...prev, book];
-      });
+      const { next, action } = planToggle(wishlistRef.current, book);
+      wishlistRef.current = next;
+      setWishlist(next);
+      try {
+        localStorage.setItem("bh_wishlist", JSON.stringify(next));
+      } catch {}
+      showToast(action === "add" ? "Saved for later" : "Removed from saved books");
+      void syncWishlist(book.id, action);
     },
-    [showToast]
+    [showToast, syncWishlist]
   );
+
+  // ── saved books, across devices ───────────────────────────────────────
+  //
+  // Signed out, the wishlist is local-only, exactly as before. Signed in, it
+  // is reconciled with the account once per session using the rules in
+  // lib/wishlist-sync.js — including the case that matters on a shared
+  // computer, where the device list belongs to a different person.
+  useEffect(() => {
+    if (!hydrated) return;
+    let cancelled = false;
+
+    const pullBooks = async (client, ids) => {
+      if (ids.length === 0) return [];
+      const { data, error } = await client
+        .from("books")
+        .select("id,title,author,price,original_price,category,format,isbn,badge,stock,stock_quantity,cover,cover_url,description,pages,publisher,year,tags")
+        .in("id", ids)
+        .eq("is_archived", false);
+      if (error) return [];
+      // Keep the account's order, not the database's.
+      const byId = new Map((data || []).map((row) => [Number(row.id), toPublicBook(row)]));
+      return ids.map((id) => byId.get(Number(id))).filter(Boolean);
+    };
+
+    const reconcile = async (session) => {
+      tokenRef.current = session?.access_token || null;
+
+      if (!session) {
+        // Signed out: the account's list is no longer this device's business.
+        try { localStorage.removeItem(WISHLIST_OWNER_KEY); } catch {}
+        return;
+      }
+
+      const client = await authClient();
+      if (!client) return;
+
+      let accountIds = [];
+      try {
+        const res = await fetch("/api/wishlist", {
+          headers: { authorization: `Bearer ${session.access_token}` },
+          cache: "no-store",
+        });
+        if (res.ok) {
+          const json = await res.json();
+          accountIds = Array.isArray(json?.bookIds) ? json.bookIds : [];
+        } else {
+          // Do not touch the local list if the account could not be read:
+          // replacing it with an empty list on a network blip would look
+          // like the customer's saved books had been deleted.
+          return;
+        }
+      } catch {
+        return;
+      }
+      if (cancelled) return;
+
+      let localOwner = null;
+      try { localOwner = localStorage.getItem(WISHLIST_OWNER_KEY); } catch {}
+
+      const plan = planSignIn({
+        localOwner,
+        userId: session.user.id,
+        localIds: wishlistRef.current.map((b) => b.id),
+        accountIds,
+      });
+
+      // Adopt the account's books the device does not have yet.
+      const fetched = await pullBooks(client, plan.fetchIds);
+      if (cancelled) return;
+
+      let next;
+      if (plan.mode === "replace") {
+        next = fetched;
+      } else {
+        const existing = new Map(wishlistRef.current.map((b) => [Number(b.id), b]));
+        for (const book of fetched) existing.set(Number(book.id), book);
+        next = [...existing.values()];
+      }
+
+      wishlistRef.current = next;
+      setWishlist(next);
+      try {
+        localStorage.setItem("bh_wishlist", JSON.stringify(next));
+        localStorage.setItem(WISHLIST_OWNER_KEY, session.user.id);
+      } catch {}
+
+      // Push the device's extras up (guest saves, or a save made while the
+      // network was down). Sequential on purpose: a burst of parallel writes
+      // gains nothing here and is easier to rate-limit.
+      for (const id of plan.push) {
+        try {
+          await fetch("/api/wishlist", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ bookId: id }),
+          });
+        } catch {
+          // Left local; the next sign-in tries again.
+        }
+      }
+    };
+
+    let unsubscribe = () => {};
+
+    void (async () => {
+      const client = await authClient();
+      if (!client || cancelled) return;
+
+      client.auth
+        .getSession()
+        .then(({ data: { session } }) => reconcile(session))
+        .catch(() => {});
+
+      const { data: listener } = client.auth.onAuthStateChange((event, session) => {
+        tokenRef.current = session?.access_token || null;
+        if (event === "SIGNED_IN" && session) {
+          void reconcile(session);
+        }
+        if (event === "SIGNED_OUT") {
+          tokenRef.current = null;
+          try { localStorage.removeItem(WISHLIST_OWNER_KEY); } catch {}
+          wishlistRef.current = [];
+          setWishlist([]);
+          try { localStorage.removeItem("bh_wishlist"); } catch {}
+        }
+      });
+
+      if (cancelled) {
+        listener.subscription.unsubscribe();
+        return;
+      }
+      unsubscribe = () => listener.subscription.unsubscribe();
+    })();
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [hydrated]);
 
   useEffect(() => {
     if (hydrated) broadcast();
@@ -213,6 +403,9 @@ export function useStoreState() {
     toggleWishlist,
     cartTotal,
     cartCount,
+    // Exposed so components that batch several cart changes (reordering a
+    // past order) can report once instead of once per book.
+    showToast,
   };
 }
 

@@ -58,6 +58,7 @@ export default function ReviewsSection({
   result,
   sort = "recent",
   stars = 0,
+  viewerReviewId = null,
 }) {
   const { average, count, distribution } = summary;
   const shown = formatAverage(average);
@@ -208,7 +209,15 @@ export default function ReviewsSection({
           ) : (
             <ul role="list" className="mt-6 space-y-4">
               {result.reviews.map((review) => (
-                <li key={review.id} className="rounded-card border border-line bg-white p-5">
+                <li
+                  key={review.id}
+                  id={`review-${review.id}`}
+                  className={`rounded-card border bg-white p-5 ${
+                    viewerReviewId && review.id === viewerReviewId
+                      ? "border-navy/40 ring-1 ring-navy/15"
+                      : "border-line"
+                  }`}
+                >
                   <article aria-label={`Review by ${review.reviewer_name}`}>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
@@ -219,7 +228,14 @@ export default function ReviewsSection({
                           {initials(review.reviewer_name)}
                         </span>
                         <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-navy">{review.reviewer_name}</p>
+                          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-navy">
+                            <span className="truncate">{review.reviewer_name}</span>
+                            {viewerReviewId && review.id === viewerReviewId && (
+                              <span className="rounded-full bg-navy px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                                Your review
+                              </span>
+                            )}
+                          </p>
                           <div className="mt-0.5 flex flex-wrap items-center gap-2">
                             <StarRating value={review.rating} size="sm" label={`${review.rating} out of 5 stars`} />
                             {review.verified_purchase && (

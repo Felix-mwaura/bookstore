@@ -87,6 +87,22 @@ export async function attachRatings(books) {
   });
 }
 
+/**
+ * The signed-in customer's own review id for one book, or null.
+ *
+ * Used so the public list can label the customer's own row "Your review"
+ * without exposing every review's `user_id` to the browser: the RPC returns
+ * only the caller's row, and only their id is read here. Anonymous visitors
+ * get null and the list renders exactly as before.
+ */
+export async function getViewerReviewId(bookId, client) {
+  if (!client || !Number.isFinite(Number(bookId))) return null;
+  const { data, error } = await client.rpc("my_book_review", { p_book_id: Number(bookId) });
+  if (error) return null;
+  const mine = Array.isArray(data) ? data[0] : data;
+  return mine?.id ?? null;
+}
+
 /** Full summary for one book: average, count and the 5→1 distribution. */
 export async function getBookRating(bookId) {
   const empty = {
@@ -143,12 +159,23 @@ export async function getBookReviews({
   const starFilter = parseStars(stars);
   if (starFilter) query = query.eq("rating", starFilter);
 
+  // `id` is the final tiebreaker on every sort. Without it, two reviews with
+  // the same rating and the same timestamp have no defined order, so a row
+  // posted between two page loads can slide across a page boundary and appear
+  // twice or not at all. The id is unique and never changes, so the ordering
+  // is stable for a given dataset.
   if (sort === "highest") {
-    query = query.order("rating", { ascending: false }).order("created_at", { ascending: false });
+    query = query
+      .order("rating", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
   } else if (sort === "lowest") {
-    query = query.order("rating", { ascending: true }).order("created_at", { ascending: false });
+    query = query
+      .order("rating", { ascending: true })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
   } else {
-    query = query.order("created_at", { ascending: false });
+    query = query.order("created_at", { ascending: false }).order("id", { ascending: false });
   }
 
   const { data, error, count } = await query.range(from, from + pageSize - 1);
