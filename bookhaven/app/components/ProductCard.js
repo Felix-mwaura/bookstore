@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { BookCover } from "./BookCover";
+import { StarRating } from "./StarRating";
 import { useStore } from "./StoreShell";
 import { bookPath } from "../lib/book-url";
 import { compactKshNumber, formatKsh, formatKshCompact } from "../lib/site";
@@ -91,6 +92,23 @@ export default function ProductCard({ book, onAddToCart, note }) {
         </h3>
 
         <p className="mt-0.5 truncate text-[13px] text-muted sm:text-sm">{book.author}</p>
+
+        {/* Real ratings only, and only when someone has actually reviewed the
+            book. On a 320px screen the count is dropped to keep the line
+            short; the stars and the average still fit. */}
+        {book.reviews > 0 ? (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <StarRating value={book.rating} size="xs" />
+            <span className="text-[11px] font-semibold tabular-nums text-navy">
+              {Number(book.rating).toFixed(1)}
+            </span>
+            <span className="hidden text-[11px] text-muted sm:inline">
+              ({book.reviews})
+            </span>
+          </div>
+        ) : (
+          <p className="mt-1.5 hidden text-[11px] text-muted sm:block">Be the first to review</p>
+        )}
 
         <p className={`mt-2 flex items-center gap-1.5 text-[11px] font-medium ${STOCK_TEXT[state.key]}`}>
           <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${STOCK_DOT[state.key]}`} />

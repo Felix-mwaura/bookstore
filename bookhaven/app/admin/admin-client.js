@@ -1724,8 +1724,14 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                     <td className="hidden md:table-cell px-4 py-3">
                       <div className="flex items-center gap-1">
                         <span className="text-amber-400 text-xs">★</span>
-                        <span className="text-xs font-semibold text-stone-600">{book.rating}</span>
-                        <span className="text-[10px] text-muted">({book.reviews||0})</span>
+                        {book.reviews > 0 ? (
+                          <>
+                            <span className="text-xs font-semibold text-stone-600">{Number(book.rating).toFixed(1)}</span>
+                            <span className="text-[10px] text-muted">({book.reviews})</span>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-muted">No reviews</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -2902,6 +2908,317 @@ function PlaceholderTab({ icon, title, description }) {
   );
 }
 
+
+// ─────────────────────────────────────────────────────────
+// REVIEWS TAB
+// ─────────────────────────────────────────────────────────
+//
+// Moderation only: publish, hide, remove. There is deliberately no control
+// to rewrite a customer's rating or words — the shop may decide what is
+// visible, not what a customer said.
+
+function Stars({ value, className = "" }) {
+  const n = Math.round(Number(value) || 0);
+  return (
+    <span className={`inline-flex items-center gap-0.5 ${className}`} role="img" aria-label={`${n} out of 5 stars`}>
+      {[1,2,3,4,5].map((i) => (
+        <svg key={i} className="w-3.5 h-3.5" viewBox="0 0 24 24"
+          fill={i <= n ? "currentColor" : "none"} stroke="currentColor" strokeWidth={1.4} aria-hidden="true">
+          <path strokeLinejoin="round" d="M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.5l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.6z" />
+        </svg>
+      ))}
+    </span>
+  );
+}
+
+function ReviewsTab({ showToast, canMutate }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState("all");
+  const [stars, setStars] = useState(0);
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [busy, setBusy] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  // Debounce the search box so typing does not fire a request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => { setQuery(search.trim()); setPage(1); }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+      const params = new URLSearchParams({ status, page: String(page) });
+      if (stars) params.set("stars", String(stars));
+      if (query) params.set("q", query);
+      const res = await fetch(`/api/admin/reviews?${params.toString()}`, {
+        headers: { authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      let json;
+      try { json = await res.json(); } catch { throw new Error(`Server returned an unreadable response (${res.status})`); }
+      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+      setData(json);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [status, stars, query, page]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load(); }, [load]);
+
+  const moderate = async (review, isPublished) => {
+    setBusy(review.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/admin/reviews", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ id: review.id, is_published: isPublished }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Could not update that review");
+      showToast?.(isPublished ? "Review published" : "Review hidden from the shop");
+      await load();
+    } catch (err) {
+      showToast?.(err.message, "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const remove = async (review) => {
+    setBusy(review.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/admin/reviews?id=${encodeURIComponent(review.id)}`, {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${session?.access_token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Could not remove that review");
+      showToast?.("Review removed");
+      setConfirmDelete(null);
+      await load();
+    } catch (err) {
+      showToast?.(err.message, "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const counts = data?.counts || { all: 0, published: 0, hidden: 0 };
+
+  return (
+    <div>
+      <div className="mb-5">
+        <h1 className="text-lg font-bold text-navy">Reviews</h1>
+        <p className="text-muted text-xs mt-0.5">
+          {counts.all} {counts.all === 1 ? "review" : "reviews"} · {counts.published} live · {counts.hidden} hidden
+        </p>
+      </div>
+
+      {!canMutate && (
+        <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+          Read-only here: <code className="font-mono text-xs">SUPABASE_SERVICE_ROLE_KEY</code> is not set on this
+          deployment, so publishing, hiding and removing will fail.
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-3 mb-5">
+        {[
+          { label: "All reviews", value: counts.all },
+          { label: "Published", value: counts.published },
+          { label: "Hidden", value: counts.hidden },
+        ].map((card) => (
+          <div key={card.label} className="bg-white border border-line rounded-xl p-3 sm:p-4">
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted">{card.label}</p>
+            <p className="mt-1 text-xl sm:text-2xl font-black text-navy tabular-nums">{card.value}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
+          <label htmlFor="review-search" className="sr-only">Search reviews</label>
+          <input
+            id="review-search"
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search review text, reviewer or book title…"
+            className="w-full bg-white border border-[#E3DCCB] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"
+          />
+          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </div>
+
+        <div className="flex gap-2 flex-wrap" role="group" aria-label="Filter by publication status">
+          {[
+            { key: "all", label: "All" },
+            { key: "published", label: "Published" },
+            { key: "hidden", label: "Hidden" },
+          ].map((f) => (
+            <button
+              key={f.key}
+              onClick={() => { setStatus(f.key); setPage(1); }}
+              aria-pressed={status === f.key}
+              className={`min-h-11 px-3 rounded-xl text-xs font-semibold transition ${status === f.key ? "bg-[#1B2A4A] text-white" : "bg-white border border-[#E3DCCB] text-stone-600"}`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex gap-1 items-center flex-wrap" role="group" aria-label="Filter by star rating">
+          <button
+            onClick={() => { setStars(0); setPage(1); }}
+            aria-pressed={stars === 0}
+            className={`min-h-11 px-3 rounded-xl text-xs font-semibold transition ${stars === 0 ? "bg-[#1B2A4A] text-white" : "bg-white border border-[#E3DCCB] text-stone-600"}`}
+          >
+            Any ★
+          </button>
+          {[5,4,3,2,1].map((n) => (
+            <button
+              key={n}
+              onClick={() => { setStars(n); setPage(1); }}
+              aria-pressed={stars === n}
+              className={`min-h-11 px-2.5 rounded-xl text-xs font-semibold transition ${stars === n ? "bg-[#1B2A4A] text-white" : "bg-white border border-[#E3DCCB] text-stone-600"}`}
+            >
+              {n}★
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {error && (
+        <div role="alert" className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+          {error}
+          <button onClick={() => load()} className="ml-3 font-semibold underline">Retry</button>
+        </div>
+      )}
+
+      {loading && !data ? (
+        <div className="space-y-3" aria-busy="true" aria-label="Loading reviews">
+          {[1,2,3].map((i) => <div key={i} className="h-28 rounded-xl bg-white border border-line animate-pulse" />)}
+        </div>
+      ) : !data || data.reviews.length === 0 ? (
+        <div className="bg-white border border-line rounded-xl p-10 text-center">
+          <p className="font-semibold text-navy">
+            {query || stars || status !== "all" ? "No reviews match these filters" : "No reviews yet"}
+          </p>
+          <p className="mt-1 text-sm text-muted">
+            {query || stars || status !== "all"
+              ? "Try clearing the search and the filters."
+              : "When a customer rates a book it will appear here for moderation."}
+          </p>
+        </div>
+      ) : (
+        <ul role="list" className="space-y-3">
+          {data.reviews.map((review) => (
+            <li key={review.id} className={`bg-white border rounded-xl p-4 ${review.is_published ? "border-line" : "border-amber-300 bg-amber-50/40"}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Stars value={review.rating} className="text-amber-500" />
+                    <span className="text-xs font-bold text-navy">{review.rating}/5</span>
+                    {!review.is_published && (
+                      <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-200 text-amber-900">Hidden</span>
+                    )}
+                    {review.verified_purchase && (
+                      <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-800">Verified</span>
+                    )}
+                  </div>
+                  <p className="mt-1.5 text-sm font-semibold text-navy">{review.book_title}</p>
+                  <p className="text-[11px] text-muted">
+                    {review.reviewer_name} · customer {String(review.reviewer_id || "").slice(0, 8)}… ·{" "}
+                    {new Date(review.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                    {review.updated_at && new Date(review.updated_at) - new Date(review.created_at) > 60000 ? " · edited" : ""}
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => moderate(review, !review.is_published)}
+                    disabled={busy === review.id || !canMutate}
+                    className="min-h-11 px-3 rounded-control border border-[#E3DCCB] text-xs font-semibold text-navy hover:border-navy transition disabled:opacity-50"
+                  >
+                    {busy === review.id ? "Working…" : review.is_published ? "Hide" : "Publish"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(review)}
+                    disabled={busy === review.id || !canMutate}
+                    className="min-h-11 px-3 rounded-control border border-[#E3DCCB] text-xs font-semibold text-red-600 hover:border-red-400 transition disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+
+              {review.title && <p className="mt-3 text-sm font-semibold text-ink">{review.title}</p>}
+              <p className="mt-1 text-sm text-stone-600 whitespace-pre-line break-words">{review.review_text}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {data && data.pages > 1 && (
+        <nav aria-label="Review pages" className="mt-5 flex items-center justify-between">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            className="min-h-11 px-4 rounded-control border border-[#E3DCCB] bg-white text-sm font-semibold text-navy disabled:opacity-40"
+          >
+            ← Previous
+          </button>
+          <p className="text-xs text-muted">Page {data.page} of {data.pages}</p>
+          <button
+            onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
+            disabled={page >= data.pages}
+            className="min-h-11 px-4 rounded-control border border-[#E3DCCB] bg-white text-sm font-semibold text-navy disabled:opacity-40"
+          >
+            Next →
+          </button>
+        </nav>
+      )}
+
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/50 p-4" role="dialog" aria-modal="true" aria-labelledby="review-delete-title">
+          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-pop">
+            <h2 id="review-delete-title" className="text-base font-bold text-navy">Remove this review?</h2>
+            <p className="mt-2 text-sm text-muted">
+              “{confirmDelete.title || confirmDelete.review_text.slice(0, 60)}…” from {confirmDelete.reviewer_name}
+              on <strong className="text-ink">{confirmDelete.book_title}</strong> will be deleted permanently and its
+              stars removed from the book&rsquo;s rating.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button onClick={() => setConfirmDelete(null)} className="min-h-11 px-4 rounded-control border border-line text-sm font-semibold text-navy">
+                Cancel
+              </button>
+              <button
+                onClick={() => remove(confirmDelete)}
+                disabled={busy === confirmDelete.id}
+                className="min-h-11 px-4 rounded-control bg-red-600 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {busy === confirmDelete.id ? "Removing…" : "Remove review"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────
 // MAIN CLIENT COMPONENT
 // ─────────────────────────────────────────────────────────
@@ -3399,7 +3716,7 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
           {activeTab==="reports"&&<PlaceholderTab icon="📈" title="Reports" description="Generate sales, inventory, customer, and revenue reports. Export as CSV or PDF."/>}
           {activeTab==="inventory"&&<InventoryTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}
           {activeTab==="notifications"&&<NotificationsTab showToast={showToast}/>}
-          {activeTab==="reviews"&&<PlaceholderTab icon="⭐" title="Reviews" description="Manage customer reviews and ratings for all books."/>}
+          {activeTab==="reviews"&&<ReviewsTab showToast={showToast} canMutate={canMutate}/>}
           {activeTab==="coupons"&&<PlaceholderTab icon="🏷️" title="Coupons" description="Create and manage discount codes and promotional offers."/>}
           {activeTab==="users"&&<UsersTab users={users} orders={orders} session={sessionUser} showToast={showToast}/>}
           {activeTab==="activity"&&<ActivityLogTab showToast={showToast}/>}
