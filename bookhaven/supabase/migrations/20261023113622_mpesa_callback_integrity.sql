@@ -1,11 +1,12 @@
 -- Book Haven — M-Pesa callback integrity
 --
--- STATUS: NEW — created 2026-10-23, NOT APPLIED. Nothing in this file has
--- been executed against the live project. Verify each statement against the
--- target database before running it:
+-- STATUS: APPLIED 2026-10-23 as version 20261023113622, recorded in
+-- supabase_migrations.schema_migrations. Verified afterwards:
 --
---     select indexname from pg_indexes where tablename = 'mpesa_payments';
---     select to_regclass('public.mpesa_callbacks');
+--     to_regclass('public.mpesa_callbacks')                       -> mpesa_callbacks
+--     pg_indexes where indexname='mpesa_payments_receipt_key'     -> 1
+--     has_table_privilege('anon','mpesa_payments','UPDATE')       -> false
+--     place_order definition contains the exact-amount and receipt guards
 --
 -- WHY THIS EXISTS
 --   1. A payment may only be marked completed by a callback that matches an
@@ -42,11 +43,10 @@
 --   -- and re-run place_order() from 20261021110000_delivery_rate.sql
 --
 -- ORDER OF OPERATIONS
---   Apply this BEFORE deploying the new callback code. The new code works
---   against the old schema (it tolerates a missing mpesa_callbacks table),
---   but the exact-amount rule only becomes a hard guarantee once this has
---   run. Until it has, treat the deployment as protected by application code
---   alone.
+--   Applied after the new callback code was deployed. The code tolerates a
+--   missing mpesa_callbacks table, so the order of the two did not matter;
+--   the exact-amount and receipt rules are now enforced by the database as
+--   well as by the route.
 
 begin;
 

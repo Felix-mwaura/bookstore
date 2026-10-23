@@ -13,7 +13,7 @@
 -- two functions to keep in sync.
 --
 -- The replacement is:
---     supabase/migrations/20261023120100_profile_role_and_write_surface.sql
+--     supabase/migrations/20261023113634_profile_role_and_write_surface.sql
 --
 -- It re-creates the live trigger verbatim (a no-op in production, a fix on a
 -- fresh database), adds column-level UPDATE privileges on profiles, and

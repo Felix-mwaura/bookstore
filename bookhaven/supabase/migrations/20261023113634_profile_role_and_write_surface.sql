@@ -1,9 +1,15 @@
 -- Book Haven — roles, RLS and write surfaces (production-aligned)
 --
--- STATUS: NEW — created 2026-10-23. Every statement below is idempotent, and
--- the parts that already exist in production (§1) are re-created with their
--- live definitions so this file brings a fresh database to the same state
--- without changing the current one. NOT APPLIED from this repository.
+-- STATUS: APPLIED 2026-10-23 as version 20261023113634, recorded in
+-- supabase_migrations.schema_migrations. Every statement is idempotent. §1
+-- re-created the trigger production already had, so it changed nothing there;
+-- §2 and §3 removed privileges no shipped feature used. Verified afterwards:
+--     has_table_privilege('authenticated','orders','INSERT')          -> false
+--     has_table_privilege('authenticated','books','UPDATE')           -> false
+--     has_table_privilege('anon','newsletter_subscribers','DELETE')   -> false
+--     a customer UPDATE of their own name still succeeds;
+--     a customer UPDATE of their own role now fails with
+--       ERROR 42501: permission denied for table profiles
 --
 -- WHY THIS EXISTS
 --   Production already blocks role escalation: an attempt to promote a real

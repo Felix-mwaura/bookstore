@@ -1,0 +1,121 @@
+/* Decorative scene for /login. Pure CSS animation on transforms only, so the
+   kittens never trigger layout and never block the form. */
+
+.scene {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 0;
+  height: 260px;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  /* `cqw` below is the width of THIS panel, so a kitten crosses the room in
+     the same time on a phone and on a 1440px screen instead of spending most
+     of the loop clipped outside it. */
+  container-type: inline-size;
+}
+
+@media (max-width: 1023px) {
+  .scene { height: 180px; }
+}
+
+/* ── walking ──────────────────────────────────────────────────────────── */
+
+.walker {
+  position: absolute;
+  bottom: var(--bottom, 18px);
+  left: 0;
+  width: 112px;
+  will-change: transform;
+  animation: walk var(--dur, 46s) linear var(--delay, 0s) infinite;
+}
+
+.walkerLeft { animation-name: walkLeft; }
+
+@keyframes walk {
+  0%   { transform: translateX(-140px); }
+  100% { transform: translateX(calc(100cqw - 10px)); }
+}
+
+@keyframes walkLeft {
+  0%   { transform: translateX(calc(100cqw - 10px)) scaleX(-1); }
+  100% { transform: translateX(-140px) scaleX(-1); }
+}
+
+/* A slow bob while moving, so the walk reads as steps rather than a slide. */
+.bob {
+  animation: bob 0.9s ease-in-out infinite;
+}
+
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-2px); }
+}
+
+/* ── idle ─────────────────────────────────────────────────────────────── */
+
+.tail {
+  transform-origin: 30px 60px;
+  animation: swish 5.5s ease-in-out infinite alternate;
+  animation-delay: var(--tail-delay, 0s);
+}
+
+@keyframes swish {
+  from { transform: rotate(-7deg); }
+  to   { transform: rotate(9deg); }
+}
+
+.breathe {
+  transform-origin: 60px 70px;
+  animation: breathe 6s ease-in-out infinite;
+  animation-delay: var(--tail-delay, 0s);
+}
+
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.018); }
+}
+
+/* A short hop every few seconds, with a long still period in between. */
+.playful {
+  animation: hop 9s ease-in-out infinite;
+  animation-delay: var(--tail-delay, 0s);
+}
+
+@keyframes hop {
+  0%, 62%, 100% { transform: translateY(0) rotate(0deg); }
+  68%           { transform: translateY(-6px) rotate(-3deg); }
+  74%           { transform: translateY(0) rotate(2deg); }
+  80%           { transform: translateY(-3px) rotate(-1deg); }
+}
+
+.butterfly {
+  animation: flutter 7s ease-in-out infinite;
+  transform-origin: 12px 10px;
+}
+
+@keyframes flutter {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  25%      { transform: translate(6px, -8px) rotate(8deg); }
+  50%      { transform: translate(-4px, -14px) rotate(-6deg); }
+  75%      { transform: translate(9px, -4px) rotate(6deg); }
+}
+
+/* ── respect the reader ───────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .walker,
+  .bob,
+  .tail,
+  .breathe,
+  .playful,
+  .butterfly {
+    animation: none !important;
+  }
+
+  /* Without the walk, park the walkers somewhere pleasant and visible
+     rather than leaving them off the left edge. */
+  .walker       { transform: translateX(14%); }
+  .walkerLeft   { transform: translateX(320%) scaleX(-1); }
+}
