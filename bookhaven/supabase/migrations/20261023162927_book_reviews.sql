@@ -189,6 +189,20 @@ begin
       from public.profiles p
      where p.id = new.user_id;
 
+    -- Fallback for anyone who has just signed up. The sign-up form puts the
+    -- name in the auth user's metadata, but handle_new_user() only writes
+    -- (id, role) into profiles — so the profile name stays empty until the
+    -- customer saves it on the account page. Without this, every new
+    -- customer would review as "Book Haven reader" despite having typed
+    -- their name a minute earlier.
+    if v_first is null then
+      select nullif(btrim(coalesce(u.raw_user_meta_data ->> 'first_name', '')), ''),
+             nullif(btrim(coalesce(u.raw_user_meta_data ->> 'last_name', '')), '')
+        into v_first, v_last
+        from auth.users u
+       where u.id = new.user_id;
+    end if;
+
     new.reviewer_name := case
       when v_first is null then 'Book Haven reader'
       when v_last  is null then left(v_first, 40)
