@@ -9,6 +9,11 @@ import {
 } from "../../../lib/mpesa";
 import { deliveryFeeFor } from "../../../lib/site";
 import { readJsonBody, ORDER_BODY } from "../../../lib/request-guard";
+import {
+  MPESA_WINDOW_MS,
+  mpesaAttemptVerdict,
+  mpesaLimitMessage,
+} from "../../../lib/request-limits.js";
 
 // POST /api/mpesa/stk
 //
@@ -73,19 +78,30 @@ export async function POST(request) {
     return NextResponse.json({ error: "Server misconfigured — please contact support." }, { status: 500 });
   }
 
-  // Light abuse guard: cap how many pushes one account can trigger.
-  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-  const { count: recentAttempts } = await db
-    .from("mpesa_payments")
-    .select("*", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .gte("created_at", tenMinutesAgo);
+  // Abuse guards. Two axes, because either one alone is easy to walk around:
+  // one account/hour with a fresh number each time, or several accounts aimed
+  // at one phone. Both counts come from the database, so they hold across
+  // serverless instances (an in-process Map would not).
+  const windowStart = new Date(Date.now() - MPESA_WINDOW_MS).toISOString();
+  const [{ count: accountAttempts }, { count: phoneAttempts }] = await Promise.all([
+    db
+      .from("mpesa_payments")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", windowStart),
+    db
+      .from("mpesa_payments")
+      .select("*", { count: "exact", head: true })
+      .eq("phone", formattedPhone)
+      .gte("created_at", windowStart),
+  ]);
 
-  if ((recentAttempts || 0) >= 5) {
-    return NextResponse.json(
-      { error: "Too many M-Pesa attempts. Please wait a few minutes and try again." },
-      { status: 429 }
-    );
+  const limit = mpesaAttemptVerdict({
+    accountAttempts: accountAttempts || 0,
+    phoneAttempts: phoneAttempts || 0,
+  });
+  if (limit) {
+    return NextResponse.json({ error: mpesaLimitMessage(limit) }, { status: 429 });
   }
 
   // Refuse to take money for books that cannot be fulfilled. Stock is
@@ -170,6 +186,11 @@ export async function POST(request) {
     .from("mpesa_payments")
     .insert({
       user_id: user.id,
+      // The payer's number is part of the intent, not just of the push that
+      // follows. Without it there was no way to rate-limit one phone across
+      // accounts, no way to reconcile a callback whose body names a different
+      // number, and the admin Payments table had a permanently empty column.
+      phone: formattedPhone,
       expected_amount: Math.ceil(amount),
       status: "pending",
     })
