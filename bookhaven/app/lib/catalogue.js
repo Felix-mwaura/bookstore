@@ -96,10 +96,21 @@ export async function getCatalogueStats() {
     .eq("is_archived", false);
 
   const rows = data || [];
+
+  // Counts per genre. The homepage used to derive these from the first page
+  // of books it had fetched, which quietly under-counted any genre whose
+  // titles did not make that page. This query reads the whole shelf.
+  const byCategory = {};
+  for (const row of rows) {
+    if (!row.category) continue;
+    byCategory[row.category] = (byCategory[row.category] || 0) + 1;
+  }
+
   return {
     titles: rows.length,
     categories: new Set(rows.map((r) => r.category)).size,
     inStock: rows.filter((r) => (r.stock_quantity ?? 0) > 0).length,
+    byCategory,
   };
 }
 

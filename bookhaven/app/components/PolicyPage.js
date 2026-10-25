@@ -15,7 +15,7 @@ export function PolicyPage({ eyebrow, title, intro, children, updated = true }) 
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
       <nav aria-label="Breadcrumb" className="mb-5 text-xs text-muted">
         <ol className="flex items-center gap-2">
-          <li><Link href="/" className="underline-offset-2 hover:text-navy hover:underline">Home</Link></li>
+          <li><Link href="/" className="-my-1.5 inline-block py-1.5 underline-offset-2 hover:text-navy hover:underline">Home</Link></li>
           <li aria-hidden="true">/</li>
           <li className="font-medium text-ink" aria-current="page">{title}</li>
         </ol>

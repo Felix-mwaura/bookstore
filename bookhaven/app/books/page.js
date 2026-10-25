@@ -67,7 +67,7 @@ export default async function BooksPage({ searchParams }) {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-10">
         <nav aria-label="Breadcrumb" className="text-xs text-muted mb-4">
           <ol className="flex items-center gap-2">
-            <li><Link href="/" className="hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
+            <li><Link href="/" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
             <li aria-hidden="true">/</li>
             <li className="text-ink font-medium" aria-current="page">{category || "All books"}</li>
           </ol>

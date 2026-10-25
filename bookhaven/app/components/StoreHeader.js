@@ -266,7 +266,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
               </svg>
             </button>
 
-            <Link href="/" className="flex items-center gap-2 flex-shrink-0" aria-label="Book Haven home">
+            <Link href="/" className="-my-2 flex flex-shrink-0 items-center gap-2 py-2" aria-label="Book Haven home">
               <span className="font-playfair text-lg sm:text-xl font-bold text-navy leading-none">Book Haven</span>
             </Link>
 
