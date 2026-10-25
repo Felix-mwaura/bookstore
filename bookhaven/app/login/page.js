@@ -1,4 +1,5 @@
 import AuthPage from "./AuthClient";
+import { safeNextPath } from "../lib/safe-redirect";
 
 export const metadata = {
   title: "Sign in · Book Haven",
@@ -15,11 +16,12 @@ export default async function LoginPage({ searchParams }) {
   const tab = params.tab === "register" ? "register" : "signin";
 
   // Only same-origin paths are accepted, so /login cannot be used as an open
-  // redirect. `//evil.com` and `/%2F%2Fevil.com` are rejected too: the value
-  // has to start with a single slash and not with a backslash or a scheme.
-  const raw = typeof params.next === "string" ? params.next : "";
-  const nextPath =
-    raw.startsWith("/") && !raw.startsWith("//") && !raw.startsWith("/\\") ? raw.slice(0, 300) : null;
+  // redirect. The decision is made by safeNextPath(), which PARSES the value
+  // with the same URL algorithm a browser uses — prefix matching is not enough,
+  // because "/<tab>/evil.com" is read as "//evil.com" by the parser and would
+  // otherwise navigate to another site. Backslashes, control characters,
+  // protocol-relative URLs and encoded "//" are all rejected there.
+  const nextPath = safeNextPath(typeof params.next === "string" ? params.next : "");
 
   return <AuthPage mode={mode} tab={tab} nextPath={nextPath} />;
 }
