@@ -5,9 +5,9 @@ repository. Everything that needs the live project is listed under
 [Not verified](#9-not-verified) with the exact command or dashboard step to
 close it.
 
-**Scope:** `bookhaven/` at commit `af8c485` (recon), through `e6b61c6` (this
-audit's fixes). Thirteen known findings, the full Phase 2 checklist A–K, and
-the live behaviour of a local production build.
+**Scope:** `bookhaven/` from `af8c485` (recon) through the commits listed in
+§3. Thirteen known findings, the full Phase 2 checklist A–K, and the live
+behaviour of a local production build.
 
 ---
 
@@ -23,9 +23,11 @@ Those are fixed, along with payment-prompt spam, a public email endpoint that
 advertised itself to every website on the internet, and a production build that
 would quietly point at the wrong Supabase project if an environment variable
 went missing.
-Eleven of the thirteen findings are closed in code; the remaining two need your
-dashboard (the Auth settings and MFA), and three new SQL migrations are written
-but deliberately **not applied** — they are the part that only you can run.
+Ten of the thirteen findings are closed in code; two are fixed only as SQL
+migrations that you have to approve and run, and one is an edge function only
+you can delete. The Supabase Auth settings — email confirmation, MFA, leaked
+password protection — also remain, because they live in a dashboard rather than
+in this repository.
 
 ---
 
