@@ -3,6 +3,7 @@ import { clientForToken, bearerToken, serviceClient } from "../../lib/server";
 import { queueEmailDispatch } from "../../lib/email-dispatch";
 import { DELIVERY_PERCENT } from "../../lib/site";
 import { readJsonBody, ORDER_BODY } from "../../lib/request-guard";
+import { OPEN_COD_STATUSES, codLimitProblem, unitsIn } from "../../lib/order-limits";
 
 // GET /api/orders — the signed-in customer's own orders (RLS-enforced)
 export async function GET(request) {
@@ -131,6 +132,12 @@ export async function POST(request) {
       ? idempotencyKey.trim().slice(0, 100)
       : null;
 
+  // Cash on delivery reserves stock without any money changing hands, so it
+  // is the one method that can be used to hoard. This check gives the customer
+  // a clear message; the same rules are enforced by a BEFORE INSERT trigger,
+  // which is what two racing requests cannot bypass.
+  const isCod = method === "cod";
+
   let serverClient;
   try {
     serverClient = serviceClient();
@@ -140,6 +147,30 @@ export async function POST(request) {
       { error: "Server misconfigured — please contact support" },
       { status: 500 }
     );
+  }
+
+  if (isCod) {
+    const { count: openCod } = await serverClient
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("payment_status", "pending")
+      .in("status", OPEN_COD_STATUSES)
+      // Legacy rows may spell the method out ("Cash on Delivery"). The filter
+      // string is a constant, never user input.
+      .or("payment_method.ilike.%cod%,payment_method.ilike.%cash%");
+
+    const problem = codLimitProblem({
+      units: unitsIn(cleanItemList),
+      openOrders: openCod || 0,
+    });
+
+    if (problem) {
+      return NextResponse.json(
+        { error: problem.message, code: problem.code },
+        { status: problem.status }
+      );
+    }
   }
 
   // Cheap per-account throttle: a real customer does not place eight orders
@@ -233,6 +264,28 @@ export async function POST(request) {
     if (msg.includes("INVALID_DELIVERY_DETAILS")) {
       return NextResponse.json(
         { error: "Please provide a name, phone number, delivery address and town." },
+        { status: 400 }
+      );
+    }
+
+    if (msg.includes("TOO_MANY_OPEN_COD_ORDERS")) {
+      return NextResponse.json(
+        {
+          error:
+            "You already have three cash-on-delivery orders waiting to be delivered. Please wait for one to arrive, cancel one from your account, or pay with M-Pesa.",
+          code: "TOO_MANY_OPEN_COD_ORDERS",
+        },
+        { status: 409 }
+      );
+    }
+
+    if (msg.includes("COD_ORDER_TOO_LARGE")) {
+      return NextResponse.json(
+        {
+          error:
+            "Cash on delivery is limited to 20 books per order. Please pay online for a larger order.",
+          code: "COD_ORDER_TOO_LARGE",
+        },
         { status: 400 }
       );
     }

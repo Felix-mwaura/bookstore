@@ -11,6 +11,12 @@ import { safeNextPath } from "../app/lib/safe-redirect.js";
 import { serialiseJsonLd } from "../app/lib/json-ld.js";
 import { buildCsp, createNonce, isNonceRoute } from "../app/lib/csp.js";
 import {
+  MAX_COD_UNITS,
+  MAX_OPEN_COD_ORDERS,
+  unitsIn,
+  codLimitProblem,
+} from "../app/lib/order-limits.js";
+import {
   readJsonBody,
   isJsonObject,
   isUuid,
@@ -264,6 +270,32 @@ ok("empty Supabase URL: still self-only", noUrl.includes("connect-src 'self'"));
 const nonces = new Set(Array.from({ length: 50 }, () => createNonce()));
 eq("nonces are unique per response", nonces.size, 50);
 ok("nonce is base64 of 16 bytes", [...nonces].every((n) => /^[A-Za-z0-9+/]{22}==$/.test(n)));
+
+/* ── 5. Cash-on-delivery limits ────────────────────────────────────────── */
+
+section("5. COD cannot hoard stock");
+
+eq("units: sums lines", unitsIn([{ id: 1, quantity: 2 }, { id: 2, quantity: 3 }]), 5);
+eq("units: ignores a bad quantity", unitsIn([{ quantity: 2 }, { quantity: "lots" }, { quantity: -4 }]), 2);
+eq("units: empty cart", unitsIn([]), 0);
+eq("units: a non-array is zero", unitsIn(null), 0);
+eq("the per-order cap is 20 books", MAX_COD_UNITS, 20);
+eq("three COD orders may be open", MAX_OPEN_COD_ORDERS, 3);
+
+eq("20 books, no other order: allowed", codLimitProblem({ units: 20, openOrders: 0 }), null);
+eq("2 open orders, 1 book: allowed", codLimitProblem({ units: 1, openOrders: 2 }), null);
+
+const tooMany = codLimitProblem({ units: 21, openOrders: 0 });
+eq("21 books: refused", tooMany?.status, 400);
+eq("21 books: code", tooMany?.code, "COD_ORDER_TOO_LARGE");
+ok("21 books: says how to proceed", /M-Pesa|pay online/i.test(tooMany?.message || ""));
+
+const openLimit = codLimitProblem({ units: 1, openOrders: 3 });
+eq("3 open orders: refused", openLimit?.status, 409);
+eq("3 open orders: code", openLimit?.code, "TOO_MANY_OPEN_COD_ORDERS");
+ok("3 open orders: says what to do", /wait|arrive|cancel/i.test(openLimit?.message || ""));
+
+eq("4 open orders: still refused", codLimitProblem({ units: 1, openOrders: 4 })?.status, 409);
 
 /* ── report ─────────────────────────────────────────────────────────────── */
 
