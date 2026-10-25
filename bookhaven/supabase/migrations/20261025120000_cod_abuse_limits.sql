@@ -110,7 +110,16 @@ begin
     hashtextextended(coalesce(new.user_id::text, 'anonymous'), 0)
   );
 
-  select coalesce(sum(greatest(coalesce((item->>'quantity')::integer, 0), 0)), 0)
+  -- A quantity that is not a whole number is counted as zero rather than
+  -- raising a cast error: place_order() is what rejects it, and this trigger
+  -- must never turn a malformed row into an obscure 500.
+  select coalesce(sum(
+           case
+             when (item->>'quantity') ~ '^[0-9]+$'
+               then greatest((item->>'quantity')::integer, 0)
+             else 0
+           end
+         ), 0)
     into v_units
     from jsonb_array_elements(coalesce(new.items, '[]'::jsonb)) as item;
 
