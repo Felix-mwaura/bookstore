@@ -248,11 +248,18 @@ p {
               box-shadow 420ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* The whole card follows the cover, so the tilt reads as one object. */
+/* The whole card follows the cover, so the tilt reads as one object.
+   Deliberately NOT `transform-style: preserve-3d`. The hover tilt below
+   rotates this element on X, and Chromium's hit testing gives up inside a
+   rotated preserve-3d subtree: every click inside the card resolved to the
+   flat footer div instead of the link or the Add button. Only mouse-driven
+   devices apply that tilt, so a phone kept working while a desktop card went
+   dead. The cover's depth is produced by .scene's own perspective, so
+   flattening the card costs nothing visually. */
 .card-3d {
   transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 260ms cubic-bezier(0.16, 1, 0.3, 1);
-  transform-style: preserve-3d;
+  transform-style: flat;
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {

@@ -134,6 +134,37 @@ await expectAdminGuard("/api/admin/agent", {
   body: JSON.stringify({ messages: [{ role: "user", content: "hi" }] }),
 });
 
+/* ── the product card must stay clickable on a mouse ────────────────── */
+
+// `.card-3d` lifts and tilts on hover, but only on devices with a real
+// pointer — which is why a phone kept working while a desktop card went dead.
+// A rotated `preserve-3d` subtree makes the browser hand every click inside
+// the card to the flat footer div instead of the link or the Add button, so
+// the card must not declare preserve-3d. This is a text check on the built
+// stylesheet: the only browser that could catch it by clicking is a headed
+// one with a mouse, which CI does not have.
+const booksPage = await request("/books");
+if (booksPage && booksPage.ok) {
+  const html = await booksPage.text();
+  const hrefs = [...html.matchAll(/href="([^"]+\.css)"/g)].map((m) => m[1]);
+  if (hrefs.length === 0) {
+    results.push("skip  .card-3d is flat — no stylesheet linked from /books");
+  } else {
+    const cards = [];
+    for (const href of hrefs) {
+      const sheet = await request(href);
+      if (!sheet || !sheet.ok) continue;
+      const css = await sheet.text();
+      for (const rule of css.matchAll(/\.card-3d\{([^}]*)\}/g)) cards.push(rule[1]);
+    }
+    expect(
+      ".card-3d is not a preserve-3d subtree (clicks reach the Add button)",
+      cards.length > 0 && cards.every((body) => !/transform-style:\s*preserve-3d/.test(body)),
+      cards.length === 0 ? "no .card-3d rule found in the stylesheet" : cards.join(" | ")
+    );
+  }
+}
+
 /* ── public writes validate input ───────────────────────────────────── */
 
 const newsletter = await request("/api/newsletter", {
