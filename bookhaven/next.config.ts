@@ -1,4 +1,11 @@
 import type { NextConfig } from "next";
+import { assertProductionBuildEnv } from "./app/lib/env.js";
+
+// Refuse to build a production bundle without the public configuration.
+// Without this the build would silently fall back to the project this site
+// was first deployed against. Runs at build time only (NEXT_PHASE), so a
+// running deployment is never affected. See app/lib/env.js.
+assertProductionBuildEnv();
 
 // Book covers are uploaded to Supabase Storage by the admin. Only that
 // project's public storage host is allowed through the image optimiser, and

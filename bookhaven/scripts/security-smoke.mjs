@@ -29,6 +29,13 @@ import {
   MIN_CALLBACK_TOKEN_LENGTH,
 } from "../app/lib/callback-token.js";
 import {
+  REQUIRED_PUBLIC_ENV,
+  missingPublicEnv,
+  isProductionBuild,
+  assertProductionBuildEnv,
+  envErrorMessage,
+} from "../app/lib/env.js";
+import {
   readJsonBody,
   isJsonObject,
   isUuid,
@@ -373,6 +380,72 @@ eq(
 );
 eq("redaction leaves a plain URL alone", redactCallbackUrl(base), base);
 ok("redaction never leaves the secret in the string", !redactCallbackUrl(`${base}?token=${TOKEN}`).includes(TOKEN));
+
+/* ── 8. A production build cannot silently use someone else's project ──── */
+
+section("8. Missing public configuration fails the build, not the shop");
+
+const goodEnv = {
+  NEXT_PUBLIC_SUPABASE_URL: "https://abcdefghijklmnop.supabase.co",
+  NEXT_PUBLIC_SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiJ9.signature",
+  NEXT_PUBLIC_SITE_URL: "https://bookhaven.example",
+};
+
+eq("all three variables are required", REQUIRED_PUBLIC_ENV.length, 3);
+eq("a complete environment is missing nothing", missingPublicEnv(goodEnv).join(","), "");
+eq("an empty environment is missing all three", missingPublicEnv({}).join(","), REQUIRED_PUBLIC_ENV.join(","));
+eq("whitespace is not a value", missingPublicEnv({ ...goodEnv, NEXT_PUBLIC_SITE_URL: "   " }).length, 1);
+eq(
+  "the .env.example placeholders are rejected",
+  missingPublicEnv({
+    NEXT_PUBLIC_SUPABASE_URL: "https://YOUR-PROJECT.supabase.co",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "your-anon-key",
+    NEXT_PUBLIC_SITE_URL: "https://your-site.example",
+  }).join(","),
+  REQUIRED_PUBLIC_ENV.join(",")
+);
+
+eq("`next build` is a production build", isProductionBuild({}, ["node", "next", "build"]), true);
+eq("`next start` is not", isProductionBuild({}, ["node", "next", "start"]), false);
+eq("an older NEXT_PHASE=build is honoured", isProductionBuild({ NEXT_PHASE: "phase-production-build" }, []), true);
+eq("NEXT_PHASE=dev is not a build", isProductionBuild({ NEXT_PHASE: "phase-development-server" }, ["build"]), false);
+
+let threw = null;
+try {
+  assertProductionBuildEnv({}, ["node", "next", "build"]);
+} catch (error) {
+  threw = error;
+}
+ok("a production build without configuration throws", Boolean(threw));
+ok("…naming the missing variables", String(threw?.message).includes("NEXT_PUBLIC_SUPABASE_URL"));
+ok("…and saying the previous deployment keeps serving", /keeps serving/i.test(String(threw?.message || "")));
+
+let startThrew = null;
+try {
+  assertProductionBuildEnv({}, ["node", "next", "start"]);
+} catch (error) {
+  startThrew = error;
+}
+eq("`next start` never throws, so a live site cannot go down", startThrew, null);
+
+let goodThrew = null;
+try {
+  assertProductionBuildEnv(goodEnv, ["node", "next", "build"]);
+} catch (error) {
+  goodThrew = error;
+}
+eq("a configured build passes", goodThrew, null);
+
+let testThrew = null;
+try {
+  assertProductionBuildEnv({ NEXT_PUBLIC_ALLOW_ENV_FALLBACK: "1" }, ["node", "next", "build"]);
+} catch (error) {
+  testThrew = error;
+}
+eq("the explicit test-only opt-out still works", testThrew, null);
+
+ok("the error message tells the owner where to set them", /Vercel/.test(envErrorMessage(["X"])));
+ok("the error message never contains a key", !/eyJ/.test(envErrorMessage(["X"])));
 
 /* ── report ─────────────────────────────────────────────────────────────── */
 

@@ -4,6 +4,11 @@
 // the sitemap and robots.txt. Set NEXT_PUBLIC_SITE_URL when a custom domain
 // exists; until then the production Vercel hostname is the real address, so
 // links in search results and structured data point somewhere that works.
+//
+// The fallback is for an already-deployed build only: a production build
+// without NEXT_PUBLIC_SITE_URL fails in next.config.ts (app/lib/env.js), so a
+// new deployment can never publish another shop's address in its metadata,
+// sitemap or M-Pesa callback URL.
 
 export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL || "https://bookstore-puce-sigma.vercel.app"
