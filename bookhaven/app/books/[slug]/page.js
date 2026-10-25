@@ -8,6 +8,7 @@ import ProductCard from "../../components/ProductCard";
 import ReviewsSection from "../../components/ReviewsSection";
 import { StarRating } from "../../components/StarRating";
 import StoreLayout from "../../components/StoreLayout";
+import { jsonLdProps } from "../../lib/json-ld";
 import { getBookById, getRelatedBooks, bookPath, bookSlug, parseBookSlug } from "../../lib/catalogue";
 import { getServerUser, supabaseServer } from "../../lib/supabase-server";
 import { categorySlug } from "../../lib/categories";
@@ -148,8 +149,8 @@ export default async function BookPage({ params, searchParams }) {
 
   return (
     <StoreLayout>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script {...jsonLdProps(productJsonLd)} />
+      <script {...jsonLdProps(breadcrumbJsonLd)} />
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10 pb-28 lg:pb-10">
         <nav aria-label="Breadcrumb" className="mb-6 text-xs text-muted">
