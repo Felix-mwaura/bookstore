@@ -12,7 +12,7 @@
 
 ## 1. Executive summary
 
-The audit produced seventeen rows: **eight code fixes** (each with a regression test), **one documentation correction**, **two migrations written but not applied**, **one item reviewed and deliberately left unchanged** (the read-only admin assistant), and **five that need your decision** — the CSP `script-src` tradeoff, the out-of-repo `welcome-email` function, the Supabase Auth settings, the migration drift, and the per-instance limiter I accepted. The two that would have hurt most were a **stored XSS** — any book title containing `</script>` broke out of the structured-data block on a public page — and an **open redirect** on the real sign-in page, where `/	/evil.com` survived the old prefix check and sent the browser to `https://evil.com/`. Payments held up well: the amount is always recomputed on the server, a callback must match a stored intent, the exact amount, a receipt and Safaricom's own STK query, and replay is blocked — what was missing was that the payer's phone number was never stored, so a per-number abuse limit was impossible, and COD had no limit at all, so stock could be held hostage indefinitely. The database's row-level security is sound but its *grants* are not: `anon` and `authenticated` hold `TRUNCATE`, `TRIGGER` and `REFERENCES` on every table and full DML on several, which is one policy mistake away from being exploitable. Nothing was applied, deployed or reconfigured: the migrations, the `welcome-email` function and the Auth settings all need your explicit approval before they touch production.
+The audit produced eighteen rows: **eight code fixes** (each with a regression test), **one documentation correction**, **two migrations written but not applied**, **one item reviewed and deliberately left unchanged** (the read-only admin assistant), and **five that need your decision** — the CSP `script-src` tradeoff, the out-of-repo `welcome-email` function, the Supabase Auth settings, the migration drift, and the per-instance limiter I accepted. The two that would have hurt most were a **stored XSS** — any book title containing `</script>` broke out of the structured-data block on a public page — and an **open redirect** on the real sign-in page, where `/	/evil.com` survived the old prefix check and sent the browser to `https://evil.com/`. Payments held up well: the amount is always recomputed on the server, a callback must match a stored intent, the exact amount, a receipt and Safaricom's own STK query, and replay is blocked — what was missing was that the payer's phone number was never stored, so a per-number abuse limit was impossible, and COD had no limit at all, so stock could be held hostage indefinitely. The database's row-level security is sound but its *grants* are not: `anon` and `authenticated` hold `TRUNCATE`, `TRIGGER` and `REFERENCES` on every table and full DML on several, which is one policy mistake away from being exploitable. Nothing was applied, deployed or reconfigured: the migrations, the `welcome-email` function and the Auth settings all need your explicit approval before they touch production.
 
 ---
 
@@ -50,6 +50,7 @@ Severity: **Critical** (exploitable now, severe impact) · **High** (exploitable
 | SEC-05 | Medium | `app/api/mpesa/callback/route.js` | Callback accepted anyone | No shared secret, no path token, no IP allow-list; each call costs DB reads + a Daraja query | **Fixed** (opt-in) | `db09561` |
 | SEC-06 | Medium | `app/lib/supabase-config.js:10,14`, `app/lib/site.js:9`, `next.config.ts:7`, `send-email:18` | Hard-coded production fallbacks | Real project URL + real anon JWT as fallbacks; a checkout without `.env.local` silently used the live database | **Fixed** | `2acb82f` |
 | SEC-07 | Medium | `app/api/orders/route.js` | COD stock hoarding | 50 copies/line, unlimited open COD orders; COD reserves stock without payment | **Fixed** | `75f04e5` |
+| SEC-18 | Medium | Vercel environment scoping | `NEXT_PUBLIC_SUPABASE_URL` / `_ANON_KEY` exist **only** in the `production` scope, so every preview deployment was served the hard-coded fallback — i.e. it read the **live** project | Vercel env list: 12 variables, all `target: ["production"]`; the PR preview build failed the moment the fallback was removed | **Fixed in code + reported** | `2acb82f`, this commit |
 | SEC-08 | **High** | live grants | Browser roles hold unused, dangerous privileges | `anon`+`authenticated`: `TRUNCATE`,`TRIGGER`,`REFERENCES` on every table; full DML on `addresses`,`wishlists`,`admin_activity_log`,`stock_movements`,`email_outbox`; `INSERT`,`DELETE` on `profiles`; full DML on the `book_rating_summary` view | **Migration written, not applied** | `ef937fe` |
 | SEC-09 | Low | live `public.delivery_rate()` | Only function without a pinned `search_path` | `proconfig` is empty; `SECURITY INVOKER`, returns the constant 20 | **Migration written, not applied** | `ef937fe` |
 | SEC-10 | Low | `supabase/functions/send-email/index.ts:21-26` | Wildcard CORS on a service-role endpoint | `Access-Control-Allow-Origin: *` | **Fixed in repo, not deployed** | `77a2695` |
@@ -196,7 +197,20 @@ export const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "e
 
 The anon key is public by design, but the *fallback* is not harmless: a checkout built without `.env.local` silently talked to the live project — reads, carts and orders included. The same pattern existed for the site URL (`app/lib/site.js:9`), the image host (`next.config.ts:7`) and the e-mail CTA (`send-email:18`).
 
-Fixed: no literal project values remain. In production, a missing `NEXT_PUBLIC_SUPABASE_URL`/`_ANON_KEY` throws a named error at import time, and a missing site URL throws too (falling back to `VERCEL_PROJECT_PRODUCTION_URL` first). Development still loads, because unit tests import modules that merely mention Supabase. Test: `scripts/security-config-smoke.mjs` (child-process cases plus a literal scan of the four files).
+Fixed: no literal project values remain. The rules are now:
+
+| Situation | Behaviour |
+| --- | --- |
+| Configured | Use the configured project. |
+| Real production, nothing configured | **Throw at import** with the variable names and a pointer to `.env.example`. A deploy that cannot reach a database must fail where somebody sees it. |
+| Preview deployment, nothing configured | Load with a reserved `.invalid` placeholder (`https://unconfigured-preview.invalid`). The app builds, renders empty states and **cannot** reach any real project. One named `console.error` says what is missing. |
+| Local development, nothing configured | Same placeholder and the same message. |
+
+The site URL follows the same split: `NEXT_PUBLIC_SITE_URL`, then `VERCEL_PROJECT_PRODUCTION_URL`, then `VERCEL_URL`; only a real production build throws when none is available, and the project's only domain is `bookstore-puce-sigma.vercel.app`, so today's canonical URLs are unchanged.
+
+**Why previews matter here (SEC-18).** The first preview build of this branch failed, and the log named the cause: `Supabase is not configured` while collecting `/api/admin/activity`. That is how SEC-18 surfaced — the Vercel project has twelve environment variables and *all twelve* are scoped to `production`; there is nothing for Preview or Development. Until now the hard-coded fallback hid that, which means **every pull-request preview of this shop was reading the live catalogue**, and any signed-in session used in a preview was acting against the live project. The anon key plus RLS kept it to public reads (the service-role key is also production-only, so preview admin mutations failed), but a preview is supposed to be a sandbox, not a second front door. `proxy.js` now also treats an unreachable auth/profile lookup as "no user" rather than throwing, so an unconfigured preview redirects to `/login` instead of returning 500.
+
+Test: `scripts/security-config-smoke.mjs` — production throws, configured production loads, development and preview get the placeholder, a configured preview uses its own project, and the four files are scanned for literal production values.
 
 ### SEC-07 — COD stock hoarding · Medium · `75f04e5`
 
@@ -405,6 +419,8 @@ Each file carries its own rollback statements in a trailing comment. None has be
 
 `next build` (Next 16.4.2, production env) → compiled; every route generated, including `/api/mpesa/callback`, `/api/admin/*`, `/books/[slug]`, `/orders/[id]`, `/admin` (proxy).
 
+`next build` without any `NEXT_PUBLIC_*` variable and with `VERCEL_ENV=preview` → **compiles, 30/30 static pages**; the same build under real production settings and no variables fails with the named error, as intended.
+
 `npm test` with a local production build → **passes**, and now includes eight security suites:
 
 ```
@@ -434,15 +450,16 @@ Rendered checks against the local production build:
 
 ## 9. Not verified (stated plainly)
 
-1. **The live database after the migrations.** They have never been executed. Privilege changes can surface a client path nobody grepped for; apply to a branch or take a backup first.
-2. **The deployed `send-email` function.** The repo copy is fixed, but the deployed v2 still sends the wildcard CORS header until it is redeployed. Deno is not installed here, so the fixed function was not executed.
-3. **`welcome-email`.** Out of the repository, unauthenticated, `verify_jwt: false`. Its behaviour was read from the deployed bundle, not run.
-4. **A headed browser with a real mouse, and Safari/Firefox.** All rendering checks used Chromium against a local production build. The redirect and JSON-LD checks are server-rendered HTML, so browser differences there are unlikely; the rest of the UI was not re-tested as part of this audit.
-5. **Supabase advisors.** The tooling available exposes no advisor endpoint. The equivalent queries (RLS, grants, `search_path`, definer rights, indexes) were run directly and are reported above; treat "advisors" itself as unrun.
-6. **Real M-Pesa traffic.** No STK push, callback or `stkQuery` was sent. The callback secret is therefore also untested against Safaricom: it is opt-in precisely so it cannot break the flow until you set it.
-7. **Prompt-injection resistance of the admin assistant.** Reviewed, not adversarially exercised.
-8. **Node-only tests vs the edge runtime.** `security-config` and `security-edge-cors` assert source text and module loading in Node; neither boots the Deno runtime.
-9. **Migration drift.** 17 applied vs 8 files: I could read *what* is applied, not reconstruct *why* the missing nine were never committed.
+1. **A preview deployment against real data.** Previews build with the `.invalid` placeholder because the Vercel environment has no Preview-scoped variables; the "configured preview" path is covered by a child-process test, not by a real deployment.
+2. **The live database after the migrations.** They have never been executed. Privilege changes can surface a client path nobody grepped for; apply to a branch or take a backup first.
+3. **The deployed `send-email` function.** The repo copy is fixed, but the deployed v2 still sends the wildcard CORS header until it is redeployed. Deno is not installed here, so the fixed function was not executed.
+4. **`welcome-email`.** Out of the repository, unauthenticated, `verify_jwt: false`. Its behaviour was read from the deployed bundle, not run.
+5. **A headed browser with a real mouse, and Safari/Firefox.** All rendering checks used Chromium against a local production build. The redirect and JSON-LD checks are server-rendered HTML, so browser differences there are unlikely; the rest of the UI was not re-tested as part of this audit.
+6. **Supabase advisors.** The tooling available exposes no advisor endpoint. The equivalent queries (RLS, grants, `search_path`, definer rights, indexes) were run directly and are reported above; treat "advisors" itself as unrun.
+7. **Real M-Pesa traffic.** No STK push, callback or `stkQuery` was sent. The callback secret is therefore also untested against Safaricom: it is opt-in precisely so it cannot break the flow until you set it.
+8. **Prompt-injection resistance of the admin assistant.** Reviewed, not adversarially exercised.
+9. **Node-only tests vs the edge runtime.** `security-config` and `security-edge-cors` assert source text and module loading in Node; neither boots the Deno runtime.
+10. **Migration drift.** 17 applied vs 8 files: I could read *what* is applied, not reconstruct *why* the missing nine were never committed.
 
 ---
 
@@ -452,8 +469,9 @@ Rendered checks against the local production build:
 
 1. **Merge the branch / open PR #56** (code only; no infrastructure change). Everything below is independent of that.
 2. **Apply the three migrations**, ideally to a branch project first. ⚠️ *Needs approval.*
-3. **Set the Auth site URL**: `site_url = https://bookstore-puce-sigma.vercel.app`, add the same origin (and `/login`, `/account`) to `uri_allow_list`, then set `webauthn_rp_id` to the real hostname. ⚠️ *Needs approval — this changes login e-mails.*
-4. **Rotate the SMTP password** if it has ever been pasted into a chat, a ticket or a screenshot (it is readable in plain text from the project's auth settings by anyone with dashboard access).
+3. **Scope the two public Supabase variables to Preview (and Development)** if you want previews to show real data: Vercel → Settings → Environment Variables → `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` → tick Preview + Development. Both values are public by design. Until then a preview builds and renders empty states, which is the safe default. ⚠️ *Needs approval (environment change).*
+4. **Set the Auth site URL**: `site_url = https://bookstore-puce-sigma.vercel.app`, add the same origin (and `/login`, `/account`) to `uri_allow_list`, then set `webauthn_rp_id` to the real hostname. ⚠️ *Needs approval — this changes login e-mails.*
+5. **Rotate the SMTP password** if it has ever been pasted into a chat, a ticket or a screenshot (it is readable in plain text from the project's auth settings by anyone with dashboard access).
 
 **This week**
 

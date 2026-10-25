@@ -3,15 +3,14 @@
 //
 //   node scripts/security-config-smoke.mjs
 //
-// app/lib/supabase-config.js used to carry the real project URL and a real
-// anon JWT as fallbacks, and app/lib/site.js carried the production hostname.
-// A checkout built from a laptop without .env.local therefore talked to the
-// live project instead of erroring — the kind of mistake that only surfaces
-// when somebody wonders why a "test" order is in the real admin dashboard.
+// app/lib/supabase-config.js used to carry the real project URL and a real anon
+// JWT as fallbacks, and app/lib/site.js carried the production hostname. That
+// fallback is why every Vercel preview deployment — an environment with no
+// NEXT_PUBLIC_* variables — silently read and wrote the live database.
 //
-// Production now throws when configuration is missing; development still loads
-// so pure unit tests can import modules that mention Supabase without making a
-// request.
+// Now: real production throws when configuration is missing; anything else
+// (preview, local dev, CI) loads with a reserved ".invalid" placeholder so it
+// can build and render empty states but can never reach a real project.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
@@ -77,8 +76,35 @@ check("trailing slash trimmed", prodConfigured.ok && prodConfigured.stdout.trim(
 const prodSite = run('await import("./app/lib/site.js"); console.log("loaded");', { NODE_ENV: "production" });
 check("site.js throws in production without a host", !prodSite.ok && /NEXT_PUBLIC_SITE_URL/.test(prodSite.stderr));
 
-const dev = run('await import("./app/lib/supabase-config.js"); console.log("loaded");', { NODE_ENV: "development" });
-check("development still loads for unit tests", dev.ok, dev.stderr);
+const dev = run(
+  'const m = await import("./app/lib/supabase-config.js"); console.log(m.SUPABASE_URL + " " + m.SUPABASE_IS_PLACEHOLDER);',
+  { NODE_ENV: "development" }
+);
+check("development loads", dev.ok, dev.stderr);
+check("development uses the placeholder, not a live project", dev.ok && dev.stdout.includes("unconfigured-preview.invalid"));
+check("placeholder is flagged", dev.ok && dev.stdout.trim().endsWith("true"));
+
+console.log("\nPreview deployments build, but never inherit the live project");
+const preview = run(
+  'const m = await import("./app/lib/supabase-config.js"); console.log(m.SUPABASE_URL + " " + m.SUPABASE_IS_PLACEHOLDER);',
+  { NODE_ENV: "production", VERCEL_ENV: "preview" }
+);
+check("preview does not throw", preview.ok, preview.stderr);
+check("preview URL is the reserved placeholder", preview.ok && preview.stdout.includes("unconfigured-preview.invalid"));
+check("preview cannot resolve anywhere (.invalid)", preview.ok && /unconfigured-preview\.invalid/.test(preview.stdout));
+check("preview is not the live project", preview.ok && !preview.stdout.includes("luniopceavtkljywukyi"));
+
+const previewConfigured = run(
+  'const m = await import("./app/lib/supabase-config.js"); console.log(m.SUPABASE_IS_PLACEHOLDER + " " + m.SUPABASE_URL);',
+  {
+    NODE_ENV: "production",
+    VERCEL_ENV: "preview",
+    NEXT_PUBLIC_SUPABASE_URL: "https://preview-project.supabase.co",
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "preview-key",
+  }
+);
+check("preview uses its own project when configured", previewConfigured.ok && previewConfigured.stdout.includes("https://preview-project.supabase.co"));
+check("configured preview is not a placeholder", previewConfigured.ok && previewConfigured.stdout.startsWith("false"));
 
 console.log("\nThe error names the fix");
 check("message points at .env.example", /\.env\.example/.test(config));

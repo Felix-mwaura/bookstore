@@ -18,7 +18,13 @@ export const SITE_URL = (
   (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000")
 ).replace(/\/+$/, "");
 
-if (!SITE_URL && process.env.NODE_ENV === "production") {
+// A preview deployment has no NEXT_PUBLIC_SITE_URL on purpose: VERCEL_URL
+// (the deployment's own host) is the honest canonical there, and a preview
+// must not advertise the production domain. Only a real production build has
+// to name its site.
+const isPreviewDeployment = process.env.VERCEL_ENV === "preview";
+
+if (!SITE_URL && process.env.NODE_ENV === "production" && !isPreviewDeployment) {
   throw new Error(
     "NEXT_PUBLIC_SITE_URL is not set and no Vercel host was found — canonical URLs, JSON-LD and sitemap entries would be wrong."
   );
