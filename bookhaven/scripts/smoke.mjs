@@ -123,10 +123,10 @@ if (dynamicPage && dynamicPage.ok) {
 /* ── privileged APIs refuse anonymous callers ───────────────────────── */
 
 /**
- * A privileged route must refuse an anonymous caller. 401/403 is the answer on
- * a configured deployment. A local `next start` has no service-role key, so
- * requireAdmin() returns a 500 that names the missing variable — that is
- * configuration, not an open door, and it is reported separately.
+ * A privileged route must refuse an anonymous caller with 401 (and never leak
+ * which environment variable is missing). If a deployment answers 500 naming
+ * SUPABASE_SERVICE_ROLE_KEY, that is configuration, not an open door, and it
+ * is reported separately.
  */
 async function expectAdminGuard(path, options = {}) {
   const res = await request(path, options);

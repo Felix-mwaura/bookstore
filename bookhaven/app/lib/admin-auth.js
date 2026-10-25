@@ -17,18 +17,19 @@ import { serviceClient } from "./server";
  *   500 = server misconfiguration.
  */
 export async function requireAdmin(request) {
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceKey) {
-    console.error("requireAdmin: SUPABASE_SERVICE_ROLE_KEY is not set");
-    return NextResponse.json(
-      { error: "Server misconfigured: SUPABASE_SERVICE_ROLE_KEY is not set" },
-      { status: 500 }
-    );
-  }
-
+  // Authentication first. The order matters: an anonymous probe must learn
+  // "401" and nothing else. Reporting a missing server variable before the
+  // token check tells an unauthenticated caller exactly which piece of this
+  // deployment's configuration is absent.
   const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   if (!token) {
     return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceKey) {
+    console.error("requireAdmin: SUPABASE_SERVICE_ROLE_KEY is not set");
+    return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
   }
 
   let adminClient;
