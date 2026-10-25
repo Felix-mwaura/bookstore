@@ -9,6 +9,7 @@
 
 import { safeNextPath } from "../app/lib/safe-redirect.js";
 import { serialiseJsonLd } from "../app/lib/json-ld.js";
+import { buildCsp, createNonce, isNonceRoute } from "../app/lib/csp.js";
 import {
   readJsonBody,
   isJsonObject,
@@ -213,6 +214,56 @@ eq("uuid: null", isUuid(null), false);
   );
   ok("the scan actually found routes", files.length > 10, `${files.length} routes`);
 }
+
+/* ── 4. The Content-Security-Policy ────────────────────────────────────── */
+
+section("4. CSP is nonce-based where a nonce can exist");
+
+const SUPABASE = "https://exampleproject.supabase.co";
+
+for (const path of ["/books", "/books/deep-work-4", "/books?q=x", "/category/fiction",
+                    "/login", "/orders/11111111-1111-4111-8111-111111111111",
+                    "/admin", "/admin/orders"]) {
+  ok(`nonce route: ${path}`, isNonceRoute(path));
+}
+for (const path of ["/", "/about", "/checkout", "/account", "/help", "/privacy",
+                    "/terms", "/access-denied", "/robots.txt", "/sitemap.xml",
+                    "/a-missing-page", "books", "", null]) {
+  ok(`prerendered/unknown route: ${String(path)}`, !isNonceRoute(path));
+}
+
+const nonce = createNonce();
+const strict = buildCsp({ nonce, supabaseUrl: SUPABASE });
+ok("strict: carries the nonce", strict.includes(`'nonce-${nonce}'`));
+ok("strict: script-src has no unsafe-inline", !/script-src[^;]*'unsafe-inline'/.test(strict));
+ok("strict: frame-ancestors none", strict.includes("frame-ancestors 'none'"));
+ok("strict: default-src self", strict.includes("default-src 'self'"));
+ok("strict: object-src none", strict.includes("object-src 'none'"));
+ok("strict: base-uri self", strict.includes("base-uri 'self'"));
+ok("strict: form-action self", strict.includes("form-action 'self'"));
+ok("strict: Supabase REST/Auth allowed", strict.includes("connect-src 'self' https://exampleproject.supabase.co"));
+ok("strict: Supabase realtime allowed", strict.includes("wss://exampleproject.supabase.co"));
+ok("strict: Supabase storage images allowed", strict.includes("img-src 'self' data: blob: https://exampleproject.supabase.co"));
+ok("strict: no eval in production", !strict.includes("'unsafe-eval'"));
+ok("strict: upgrades insecure requests", strict.includes("upgrade-insecure-requests"));
+
+const weak = buildCsp({ supabaseUrl: SUPABASE });
+ok("prerendered tier: unsafe-inline is present", /script-src[^;]*'unsafe-inline'/.test(weak));
+ok("prerendered tier: no nonce", !weak.includes("nonce-"));
+ok("prerendered tier: still blocks other origins", !/script-src[^;]*\*/.test(weak));
+
+const dev = buildCsp({ nonce, supabaseUrl: SUPABASE, isDev: true });
+ok("dev: allows eval for HMR", dev.includes("'unsafe-eval'"));
+ok("dev: allows the HMR websocket", /connect-src[^;]*ws:/.test(dev));
+ok("dev: does not force https upgrades", !dev.includes("upgrade-insecure-requests"));
+
+const noUrl = buildCsp({ nonce });
+ok("empty Supabase URL: no empty allow-list entry", !noUrl.includes("https://;"));
+ok("empty Supabase URL: still self-only", noUrl.includes("connect-src 'self'"));
+
+const nonces = new Set(Array.from({ length: 50 }, () => createNonce()));
+eq("nonces are unique per response", nonces.size, 50);
+ok("nonce is base64 of 16 bytes", [...nonces].every((n) => /^[A-Za-z0-9+/]{22}==$/.test(n)));
 
 /* ── report ─────────────────────────────────────────────────────────────── */
 
