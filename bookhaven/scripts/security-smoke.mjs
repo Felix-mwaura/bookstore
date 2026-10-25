@@ -17,6 +17,12 @@ import {
   codLimitProblem,
 } from "../app/lib/order-limits.js";
 import {
+  stkLimitProblem,
+  knownPhoneSet,
+  MAX_STK_PER_ACCOUNT_10MIN,
+  MAX_STK_PER_PHONE_10MIN,
+} from "../app/lib/mpesa-limits.js";
+import {
   readJsonBody,
   isJsonObject,
   isUuid,
@@ -296,6 +302,34 @@ eq("3 open orders: code", openLimit?.code, "TOO_MANY_OPEN_COD_ORDERS");
 ok("3 open orders: says what to do", /wait|arrive|cancel/i.test(openLimit?.message || ""));
 
 eq("4 open orders: still refused", codLimitProblem({ units: 1, openOrders: 4 })?.status, 409);
+
+/* ── 6. STK prompts are limited per account AND per phone ──────────────── */
+
+section("6. M-Pesa prompts cannot be aimed at arbitrary numbers");
+
+eq("per-account ceiling", MAX_STK_PER_ACCOUNT_10MIN, 5);
+eq("per-phone ceiling", MAX_STK_PER_PHONE_10MIN, 3);
+
+eq("first attempt allowed", stkLimitProblem({ accountAttempts: 0, phoneAttempts: 0 }), null);
+eq("4th for the account allowed", stkLimitProblem({ accountAttempts: 4, phoneAttempts: 0 }), null);
+ok("5th for the account refused", Boolean(stkLimitProblem({ accountAttempts: 5, phoneAttempts: 0 })));
+ok("account message names M-Pesa", /M-Pesa/i.test(stkLimitProblem({ accountAttempts: 5, phoneAttempts: 0 }) || ""));
+
+eq("2 prompts to one number allowed", stkLimitProblem({ accountAttempts: 0, phoneAttempts: 2 }), null);
+ok("3rd prompt to the same number refused", Boolean(stkLimitProblem({ accountAttempts: 0, phoneAttempts: 3 })));
+ok("phone message suggests paying on delivery", /delivery/i.test(stkLimitProblem({ accountAttempts: 0, phoneAttempts: 3 }) || ""));
+ok("phone limit wins when both are hit", /number/i.test(stkLimitProblem({ accountAttempts: 9, phoneAttempts: 9 }) || ""));
+
+const normalise = (raw) => {
+  const digits = String(raw || "").replace(/\D/g, "");
+  if (digits.startsWith("0") && digits.length === 10) return "254" + digits.slice(1);
+  if (digits.startsWith("254") && digits.length === 12) return digits;
+  return digits;
+};
+const known = knownPhoneSet(["0712 345 678", "+254712345678", "", null, "  "], normalise);
+eq("known numbers are normalised and de-duplicated", known.size, 1);
+ok("…and the normalised form is what is compared", known.has("254712345678"));
+eq("no numbers on file is an empty set", knownPhoneSet([], normalise).size, 0);
 
 /* ── report ─────────────────────────────────────────────────────────────── */
 
