@@ -79,7 +79,7 @@ console.log("\nCOD limits, enforced by the database\n");
 
 const USER = "11111111-1111-1111-1111-111111111111";
 
-async function insertOrder({ units = 1, method = "cod", payStatus = "pending", status = "Pending", user = USER, receipt = null } = {}) {
+async function insertOrder({ units = 1, method = "cod", payStatus = "pending", status = "Pending", user = USER } = {}) {
   const items = JSON.stringify([{ id: 1, quantity: units }]);
   return sql(
     `insert into public.orders (user_id, items, status, payment_status, payment_method, total)
