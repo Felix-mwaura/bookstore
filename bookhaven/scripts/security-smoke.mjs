@@ -44,6 +44,7 @@ import {
 import { readdir, readFile } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { readFileSync } from "node:fs";
 
 const failures = [];
 const passes = [];
@@ -446,6 +447,23 @@ eq("the explicit test-only opt-out still works", testThrew, null);
 
 ok("the error message tells the owner where to set them", /Vercel/.test(envErrorMessage(["X"])));
 ok("the error message never contains a key", !/eyJ/.test(envErrorMessage(["X"])));
+
+/* ── 9. send-email: no wildcard CORS, verification documented ─────────── */
+
+section("9. The email edge function is not a browser endpoint");
+
+const sendEmailSource = readFileSync(
+  new URL("../supabase/functions/send-email/index.ts", import.meta.url),
+  "utf8"
+);
+ok("no wildcard CORS origin", !/Access-Control-Allow-Origin/.test(sendEmailSource));
+ok("no cors object remains", !/\bcors\b/.test(sendEmailSource));
+ok("the deployment flag is documented", /verify_jwt/.test(sendEmailSource));
+ok("…and the dangerous invocation is called out", /--no-verify-jwt/.test(sendEmailSource));
+ok("the role check is explained as gateway-verified", /already verified|gateway/i.test(sendEmailSource));
+ok("an expired token is refused", /exp/.test(sendEmailSource));
+ok("html escaping still applied to every interpolated field", /esc\(/.test(sendEmailSource));
+ok("no non-POST request is answered with CORS", !/OPTIONS/.test(sendEmailSource));
 
 /* ── report ─────────────────────────────────────────────────────────────── */
 
