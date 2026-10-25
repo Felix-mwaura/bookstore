@@ -492,7 +492,7 @@ by inspection.
 | `node scripts/smoke.mjs http://127.0.0.1:3000` | **38 passed, 0 skipped** (was 29 passed / 9 skipped — admin routes now answer 401 instead of being skipped) |
 | `node scripts/cod-sql-test.mjs` | **PASS — 16/16** on real Postgres 17 |
 | `node scripts/grants-sql-test.mjs` | **PASS — 34/34** on real Postgres 17 |
-| `next build --webpack` with the three `NEXT_PUBLIC_*` set | succeeds; all 30 routes build |
+| `next build --webpack` with the three `NEXT_PUBLIC_*` set | succeeds; all 40 route entries build (pages, APIs, sitemap/robots) |
 | `next build --webpack` without them | **fails** with the exact variable names (intended) |
 | `next start` without them | unaffected (no throw) |
 | `curl -D - /` `/books` `/login` `/admin` | 6 security headers each; nonce on `/books` and `/login`; `/admin` → `307 /login?next=%2Fadmin` |
