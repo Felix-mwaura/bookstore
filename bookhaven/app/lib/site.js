@@ -5,9 +5,24 @@
 // exists; until then the production Vercel hostname is the real address, so
 // links in search results and structured data point somewhere that works.
 
+// No hard-coded production host: the deployed URL comes from the Vercel
+// environment, and a local run is localhost. A production build with none of
+// these set fails loudly instead of advertising a host this checkout does not
+// belong to.
+const vercelHost =
+  process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || "";
+
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_SITE_URL || "https://bookstore-puce-sigma.vercel.app"
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (vercelHost ? `https://${vercelHost}` : "") ||
+  (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000")
 ).replace(/\/+$/, "");
+
+if (!SITE_URL && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "NEXT_PUBLIC_SITE_URL is not set and no Vercel host was found — canonical URLs, JSON-LD and sitemap entries would be wrong."
+  );
+}
 
 export const SITE_NAME = "Book Haven";
 

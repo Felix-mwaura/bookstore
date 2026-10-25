@@ -3,9 +3,10 @@ import type { NextConfig } from "next";
 // Book covers are uploaded to Supabase Storage by the admin. Only that
 // project's public storage host is allowed through the image optimiser, and
 // it follows NEXT_PUBLIC_SUPABASE_URL if the project ever moves.
-const supabaseHost = new URL(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://luniopceavtkljywukyi.supabase.co"
-).hostname;
+// No hard-coded host: if the variable is missing the optimiser simply has no
+// remote pattern, rather than silently trusting one particular project.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseHost = supabaseUrl ? new URL(supabaseUrl).hostname : null;
 
 // A conservative set of response headers.
 //
@@ -28,13 +29,17 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: supabaseHost,
-        pathname: "/storage/v1/object/public/**",
-      },
-    ],
+    // Empty when the project URL is not configured, so a fresh clone cannot
+    // optimise images from a host it was never told about.
+    remotePatterns: supabaseHost
+      ? [
+          {
+            protocol: "https" as const,
+            hostname: supabaseHost,
+            pathname: "/storage/v1/object/public/**",
+          },
+        ]
+      : [],
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

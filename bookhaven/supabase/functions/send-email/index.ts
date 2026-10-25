@@ -15,7 +15,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const MAX_ATTEMPTS = 5;
 const BATCH = 20;
 const APP_NAME = "Book Haven";
-const SITE_URL = Deno.env.get("SITE_URL") ?? "https://bookstore-puce-sigma.vercel.app";
+// No hard-coded production host. When SITE_URL is unset the call-to-action is
+// omitted rather than pointing readers at a host this deployment may not own.
+const SITE_URL = (Deno.env.get("SITE_URL") ?? "").replace(/\/+$/, "");
 const FROM =
   Deno.env.get("EMAIL_FROM") ?? "Book Haven <onboarding@resend.dev>";
 
@@ -152,7 +154,7 @@ function render(template: string, subject: string, payload: EmailPayload) {
     Delivering to: ${esc(delivery.address ?? "")}, ${esc(delivery.city ?? "")}<br/>
     Payment: ${esc(payload?.payment_method ?? "")} (${esc(payload?.payment_status ?? "")})
   </p>
-  <p style="margin:20px 0 0"><a href="${esc(SITE_URL)}" style="display:inline-block;padding:10px 18px;background:#1C1917;color:#fff;border-radius:8px;text-decoration:none">Visit the store</a></p>
+  ${SITE_URL ? `<p style="margin:20px 0 0"><a href="${esc(SITE_URL)}" style="display:inline-block;padding:10px 18px;background:#1C1917;color:#fff;border-radius:8px;text-decoration:none">Visit the store</a></p>` : ""}
   <p style="margin:20px 0 0;color:#a8a29e;font-size:12px">${esc(APP_NAME)} — Nairobi, Kenya</p>
 </div>`;
 
