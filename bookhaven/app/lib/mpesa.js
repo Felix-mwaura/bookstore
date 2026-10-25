@@ -2,6 +2,7 @@
 // Credentials are read from process.env and are never sent to the browser.
 
 import { SITE_URL } from "./site.js";
+import { appendCallbackToken } from "./callback-token.js";
 
 const SANDBOX_BASE = "https://sandbox.safaricom.co.ke";
 const PRODUCTION_BASE = "https://api.safaricom.co.ke";
@@ -33,8 +34,21 @@ export function mpesaConfig() {
   // preview deployment must report to a stable domain, and it removes a
   // setting that is easy to get wrong (a trailing slash or http:// makes
   // Safaricom reject the whole push).
-  const callbackUrl =
+  const configuredCallbackUrl =
     clean(process.env.MPESA_CALLBACK_URL) || `${SITE_URL}/api/mpesa/callback`;
+
+  // Optional shared secret on the callback URL. A short value is not a secret,
+  // and silently accepting one would give a false sense of protection, so a
+  // bad value is reported as a configuration error (M-Pesa is switched off,
+  // exactly as it is for a missing passkey).
+  const callbackToken = clean(process.env.MPESA_CALLBACK_TOKEN);
+  if (callbackToken && callbackToken.length < 16) {
+    return {
+      error:
+        "MPESA_CALLBACK_TOKEN must be at least 16 characters. Generate one with: openssl rand -hex 24",
+    };
+  }
+  const callbackUrl = appendCallbackToken(configuredCallbackUrl, callbackToken);
 
   const missing = [
     !key && "MPESA_CONSUMER_KEY",
@@ -47,7 +61,7 @@ export function mpesaConfig() {
     return { error: `M-Pesa is not configured. Missing: ${missing.join(", ")}` };
   }
 
-  if (!/^https:\/\//.test(callbackUrl)) {
+  if (!/^https:\/\//.test(configuredCallbackUrl)) {
     return { error: "MPESA_CALLBACK_URL must be a public HTTPS address." };
   }
 
@@ -106,6 +120,7 @@ export function mpesaConfig() {
     partyB,
     passkey,
     callbackUrl,
+    callbackTokenSet: Boolean(callbackToken),
     base,
     transactionType,
     shortcodeKind,
@@ -225,6 +240,7 @@ export async function mpesaDiagnostics() {
     shortcodeKind: config.shortcodeKind,
     shortcodeLooksLikeSandboxTest: config.partyB === "174379",
     transactionType: config.transactionType,
+    callbackTokenSet: config.callbackTokenSet,
     callbackHost: (() => {
       try {
         const url = new URL(config.callbackUrl);

@@ -3,6 +3,7 @@ import { serviceClient } from "../../../lib/server";
 import { mpesaConfig, resolveAccessToken, stkQuery } from "../../../lib/mpesa";
 import { handleMpesaCallback, supabaseStore, ACCEPTED, RETRY } from "../../../lib/mpesa-callback-handler";
 import { exceedsBodyLimit, CALLBACK_BODY } from "../../../lib/request-guard";
+import { callbackTokenMatches, CALLBACK_TOKEN_PARAM } from "../../../lib/callback-token";
 
 // POST /api/mpesa/callback — Safaricom's asynchronous result notification.
 //
@@ -20,6 +21,32 @@ import { exceedsBodyLimit, CALLBACK_BODY } from "../../../lib/request-guard";
 export const dynamic = "force-dynamic";
 
 export async function POST(request) {
+  // ── optional URL secret ────────────────────────────────────────────────
+  // When MPESA_CALLBACK_TOKEN is set, the STK push appends it to CallBackURL
+  // (app/lib/callback-token.js), and a request that cannot present it is
+  // dropped here — before the body is read, before the database is opened and
+  // before Daraja is called. Unset, this block does nothing and the endpoint
+  // behaves exactly as before.
+  //
+  // A rejected callback is NOT recorded: mpesa_callbacks is written with the
+  // service role, and letting an unauthenticated caller create rows would be
+  // its own flood. The payment stays pending and is reconcilable from the
+  // Daraja query endpoint and the Payments tab.
+  const expectedToken = (process.env.MPESA_CALLBACK_TOKEN || "").trim();
+  if (expectedToken) {
+    const provided = request.nextUrl.searchParams.get(CALLBACK_TOKEN_PARAM);
+    if (!callbackTokenMatches(provided, expectedToken)) {
+      console.warn("M-Pesa callback: rejected before processing (missing or wrong token)", {
+        tokenPresent: Boolean(provided),
+        checkoutRequestIdPresent: false,
+      });
+      return NextResponse.json(
+        { ResultCode: 1, ResultDesc: "Unauthorized" },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+  }
+
   // A real callback is well under a kilobyte. Anything larger is not one we
   // should spend memory parsing; acknowledge it so Safaricom stops retrying.
   if (exceedsBodyLimit(request, CALLBACK_BODY)) {

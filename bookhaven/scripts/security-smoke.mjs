@@ -23,6 +23,12 @@ import {
   MAX_STK_PER_PHONE_10MIN,
 } from "../app/lib/mpesa-limits.js";
 import {
+  callbackTokenMatches,
+  appendCallbackToken,
+  redactCallbackUrl,
+  MIN_CALLBACK_TOKEN_LENGTH,
+} from "../app/lib/callback-token.js";
+import {
   readJsonBody,
   isJsonObject,
   isUuid,
@@ -330,6 +336,43 @@ const known = knownPhoneSet(["0712 345 678", "+254712345678", "", null, "  "], n
 eq("known numbers are normalised and de-duplicated", known.size, 1);
 ok("…and the normalised form is what is compared", known.has("254712345678"));
 eq("no numbers on file is an empty set", knownPhoneSet([], normalise).size, 0);
+
+/* ── 7. Optional callback URL secret ───────────────────────────────────── */
+
+section("7. The M-Pesa callback can require a secret");
+
+const TOKEN = "0123456789abcdef0123456789abcdef";
+eq("a long token is a long token", TOKEN.length >= MIN_CALLBACK_TOKEN_LENGTH, true);
+eq("correct token matches", callbackTokenMatches(TOKEN, TOKEN), true);
+eq("wrong token rejected", callbackTokenMatches(TOKEN.slice(0, -1) + "x", TOKEN), false);
+eq("empty provided rejected", callbackTokenMatches("", TOKEN), false);
+eq("null provided rejected", callbackTokenMatches(null, TOKEN), false);
+eq("prefix rejected", callbackTokenMatches(TOKEN.slice(0, 16), TOKEN), false);
+eq("longer value rejected", callbackTokenMatches(TOKEN + "x", TOKEN), false);
+eq("unconfigured secret fails closed", callbackTokenMatches(TOKEN, ""), false);
+
+const base = "https://bookstore.example/api/mpesa/callback";
+eq("token appended", appendCallbackToken(base, TOKEN), `${base}?token=${TOKEN}`);
+eq("no token, no change", appendCallbackToken(base, ""), base);
+eq(
+  "an existing token is not duplicated",
+  appendCallbackToken(`${base}?token=${TOKEN}`, "another-token"),
+  `${base}?token=${TOKEN}`
+);
+eq(
+  "an existing query string is preserved",
+  appendCallbackToken(`${base}?env=prod`, TOKEN),
+  `${base}?env=prod&token=${TOKEN}`
+);
+eq("a value that is not a URL is returned untouched", appendCallbackToken("not a url", TOKEN), "not a url");
+
+eq(
+  "redaction removes the token value",
+  redactCallbackUrl(`${base}?token=${TOKEN}`),
+  `${base}?token=%5Bredacted%5D`
+);
+eq("redaction leaves a plain URL alone", redactCallbackUrl(base), base);
+ok("redaction never leaves the secret in the string", !redactCallbackUrl(`${base}?token=${TOKEN}`).includes(TOKEN));
 
 /* ── report ─────────────────────────────────────────────────────────────── */
 

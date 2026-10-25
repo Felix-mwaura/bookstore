@@ -9,6 +9,7 @@ import {
 } from "../../../lib/mpesa";
 import { deliveryFeeFor } from "../../../lib/site";
 import { readJsonBody, ORDER_BODY } from "../../../lib/request-guard";
+import { redactCallbackUrl } from "../../../lib/callback-token";
 import {
   stkLimitProblem,
   knownPhoneSet,
@@ -308,7 +309,7 @@ export async function POST(request) {
       storeNumber: config.storeNumber,
       shortcode: config.shortcode,
       transactionType: config.transactionType,
-      callbackHost: config.callbackUrl,
+      callbackHost: redactCallbackUrl(config.callbackUrl),
       code: stkData.errorCode || stkData.ResponseCode,
       message: stkData.errorMessage || stkData.ResponseDescription,
     });
