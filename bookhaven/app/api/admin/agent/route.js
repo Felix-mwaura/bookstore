@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
+import { readJsonObject, ORDER_BODY } from "../../../lib/request-guard";
 import { TOOL_DEFINITIONS, storeSnapshot } from "../../../lib/admin-agent-tools";
 import { runAgentTurn } from "../../../lib/agent-runner";
 import { agentConfig, friendlyProviderMessage, ProviderError } from "../../../lib/agent-provider";
@@ -113,12 +114,9 @@ export async function POST(request) {
     );
   }
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsed = await readJsonObject(request, { maxBytes: ORDER_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
 
   const messages = cleanMessages(body?.messages);
   if (!messages) {

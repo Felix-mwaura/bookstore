@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, isOwnerEmail } from "../../../lib/admin-auth";
+import { readJsonObject, SMALL_BODY } from "../../../lib/request-guard";
 
 // GET /api/admin/users — full user list including real emails.
 // This is the expensive call (auth.admin.listUsers()) that used to run
@@ -46,8 +47,9 @@ export async function PATCH(request) {
   if (auth instanceof NextResponse) return auth;
 
   const { adminClient, user } = auth;
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const parsed = await readJsonObject(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
   const { id, role } = body;
 
   if (!id || !["admin", "customer"].includes(role)) {
