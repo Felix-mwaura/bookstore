@@ -14,6 +14,31 @@ const ALLOWED = [
 const isInt = (v) => Number.isInteger(v);
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 
+// Text fields and their maximum lengths.
+//
+// There were no caps before: a 10 MB title (or a description containing a
+// "</script>" payload for the JSON-LD tag) was accepted and stored. Book rows
+// are rendered on public pages, sent to Supabase, indexed by search engines
+// and streamed to the admin table, so "how long can this be" is a security
+// property, not a cosmetic one. These are limits on what the form can
+// sensibly produce, not a replacement for database constraints.
+const TEXT_LIMITS = {
+  title: 200,
+  author: 160,
+  isbn: 32,
+  description: 5000,
+  category: 80,
+  format: 60,
+  badge: 60,
+  publisher: 160,
+};
+
+// `cover` is a small JSONB style object ({ bg, accent, pattern }), not text.
+// It is bounded so it cannot become a storage dump.
+const COVER_KEYS = ["bg", "accent", "pattern"];
+const COVER_VALUE_MAX = 64;
+const COVER_MAX_KEYS = 8;
+
 // Must match the URL the browser client builds for getPublicUrl(), including
 // the env fallback — otherwise every upload would be rejected as "not ours".
 function coverPrefix() {
@@ -30,8 +55,48 @@ function sanitize(body, { partial }) {
     if (data[k] === undefined || data[k] === null || data[k] === "") return { error: `${k} is required` };
   }
 
-  if ("title" in data && (typeof data.title !== "string" || !data.title.trim())) return { error: "title must not be empty" };
-  if ("author" in data && (typeof data.author !== "string" || !data.author.trim())) return { error: "author must not be empty" };
+  // Text: type, emptiness (for the fields that are required) and length.
+  for (const [field, max] of Object.entries(TEXT_LIMITS)) {
+    if (!(field in data)) continue;
+    const value = data[field];
+
+    if (value === null) {
+      if (field === "title" || field === "author" || field === "category") {
+        return { error: `${field} must not be empty` };
+      }
+      continue;
+    }
+    if (typeof value !== "string") return { error: `${field} must be text` };
+
+    const trimmed = value.trim();
+    if ((field === "title" || field === "author" || field === "category") && !trimmed) {
+      return { error: `${field} must not be empty` };
+    }
+    if (trimmed.length > max) {
+      return { error: `${field} must be ${max} characters or fewer` };
+    }
+    data[field] = trimmed;
+  }
+
+  if ("cover" in data && data.cover !== null) {
+    const cover = data.cover;
+    if (typeof cover !== "object" || Array.isArray(cover)) {
+      return { error: "cover must be an object" };
+    }
+    const keys = Object.keys(cover);
+    if (keys.length > COVER_MAX_KEYS) return { error: "cover has too many fields" };
+    for (const key of keys) {
+      if (!COVER_KEYS.includes(key)) return { error: `cover.${key} is not allowed` };
+      if (typeof cover[key] !== "string" || cover[key].length > COVER_VALUE_MAX) {
+        return { error: `cover.${key} must be text of ${COVER_VALUE_MAX} characters or fewer` };
+      }
+    }
+  }
+
+  if ("cover_url" in data && data.cover_url !== null && typeof data.cover_url === "string" && data.cover_url.length > 500) {
+    return { error: "cover_url is too long" };
+  }
+
   if ("price" in data && (!isNum(data.price) || data.price < 0)) return { error: "price must be a number, 0 or more" };
   if ("original_price" in data && data.original_price !== null && (!isNum(data.original_price) || data.original_price < 0)) return { error: "original_price must be 0 or more" };
   if ("stock_quantity" in data && (!isInt(data.stock_quantity) || data.stock_quantity < 0)) return { error: "stock_quantity must be a whole number, 0 or more" };
@@ -42,8 +107,6 @@ function sanitize(body, { partial }) {
     // Only images in OUR bucket — never an arbitrary external URL.
     if (typeof data.cover_url !== "string" || !data.cover_url.startsWith(coverPrefix())) return { error: "cover_url must point to the book-covers storage bucket" };
   }
-  if (typeof data.title === "string") data.title = data.title.trim();
-  if (typeof data.author === "string") data.author = data.author.trim();
   return { data };
 }
 

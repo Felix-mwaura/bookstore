@@ -15,6 +15,7 @@ import { stockState } from "../../lib/stock";
 import { getBookRating, getBookReviews, getViewerReviewId } from "../../lib/reviews";
 import { REVIEWS_PER_PAGE, isReviewSort, parsePage, parseStars } from "../../lib/review-limits";
 import { SITE_NAME, SITE_URL, deliveryFeeFor, formatKsh, absoluteUrl } from "../../lib/site";
+import { serialiseJsonLd } from "../../lib/json-ld";
 
 // Rendered per request rather than cached.
 //
@@ -148,8 +149,8 @@ export default async function BookPage({ params, searchParams }) {
 
   return (
     <StoreLayout>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serialiseJsonLd(productJsonLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serialiseJsonLd(breadcrumbJsonLd) }} />
 
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10 pb-28 lg:pb-10">
         <nav aria-label="Breadcrumb" className="mb-6 text-xs text-muted">

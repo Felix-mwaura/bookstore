@@ -8,6 +8,7 @@
 // these are the cases a well-meaning refactor would quietly reintroduce.
 
 import { safeNextPath } from "../app/lib/safe-redirect.js";
+import { serialiseJsonLd } from "../app/lib/json-ld.js";
 
 const failures = [];
 const passes = [];
@@ -99,6 +100,33 @@ for (const input of tricky) {
 // Sanity: the dummy-origin trick must not accept an absolute URL that happens
 // to mention the placeholder host.
 eq("rejects the placeholder origin itself", safeNextPath("https://bookhaven.invalid/checkout"), null);
+
+/* ── 2. JSON-LD cannot break out of its script element ─────────────────── */
+
+section("2. JSON-LD escapes <, > and &");
+
+const HOSTILE = '</script><script>alert(1)</script>';
+const jsonLdCases = [
+  ["a book description", { "@type": "Book", description: HOSTILE }],
+  ["a title", { name: "<img src=x onerror=alert(1)>" }],
+  ["an author", { author: { "@type": "Person", name: "A & B <b>" } }],
+  ["a nested offer", { offers: { price: 100, url: "https://x.test/?a=1&b=2" } }],
+  ["line separators", { description: "line\u2028break\u2029here" }],
+];
+for (const [label, value] of jsonLdCases) {
+  const out = serialiseJsonLd(value);
+  ok(`${label}: no raw "<"`, !out.includes("<"), out);
+  ok(`${label}: no "</script"`, !out.toLowerCase().includes("</script"), out);
+  ok(`${label}: no raw "&"`, !out.includes("&"), out);
+  ok(`${label}: no raw U+2028/9`, !/[\u2028\u2029]/.test(out));
+  // The escapes must be JSON escapes: parsing returns the original value.
+  let parsed = null;
+  try { parsed = JSON.parse(out); } catch (error) { ok(`${label}: still valid JSON`, false, error.message); }
+  ok(`${label}: round-trips`, JSON.stringify(parsed) === JSON.stringify(value));
+}
+
+eq("undefined serialises to null", serialiseJsonLd(undefined), "null");
+ok("a plain string is escaped", serialiseJsonLd("<script>") === "\"\\u003cscript\\u003e\"", serialiseJsonLd("<script>"));
 
 /* ── report ─────────────────────────────────────────────────────────────── */
 
