@@ -6,6 +6,13 @@ This is the evidence behind the claims in the PR. Everything below was run
 against a **production build of this branch** (`next build && next start`),
 rendered in a real Chromium engine, not inferred from one screenshot.
 
+> **Correction, 2026-10-25.** That engine was *headless* Chromium, which
+> reports `(hover: none)` and `(pointer: coarse)`. Every pointer-dependent
+> style here was therefore exercised as the mobile branch, even at desktop
+> widths — which is how the desktop-only hit-testing bug in `.card-3d` shipped
+> unnoticed. See `add-to-cart-desktop-fix-2026-10-25.md` §1 and §4 for the
+> cause and for the method that does render the desktop state.
+
 ---
 
 ## 1. What changed
