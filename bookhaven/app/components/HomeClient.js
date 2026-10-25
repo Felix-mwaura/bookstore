@@ -3,29 +3,31 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { BookCover } from "./BookCover";
+import { GenreCarousel } from "./GenreCarousel";
+import { HeroFan } from "./HeroFan";
 import ProductCard from "./ProductCard";
 import SectionHeading from "./SectionHeading";
 import { useStore } from "./StoreShell";
 import { STORE_CONTACT } from "../lib/site";
-import { categories, categorySlug } from "../lib/categories";
-import { bookPath } from "../lib/book-url";
+import { categories } from "../lib/categories";
 
 /* ── hero ─────────────────────────────────────────────── */
 
 function Hero({ books }) {
-  const covers = books.slice(0, 3);
-
   return (
     <section className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
-        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16">
-          <div>
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:py-20">
+        {/* Two columns only from 1280px. At tablet widths the fan left the headline a 350px column and broke it over four lines; stacked, the copy keeps its measure and the fan sits under it. */}
+        <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-16">
+          {/* min-w-0: without it the grid item's min-content width (the
+              search field's fixed pieces) wins and pushes the page wider
+              than a 320px screen. */}
+          <div className="min-w-0">
             <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">
-              <span aria-hidden="true" className="h-px w-6 bg-sienna" />
+              <span aria-hidden="true" className="h-px w-6 shrink-0 bg-sienna" />
               Book Haven · Books in Kenyan shillings
             </p>
-            <h1 className="mt-3 text-[1.75rem] font-bold leading-[1.1] tracking-[-0.01em] text-navy sm:text-[2.5rem] lg:text-[3.25rem]">
+            <h1 className="mt-3 text-[1.75rem] font-bold leading-[1.1] tracking-[-0.01em] text-navy sm:text-[2.5rem] xl:text-[3.25rem]">
               Books worth keeping,
               <br />
               <span className="italic text-sienna">delivered</span> to your door.
@@ -61,88 +63,10 @@ function Hero({ books }) {
             </div>
           </div>
 
-          {covers.length > 0 && (
-            <div className="hero-3d hidden items-end justify-center gap-4 sm:flex lg:gap-6">
-              {covers.map((book, index) => (
-                <Link
-                  key={book.id}
-                  href={bookPath(book)}
-                  className={`hero-cover-3d block w-[110px] rotate-[-2deg] overflow-hidden rounded-r-md book-shadow lg:w-[150px] ${
-                    index === 1 ? "mb-4" : ""
-                  }`}
-                  aria-label={`${book.title} by ${book.author}`}
-                >
-                  <BookCover book={book} className="w-full" sizes="(min-width: 1024px) 150px, 110px" priority={index === 0} />
-                </Link>
-              ))}
-            </div>
-          )}
+          <div className="flex justify-center xl:justify-end">
+            <HeroFan books={books} />
+          </div>
         </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── genre tiles ──────────────────────────────────────── */
-
-// A cluster of covers already on the shelf says more about a genre than an
-// emoji does, and it is real catalogue data rather than decoration. A genre
-// with nothing in it falls back to a plain monogram — never an invented image.
-function GenreStrip({ counts, books }) {
-  const byCategory = books.reduce((acc, book) => {
-    (acc[book.category] ||= []).push(book);
-    return acc;
-  }, {});
-
-  return (
-    <section id="genres" className="border-b border-line bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-        <SectionHeading
-          eyebrow="Browse"
-          title="Find your next read by genre"
-          className="mb-5"
-          action={{ href: "/books", label: "All books" }}
-        />
-
-        <ul role="list" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-8">
-          {categories.filter((c) => c !== "All").map((category) => {
-            const count = counts[category] || 0;
-            const covers = (byCategory[category] || []).slice(0, 2);
-
-            return (
-              <li key={category}>
-                <Link
-                  href={`/category/${categorySlug(category)}`}
-                  className="flex h-full flex-col justify-between gap-4 rounded-card border border-line bg-cream p-3 transition-colors hover:border-navy hover:bg-subtle sm:p-4"
-                >
-                  <span aria-hidden="true" className="flex h-14 items-end">
-                    {covers.length > 0 ? (
-                      covers.map((book, index) => (
-                        <span
-                          key={book.id}
-                          className={`block w-9 overflow-hidden rounded-r-sm book-shadow ${
-                            index === 1 ? "-ml-2 rotate-[2deg]" : ""
-                          }`}
-                        >
-                          <BookCover book={book} className="w-full" sizes="36px" />
-                        </span>
-                      ))
-                    ) : (
-                      <span className="font-playfair text-2xl text-navy/30">{category.charAt(0)}</span>
-                    )}
-                  </span>
-
-                  <span>
-                    <span className="block text-sm font-semibold leading-tight text-navy">{category}</span>
-                    <span className="mt-0.5 block text-xs text-muted">
-                      {count} {count === 1 ? "book" : "books"}
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
       </div>
     </section>
   );
@@ -390,10 +314,10 @@ function Contact() {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-base font-semibold text-navy">Questions about an order?</h2>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <a href={`mailto:${STORE_CONTACT.email}`} className="text-ink underline-offset-2 hover:text-sienna hover:underline">
+            <a href={`mailto:${STORE_CONTACT.email}`} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
               {STORE_CONTACT.email}
             </a>
-            <a href={STORE_CONTACT.phoneHref} className="text-ink underline-offset-2 hover:text-sienna hover:underline">
+            <a href={STORE_CONTACT.phoneHref} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
               {STORE_CONTACT.phone}
             </a>
           </div>
@@ -416,15 +340,22 @@ export default function HomeClient({ initialBooks = [], stats: catalogueStats, m
     inStock: books.filter((book) => Number(book.stock_quantity) > 0).length,
   };
 
-  const counts = books.reduce((acc, book) => {
-    acc[book.category] = (acc[book.category] || 0) + 1;
-    return acc;
-  }, {});
+  // Counts per genre come from the server query over the whole shelf. The
+  // fallback only matters if that query failed, and it is honest about what
+  // it counted: the books on this page.
+  const counts =
+    stats.byCategory ||
+    books.reduce((acc, book) => {
+      acc[book.category] = (acc[book.category] || 0) + 1;
+      return acc;
+    }, {});
+
+  const genres = categories.filter((category) => category !== "All");
 
   return (
     <>
       <Hero books={[...books].sort((a, b) => Number(b.id) - Number(a.id))} />
-      <GenreStrip counts={counts} books={books} />
+      <GenreCarousel genres={genres} counts={counts} />
       <NewArrivals books={books} />
       <HowItWorks />
       <ShelfFacts stats={stats} />

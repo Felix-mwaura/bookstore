@@ -340,6 +340,362 @@ p {
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Hero fan
+   Three covers sharing a pivot just below their bottom edge. Each leaf is
+   placed by --shift (a percentage of its own width) and tilted by --rot;
+   the middle one is larger, lifted, and stacked in front. The whole
+   arrangement is driven by --fan-w, so the breakpoints only change one
+   number and the fan keeps its proportions — and its 2:3 covers — at
+   every width down to 320px.
+   ───────────────────────────────────────────────────────────── */
+.fan {
+  --fan-w: clamp(88px, 24vw, 116px);
+  position: relative;
+  /* Room for the two outer leaves *as rotated boxes*, not just as laid-out
+     boxes: a 2:3 cover tilted 21deg is wider than its own width, and the
+     difference is what used to poke out of the page. */
+  width: calc(var(--fan-w) * 2.9);
+  height: calc(var(--fan-w) * 1.9);
+  isolation: isolate;
+}
+
+/* The suggestion of a shadow on the shelf the books stand on. */
+.fan::after {
+  content: "";
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 0;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(27, 42, 74, 0.18), rgba(27, 42, 74, 0) 70%);
+  z-index: 0;
+}
+
+.fan-leaf {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: var(--fan-w);
+  margin-left: calc(var(--fan-w) / -2);
+  transform-origin: 50% 100%;
+  transform: translateX(var(--shift, 0%)) rotate(var(--rot, 0deg));
+  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.fan-leaf--l { --shift: -62%; --rot: -16deg; z-index: 1; }
+.fan-leaf--r { --shift: 62%; --rot: 16deg; z-index: 1; }
+
+.fan-leaf--c {
+  --shift: 0%;
+  --rot: 0deg;
+  bottom: 14px;
+  z-index: 3;
+  width: calc(var(--fan-w) * 1.1);
+  margin-left: calc(var(--fan-w) * -0.55);
+}
+
+@media (min-width: 640px) {
+  .fan { --fan-w: 132px; }
+}
+
+@media (min-width: 1024px) {
+  .fan { --fan-w: 164px; }
+}
+
+@media (min-width: 1280px) {
+  .fan { --fan-w: 180px; }
+}
+
+/* Opening the fan on hover, on devices that actually have a pointer. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .fan:hover .fan-leaf--l { --shift: -70%; --rot: -21deg; }
+  .fan:hover .fan-leaf--r { --shift: 70%; --rot: 21deg; }
+  .fan:hover .fan-leaf--c { transform: translateX(0) translateY(-6px) rotate(0deg); }
+
+  .fan-leaf:hover {
+    z-index: 5;
+    box-shadow: -2px 0 4px rgba(27, 42, 74, 0.1), 10px 18px 36px rgba(27, 42, 74, 0.22);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Genre deck
+   Cards are positioned by their distance from the active one; the stage
+   clips the neighbours that run past its edges, so the deck can look wide
+   without the page ever scrolling sideways.
+   ───────────────────────────────────────────────────────────── */
+.genre-region {
+  --gc-w: min(250px, calc(100vw - 72px));
+  --gc-h: 292px;
+  /* How far each step of depth moves a card sideways, as a share of its own
+     width. Wide enough that a neighbour reads as a card rather than as a
+     sliver, narrow enough that three of them still fit a 390px screen. */
+  --gc-step: 66%;
+}
+
+@media (min-width: 640px) {
+  .genre-region {
+    --gc-w: 330px;
+    --gc-h: 330px;
+    --gc-step: 72%;
+  }
+}
+
+@media (min-width: 1024px) {
+  .genre-region {
+    --gc-w: 380px;
+    --gc-h: 356px;
+    --gc-step: 76%;
+  }
+}
+
+.genre-stage {
+  position: relative;
+  height: calc(var(--gc-h) + 40px);
+  overflow: hidden;
+  /* Vertical swipes belong to the page; horizontal ones belong to the deck. */
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+}
+
+.genre-stage[data-dragging="true"] {
+  cursor: grabbing;
+}
+
+.genre-stage[data-dragging="true"] .genre-card {
+  transition: none;
+}
+
+.genre-card {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: var(--gc-w);
+  height: var(--gc-h);
+  overflow: hidden;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-line);
+  background-color: var(--color-navy);
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(27, 42, 74, 0.05), 0 18px 40px rgba(27, 42, 74, 0.16);
+  /* --drag is written straight to the node while a finger is down, so the
+     deck follows the gesture without a React re-render per frame. */
+  transform: translate(-50%, -50%) translateX(calc(var(--d) * var(--gc-step) + var(--drag, 0px)))
+             scale(var(--s)) rotate(var(--r));
+  z-index: var(--z);
+  opacity: var(--o);
+  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms linear;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The two-deep layer only appears where there is room for it. */
+@media (max-width: 767px) {
+  .genre-card[data-depth="2"] {
+    display: none;
+  }
+}
+
+.genre-card-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(
+    to top,
+    rgba(11, 20, 36, 0.94) 0%,
+    rgba(11, 20, 36, 0.72) 38%,
+    rgba(11, 20, 36, 0.28) 72%,
+    rgba(11, 20, 36, 0.1) 100%
+  );
+}
+
+.genre-card-plain {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, #24375c, #16233d);
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Only the front card carries type. On a fanned deck the neighbours show a
+   sliver of themselves, and a name sliced in half by the card in front reads
+   as a mistake — so they stay as artwork until they come forward. */
+.genre-card[data-depth="0"] .genre-card-body {
+  opacity: 1;
+  transform: none;
+}
+
+.genre-card-body {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 16px 18px 18px;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 260ms ease-out, transform 260ms ease-out;
+}
+
+.genre-card-name {
+  font-family: var(--font-playfair);
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: #fff;
+}
+
+.genre-card-count {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #F3C9B4;
+}
+
+.genre-card-blurb {
+  display: none;
+  margin-top: 3px;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.84);
+}
+
+@media (min-width: 640px) {
+  .genre-card-body {
+    padding: 20px 22px 22px;
+  }
+
+  .genre-card-name {
+    font-size: 1.5rem;
+  }
+
+  .genre-card-blurb {
+    display: block;
+  }
+}
+
+/* Arrows and dots share one row at every width. A two-column grid with a
+   spanning dot row was resolving its columns from the wider row, which
+   parked the arrows off-centre on a 320px screen. */
+.genre-controls {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 4px;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .genre-controls {
+    gap: 0 18px;
+  }
+
+  .genre-arrow {
+    width: 46px;
+    height: 46px;
+  }
+}
+
+.genre-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background-color: #fff;
+  color: var(--color-navy);
+  box-shadow: 0 1px 2px rgba(27, 42, 74, 0.06);
+  flex: 0 0 auto;
+  transition: border-color 180ms, background-color 180ms, transform 180ms;
+}
+
+.genre-arrow:hover {
+  border-color: var(--color-navy);
+  background-color: var(--color-subtle);
+}
+
+.genre-arrow:active {
+  transform: scale(0.96);
+}
+
+.genre-dots {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.genre-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 24px is the WCAG 2.5.8 minimum: 24 x 8 genres + two 42px arrows + the
+     gaps is 284px, which still fits the 288px content width of a 320px
+     phone. Both get bigger as soon as there is room. */
+  width: 24px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.genre-dot-mark {
+  display: block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background-color: #C9BFA8;
+  transition: background-color 180ms, width 180ms;
+}
+
+.genre-dot:hover .genre-dot-mark {
+  background-color: var(--color-navy);
+}
+
+.genre-dot[aria-current="true"] .genre-dot-mark {
+  width: 22px;
+  background-color: var(--color-sienna);
+}
+
+@media (min-width: 380px) {
+  .genre-dot {
+    width: 26px;
+  }
+}
+
+@media (min-width: 640px) {
+  .genre-dot {
+    width: 30px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .genre-card {
+    transition: none;
+  }
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

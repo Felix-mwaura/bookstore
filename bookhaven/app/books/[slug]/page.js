@@ -154,12 +154,12 @@ export default async function BookPage({ params, searchParams }) {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10 pb-28 lg:pb-10">
         <nav aria-label="Breadcrumb" className="mb-6 text-xs text-muted">
           <ol className="flex flex-wrap items-center gap-2">
-            <li><Link href="/" className="hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
+            <li><Link href="/" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
             <li aria-hidden="true">/</li>
-            <li><Link href="/books" className="hover:text-navy underline-offset-2 hover:underline">Books</Link></li>
+            <li><Link href="/books" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Books</Link></li>
             <li aria-hidden="true">/</li>
             <li>
-              <Link href={`/category/${categorySlug(book.category)}`} className="hover:text-navy underline-offset-2 hover:underline">
+              <Link href={`/category/${categorySlug(book.category)}`} className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">
                 {book.category}
               </Link>
             </li>

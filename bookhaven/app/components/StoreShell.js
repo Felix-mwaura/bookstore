@@ -166,7 +166,7 @@ export function StoreFooter() {
     <footer className="bg-navy text-cream/80 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-          <div className="col-span-2 md:col-span-1">
+          <div className="col-span-2 min-w-0 md:col-span-1">
             <Link href="/" className="inline-flex items-center">
               <span className="font-playfair text-lg font-bold text-white">Book Haven</span>
             </Link>
@@ -179,39 +179,41 @@ export function StoreFooter() {
           <div>
             <h2 className="text-sm font-bold text-white mb-3">Shop</h2>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/books" className="hover:text-white transition">All books</Link></li>
-              <li><Link href="/category/fiction" className="hover:text-white transition">Fiction</Link></li>
-              <li><Link href="/category/finance" className="hover:text-white transition">Finance</Link></li>
-              <li><Link href="/category/self-help" className="hover:text-white transition">Self-Help</Link></li>
+              <li><Link href="/books" className="-my-1 inline-block py-1 hover:text-white transition">All books</Link></li>
+              <li><Link href="/category/fiction" className="-my-1 inline-block py-1 hover:text-white transition">Fiction</Link></li>
+              <li><Link href="/category/finance" className="-my-1 inline-block py-1 hover:text-white transition">Finance</Link></li>
+              <li><Link href="/category/self-help" className="-my-1 inline-block py-1 hover:text-white transition">Self-Help</Link></li>
             </ul>
           </div>
 
           <div>
             <h2 className="text-sm font-bold text-white mb-3">Your account</h2>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/account" className="hover:text-white transition">Orders &amp; tracking</Link></li>
-              <li><Link href="/login" className="hover:text-white transition">Sign in</Link></li>
-              <li><Link href="/login?tab=register" className="hover:text-white transition">Create an account</Link></li>
+              <li><Link href="/account" className="-my-1 inline-block py-1 hover:text-white transition">Orders &amp; tracking</Link></li>
+              <li><Link href="/login" className="-my-1 inline-block py-1 hover:text-white transition">Sign in</Link></li>
+              <li><Link href="/login?tab=register" className="-my-1 inline-block py-1 hover:text-white transition">Create an account</Link></li>
             </ul>
           </div>
 
           <div>
             <h2 className="text-sm font-bold text-white mb-3">Help</h2>
             <ul className="space-y-2 text-sm">
-              <li><Link href="/help#delivery" className="hover:text-white transition">Delivery</Link></li>
-              <li><Link href="/help#returns" className="hover:text-white transition">Returns</Link></li>
-              <li><Link href="/help#payment" className="hover:text-white transition">Payment &amp; M-Pesa</Link></li>
-              <li><Link href="/about" className="hover:text-white transition">About Book Haven</Link></li>
-              <li><Link href="/privacy" className="hover:text-white transition">Privacy</Link></li>
-              <li><Link href="/terms" className="hover:text-white transition">Terms of sale</Link></li>
+              <li><Link href="/help#delivery" className="-my-1 inline-block py-1 hover:text-white transition">Delivery</Link></li>
+              <li><Link href="/help#returns" className="-my-1 inline-block py-1 hover:text-white transition">Returns</Link></li>
+              <li><Link href="/help#payment" className="-my-1 inline-block py-1 hover:text-white transition">Payment &amp; M-Pesa</Link></li>
+              <li><Link href="/about" className="-my-1 inline-block py-1 hover:text-white transition">About Book Haven</Link></li>
+              <li><Link href="/privacy" className="-my-1 inline-block py-1 hover:text-white transition">Privacy</Link></li>
+              <li><Link href="/terms" className="-my-1 inline-block py-1 hover:text-white transition">Terms of sale</Link></li>
             </ul>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <h2 className="text-sm font-bold text-white mb-3">Contact</h2>
+            {/* break-words: an email address is one unbreakable word, and
+                half of one at 768px is wider than its column. */}
             <ul className="space-y-2 text-sm">
-              <li><a href={`mailto:${STORE_CONTACT.email}`} className="hover:text-white transition">{STORE_CONTACT.email}</a></li>
-              <li><a href={STORE_CONTACT.phoneHref} className="hover:text-white transition">{STORE_CONTACT.phone}</a></li>
+              <li><a href={`mailto:${STORE_CONTACT.email}`} className="-my-1 inline-block max-w-full break-words py-1 hover:text-white transition">{STORE_CONTACT.email}</a></li>
+              <li><a href={STORE_CONTACT.phoneHref} className="-my-1 inline-block py-1 hover:text-white transition">{STORE_CONTACT.phone}</a></li>
               <li>{STORE_CONTACT.location}</li>
               <li className="text-cream/60">{STORE_CONTACT.hours}</li>
             </ul>

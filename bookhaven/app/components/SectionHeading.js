@@ -55,7 +55,7 @@ export function SectionHeading({
       {action?.href && (
         <Link
           href={action.href}
-          className={`group inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-sm font-semibold underline-offset-4 hover:underline ${
+          className={`group -my-1.5 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap py-1.5 text-sm font-semibold underline-offset-4 hover:underline ${
             dark ? "text-[#E9B79F] hover:text-white" : "text-sienna hover:text-sienna-hover"
           }`}
         >
