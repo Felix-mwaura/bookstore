@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { requireAdmin } from "../../../lib/admin-auth";
+import { readJsonBody, isJsonObject, isUuid, ADMIN_BODY } from "../../../lib/request-guard";
 
 // Review moderation.
 //
@@ -139,16 +140,16 @@ export async function PATCH(request) {
 
   const { adminClient, user } = auth;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: ADMIN_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
   }
 
   const { id, is_published: isPublished } = body;
-  if (!id || typeof id !== "string") {
-    return NextResponse.json({ error: "Review id is required" }, { status: 400 });
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "A valid review id is required" }, { status: 400 });
   }
   if (typeof isPublished !== "boolean") {
     return NextResponse.json({ error: "is_published must be true or false" }, { status: 400 });
@@ -197,7 +198,9 @@ export async function DELETE(request) {
   const { adminClient, user } = auth;
   const id = new URL(request.url).searchParams.get("id");
 
-  if (!id) return NextResponse.json({ error: "Review id is required" }, { status: 400 });
+  if (!isUuid(id)) {
+    return NextResponse.json({ error: "A valid review id is required" }, { status: 400 });
+  }
 
   const { data: existing, error: readError } = await adminClient
     .from("book_reviews")

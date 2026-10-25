@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
 import { SUPABASE_URL } from "../../../lib/supabase-config";
+import { readJsonBody, isJsonObject, ADMIN_BODY } from "../../../lib/request-guard";
 
 // Only these columns can ever be written from the browser — blocks
 // mass-assignment of things like rating/reviews/created_at, and `stock`
@@ -13,6 +14,31 @@ const ALLOWED = [
 
 const isInt = (v) => Number.isInteger(v);
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+
+// Text fields and their maximum lengths.
+//
+// There were no caps before: a 10 MB title (or a description containing a
+// "</script>" payload for the JSON-LD tag) was accepted and stored. Book rows
+// are rendered on public pages, sent to Supabase, indexed by search engines
+// and streamed to the admin table, so "how long can this be" is a security
+// property, not a cosmetic one. These are limits on what the form can
+// sensibly produce, not a replacement for database constraints.
+const TEXT_LIMITS = {
+  title: 200,
+  author: 160,
+  isbn: 32,
+  description: 5000,
+  category: 80,
+  format: 60,
+  badge: 60,
+  publisher: 160,
+};
+
+// `cover` is a small JSONB style object ({ bg, accent, pattern }), not text.
+// It is bounded so it cannot become a storage dump.
+const COVER_KEYS = ["bg", "accent", "pattern"];
+const COVER_VALUE_MAX = 64;
+const COVER_MAX_KEYS = 8;
 
 // Must match the URL the browser client builds for getPublicUrl(), including
 // the env fallback — otherwise every upload would be rejected as "not ours".
@@ -30,8 +56,48 @@ function sanitize(body, { partial }) {
     if (data[k] === undefined || data[k] === null || data[k] === "") return { error: `${k} is required` };
   }
 
-  if ("title" in data && (typeof data.title !== "string" || !data.title.trim())) return { error: "title must not be empty" };
-  if ("author" in data && (typeof data.author !== "string" || !data.author.trim())) return { error: "author must not be empty" };
+  // Text: type, emptiness (for the fields that are required) and length.
+  for (const [field, max] of Object.entries(TEXT_LIMITS)) {
+    if (!(field in data)) continue;
+    const value = data[field];
+
+    if (value === null) {
+      if (field === "title" || field === "author" || field === "category") {
+        return { error: `${field} must not be empty` };
+      }
+      continue;
+    }
+    if (typeof value !== "string") return { error: `${field} must be text` };
+
+    const trimmed = value.trim();
+    if ((field === "title" || field === "author" || field === "category") && !trimmed) {
+      return { error: `${field} must not be empty` };
+    }
+    if (trimmed.length > max) {
+      return { error: `${field} must be ${max} characters or fewer` };
+    }
+    data[field] = trimmed;
+  }
+
+  if ("cover" in data && data.cover !== null) {
+    const cover = data.cover;
+    if (typeof cover !== "object" || Array.isArray(cover)) {
+      return { error: "cover must be an object" };
+    }
+    const keys = Object.keys(cover);
+    if (keys.length > COVER_MAX_KEYS) return { error: "cover has too many fields" };
+    for (const key of keys) {
+      if (!COVER_KEYS.includes(key)) return { error: `cover.${key} is not allowed` };
+      if (typeof cover[key] !== "string" || cover[key].length > COVER_VALUE_MAX) {
+        return { error: `cover.${key} must be text of ${COVER_VALUE_MAX} characters or fewer` };
+      }
+    }
+  }
+
+  if ("cover_url" in data && data.cover_url !== null && typeof data.cover_url === "string" && data.cover_url.length > 500) {
+    return { error: "cover_url is too long" };
+  }
+
   if ("price" in data && (!isNum(data.price) || data.price < 0)) return { error: "price must be a number, 0 or more" };
   if ("original_price" in data && data.original_price !== null && (!isNum(data.original_price) || data.original_price < 0)) return { error: "original_price must be 0 or more" };
   if ("stock_quantity" in data && (!isInt(data.stock_quantity) || data.stock_quantity < 0)) return { error: "stock_quantity must be a whole number, 0 or more" };
@@ -42,8 +108,6 @@ function sanitize(body, { partial }) {
     // Only images in OUR bucket — never an arbitrary external URL.
     if (typeof data.cover_url !== "string" || !data.cover_url.startsWith(coverPrefix())) return { error: "cover_url must point to the book-covers storage bucket" };
   }
-  if (typeof data.title === "string") data.title = data.title.trim();
-  if (typeof data.author === "string") data.author = data.author.trim();
   return { data };
 }
 
@@ -99,8 +163,12 @@ export async function POST(request) {
   if (auth instanceof NextResponse) return auth;
   const { adminClient, user } = auth;
 
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const parsed = await readJsonBody(request, { maxBytes: ADMIN_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
+  }
 
   const { data: fields, error: vError } = sanitize(body, { partial: false });
   if (vError) return NextResponse.json({ error: vError }, { status: 400 });
@@ -125,9 +193,17 @@ export async function PATCH(request) {
   if (auth instanceof NextResponse) return auth;
   const { adminClient, user } = auth;
 
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-  if (!body.id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: ADMIN_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
+  }
+
+  const id = Number(body.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "A valid book id is required" }, { status: 400 });
+  }
 
   const { data: fields, error: vError } = sanitize(body, { partial: true });
   if (vError) return NextResponse.json({ error: vError }, { status: 400 });
@@ -147,7 +223,7 @@ export async function PATCH(request) {
   let data;
   if (Object.keys(fields).length > 0) {
     const { data: updated, error } = await adminClient
-      .from("books").update(fields).eq("id", body.id).select().maybeSingle();
+      .from("books").update(fields).eq("id", id).select().maybeSingle();
     if (error) {
       console.error("PATCH /api/admin/books:", error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -168,7 +244,7 @@ export async function PATCH(request) {
         : "Stock edited from the book form";
 
     const { data: adjusted, error: stockError } = await adminClient.rpc("adjust_book_stock", {
-      p_book_id: body.id,
+      p_book_id: id,
       p_new_quantity: stockTarget,
       p_reason: stockReason,
       p_note: stockNote,
@@ -187,7 +263,7 @@ export async function PATCH(request) {
     data = adjusted;
   }
 
-  await logActivity(adminClient, user, "book_updated", body.id, {
+  await logActivity(adminClient, user, "book_updated", id, {
     title: data.title,
     fields: Object.keys(fields).concat(hasStockChange ? ["stock_quantity"] : []),
   });
@@ -201,10 +277,17 @@ export async function DELETE(request) {
   if (auth instanceof NextResponse) return auth;
   const { adminClient, user } = auth;
 
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-  const { id } = body;
-  if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: ADMIN_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
+  }
+
+  const id = Number(body.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "A valid book id is required" }, { status: 400 });
+  }
 
   const { data: book } = await adminClient.from("books").select("title,cover_url").eq("id", id).maybeSingle();
   if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });

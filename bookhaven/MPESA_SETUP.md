@@ -127,6 +127,7 @@ reading code.
 | `MPESA_TILL_NUMBER` | the short code | When the **till** differs from the short code (§1). Otherwise leave empty. |
 | `MPESA_TRANSACTION_TYPE` | `CustomerPayBillOnline` | Set `CustomerBuyGoodsOnline` for a till |
 | `MPESA_CALLBACK_URL` | `https://<site>/api/mpesa/callback` | Only if the callback must be on a different domain. Must be public HTTPS |
+| `MPESA_CALLBACK_TOKEN` | unset (no token) | Recommended once live. A shared secret (16+ chars) appended to the callback URL as `?token=…` and checked before any work is done. The app adds it to every STK push — do **not** append it to `MPESA_CALLBACK_URL` by hand. Set it during a quiet period: a prompt already on a customer's phone will call back without it and be rejected |
 
 The callback does **not** need to be registered in the portal: STK push sends
 `CallBackURL` with every request. It does need to be reachable — Vercel serves
@@ -250,6 +251,32 @@ error text plus every number the app used, and never a credential.
 - If a secret leaks, regenerate it in the portal and update Vercel in the same
   sitting; the old one dies the moment you click regenerate.
 - Rotating anything means: update the value → redeploy → run the check in §4.
+
+### The callback secret
+
+`MPESA_CALLBACK_TOKEN` is the one M-Pesa secret you generate yourself:
+
+```bash
+openssl rand -hex 24          # 48 characters; 16 is the minimum
+```
+
+Add it in Vercel as a `Sensitive` variable and redeploy. `/api/mpesa/stk` then
+sends `CallBackURL` with `?token=…`, and `/api/mpesa/callback` rejects anything
+without it before reading the body or touching the database (constant-time
+comparison, so the value cannot be probed by timing). `/api/admin/payments`
+shows whether the token is set — never the token itself.
+
+Behaviour to know:
+
+- **Unset is the old behaviour.** Nothing breaks if you never set it.
+- **Set during a live payment** rejects that payment's callback. It stays
+  `pending` and can be reconciled from the Payments tab; the customer's money
+  is not lost, but the order will not be created automatically. Set it when no
+  prompt is in flight.
+- The token does **not** replace the five verification checks in
+  `app/lib/mpesa-verify.js`. It is a filter in front of them.
+- To rotate: set the new value, redeploy, done — the URL is sent with each
+  push, so there is nothing to re-register.
 
 ---
 

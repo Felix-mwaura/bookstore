@@ -1,4 +1,11 @@
 import type { NextConfig } from "next";
+import { assertProductionBuildEnv } from "./app/lib/env.js";
+
+// Refuse to build a production bundle without the public configuration.
+// Without this the build would silently fall back to the project this site
+// was first deployed against. Runs at build time only (NEXT_PHASE), so a
+// running deployment is never affected. See app/lib/env.js.
+assertProductionBuildEnv();
 
 // Book covers are uploaded to Supabase Storage by the admin. Only that
 // project's public storage host is allowed through the image optimiser, and
@@ -9,20 +16,16 @@ const supabaseHost = new URL(
 
 // A conservative set of response headers.
 //
-// The CSP deliberately does not restrict script-src: Next.js ships inline
-// bootstrap scripts, and a strict policy without a working nonce would break
-// the app. These directives still block framing, plugin content, base-tag
-// hijacking and form posts to other origins — the attacks that matter here.
+// The Content-Security-Policy is NOT here: it needs a per-response nonce, so
+// it is built in proxy.js (app/lib/csp.js). Two CSP headers would both be
+// enforced and their intersection is what the browser applies, which is a
+// silent way to break the app. One policy, one place.
 const securityHeaders = [
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "X-Frame-Options", value: "DENY" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=(), payment=()" },
   { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-  {
-    key: "Content-Security-Policy",
-    value: "frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
-  },
 ];
 
 const nextConfig: NextConfig = {

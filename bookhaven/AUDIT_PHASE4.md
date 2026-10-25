@@ -1,5 +1,22 @@
 # Book Haven — UI, Responsive & Security Audit
 
+> **Corrections, 2026-10-25.** This file is the audit of 2026-10-23 and is kept
+> as written, because a security record that is quietly edited cannot be
+> trusted. Several statements in it are no longer true; the current audit
+> (`docs/security-audit-2026-10-25.md`) supersedes this document wherever they
+> disagree. What changed:
+>
+> | Was said here | Reality on 2026-10-25 |
+> | --- | --- |
+> | "No `dangerouslySetInnerHTML` on user data (only the JSON-LD constants)" | Wrong. `app/books/[slug]/page.js` built `application/ld+json` from **database** fields (title, author, description) with plain `JSON.stringify`. A title containing `</script>` could break out of the tag. Fixed in `6bb367f` with a serialiser that escapes `<`. |
+> | Payment integrity "requires `amount ≥ expected_amount`" | Out of date. `app/lib/mpesa-verify.js` now requires the **exact** amount, a receipt matching Safaricom's format, a receipt that has not been used on another payment, and confirms the transaction with Daraja before anything is marked paid. |
+> | D8 `profiles.role` escalation — "prepared, not applied" | The hardening shipped: `20261023113634_profile_role_and_write_surface.sql` supersedes `20261020030000`, and the write surface it closes is in the applied migration series. |
+> | D10 callback secret — "open, deferred" | Implemented in `c543250`: optional `MPESA_CALLBACK_TOKEN`, constant-time comparison, appended to the push URL automatically. Still needs the owner to set the variable. |
+> | D12 storage bucket — "open" | Reported resolved by the owner; this environment has no access to storage policies, so it is *unverified* here rather than *open*. See "Not verified" in the 2026-10-25 report. |
+> | D14 "CSP has no `script-src`" | Addressed in `5465db7`: nonce-based `script-src` on `/admin`, `/login`, `/books`, `/category`, `/orders`. Prerendered pages keep `'unsafe-inline'` — residual risk, documented in the 2026-10-25 report. |
+> | D15 "No automated tests" | There are now `scripts/*.mjs` suites (security, CSP, admin auth, SQL against PGlite) wired into `npm test`; they are still not run in CI. |
+
+
 **Date:** 20 October 2026
 **Scope:** `bookhaven/` (Next.js app router), Supabase schema/migrations, Vercel production deployment
 **Base commit:** `90be087` → **head:** PRs #17–#25 (assistant + Phase 7)
@@ -113,25 +130,25 @@ Severity is my assessment of impact in this deployment. "Confirmed" means I repr
 
 - **Server-side authorisation.** Every `/api/admin/*` handler starts with `requireAdmin()` → verified JWT → `profiles.role === "admin"` read server-side → 401/403/500. `proxy.js` is a UX gate only; the page and the APIs re-check.
 - **Price integrity.** `POST /api/orders` accepts only `{ id, quantity }` and lets `place_order()` re-read prices, stock and delivery from the database. The client's total is never sent. `POST /api/mpesa/stk` prices the cart with `quote_cart()` and stores `expected_amount` before Safaricom is called.
-- **Payment integrity.** `/api/mpesa/callback` can only update a pre-created `pending` row, requires `amount ≥ expected_amount`, is idempotent, and never writes to `orders`. A forged success needs a valid unguessed `CheckoutRequestID`.
+- **Payment integrity.** `/api/mpesa/callback` can only update a pre-created `pending` row, requires the **exact** amount and a valid-format receipt that has not been used before, is idempotent, never writes to `orders`, and confirms the transaction with Daraja before marking it paid. A forged success needs a valid unguessed `CheckoutRequestID`. *(Corrected 2026-10-25: this paragraph used to say `amount ≥ expected_amount`.)*
 - **Order ownership.** Order reads use the caller's JWT with `user_id = auth.uid()` RLS; `/orders/[id]` returns 404 for someone else's id, so it does not confirm the order exists.
 - **Inventory.** Stock changes are atomic inside `place_order()`/`adjust_book_stock()` with an audit trail in `stock_movements`; insufficient stock returns 409 with the real remaining count.
 - **CSRF posture.** No cookie-authenticated mutations exist: the browser talks to Supabase with its own token and to the app's APIs with `Authorization: Bearer`. There is nothing for a cross-site form post to ride. `SameSite` cookie defaults still apply to the SSR session.
-- **XSS.** No `dangerouslySetInnerHTML` on user data (only the JSON-LD constants). Book titles/descriptions render as text. The one rich-text component escapes parity through React.
+- **XSS.** *(Corrected 2026-10-25 — the original claim was wrong.)* Book titles/descriptions render as text, and the one rich-text component escapes through React. But JSON-LD **was** built from database fields with unescaped `JSON.stringify` inside `dangerouslySetInnerHTML`; since `6bb367f` every `application/ld+json` tag is emitted by `app/lib/json-ld.js`, which escapes `<`, `>` and `&`.
 - **Secrets.** `SUPABASE_SERVICE_ROLE_KEY`, Daraja credentials and `RESEND_API_KEY` are read only in server modules; nothing sensitive is prefixed `NEXT_PUBLIC_`.
 
 ### Open — needs your database or dashboard
 
 | # | Severity | Finding | Why it matters | Remediation | Status |
 | --- | --- | --- | --- | --- | --- |
-| D8 | **High** | `profiles.role` may be self-editable. The base schema is not in version control, so the UPDATE policy cannot be inspected. If it is the common `using (auth.uid() = id)`, any signed-in customer can promote themselves to admin | Full takeover of orders, customers, stock and payment status | `supabase/migrations/20261020030000_profile_role_hardening.sql`: revokes table-wide UPDATE from `anon`/`authenticated`, grants only `(first_name, last_name, phone)`, and adds a trigger that rejects role changes made with an end-user JWT | **Prepared, not applied.** Apply it, then run the four checks at the bottom of the file |
+| D8 | **High** | `profiles.role` may be self-editable. The base schema is not in version control, so the UPDATE policy cannot be inspected. If it is the common `using (auth.uid() = id)`, any signed-in customer can promote themselves to admin | Full takeover of orders, customers, stock and payment status | `supabase/migrations/20261020030000_profile_role_hardening.sql`: revokes table-wide UPDATE from `anon`/`authenticated`, grants only `(first_name, last_name, phone)`, and adds a trigger that rejects role changes made with an end-user JWT | **Shipped** in `20261023113634_profile_role_and_write_surface.sql`, which supersedes the file named here. Re-check the live policies with the 2026-10-25 report's queries |
 | D9 | **High** (deployment) | `NEXT_PUBLIC_SITE_URL` and `NEXT_PUBLIC_MPESA_ENABLED` are not set in Vercel | Canonicals/OG/sitemap point at the `.vercel.app` host (so a future domain would split SEO), and M-Pesa stays hidden even after you configure Daraja | Set both in Vercel → Settings → Environment Variables, then redeploy | Open |
 | D10 | **Medium** | `mpesa/callback` is unauthenticated by design (Daraja does not sign callbacks) | Relies entirely on the unguessable checkout id, the pending-row rule and the amount check | When you go live: append a secret path/query to `MPESA_CALLBACK_URL` and reject mismatches, or allow-list Safaricom's IPs. Test in the sandbox first | Open — deliberately deferred with M-Pesa |
 | D11 | **Medium** | Policies for `profiles`, `orders`, `wishlist`, `addresses`, `newsletter_subscribers` are not in the repo | Cannot review or reproduce the security model from source; drift is invisible | `supabase db pull` and commit the schema; keep migrations the only way changes reach the DB | Open |
-| D12 | **Medium** | `book-covers` storage bucket policy is unverified; uploads happen from the admin browser with the user's JWT | A permissive policy would let any signed-in user upload/replace covers; no server-side MIME sniffing | Confirm the bucket allows INSERT/UPDATE only when `is_admin()`, sets a 2 MB limit and an image MIME allow-list | Open |
+| D12 | **Medium** | `book-covers` storage bucket policy is unverified; uploads happen from the admin browser with the user's JWT | A permissive policy would let any signed-in user upload/replace covers; no server-side MIME sniffing | Confirm the bucket allows INSERT/UPDATE only when `is_admin()`, sets a 2 MB limit and an image MIME allow-list | Reported resolved by the owner; **unverified** in the 2026-10-25 environment (no storage-policy access) — not "open" |
 | D13 | **Medium** | Rate limiting is per-instance for `/api/newsletter` | On Vercel, fresh instances reset the counter | Move to a shared store (Upstash/Redis) or Vercel Firewall rules | Open |
-| D14 | **Low** | CSP has no `script-src` (Next inline bootstrap would break without a nonce) | Weakens defence-in-depth against injected scripts; the rest of the policy still blocks framing, base-tag hijacking and foreign form posts | Add a nonce-based `script-src` once the app is on a custom domain and can be re-tested | Open |
-| D15 | **Low** | No automated tests | Regressions are caught by hand | Playwright smoke tests for the six public routes + one admin mutation | Open |
+| D14 | **Low** | CSP has no `script-src` (Next inline bootstrap would break without a nonce) | Weakens defence-in-depth against injected scripts; the rest of the policy still blocks framing, base-tag hijacking and foreign form posts | Add a nonce-based `script-src` once the app is on a custom domain and can be re-tested | **Fixed 2026-10-25** (`5465db7`) for dynamic routes; prerendered pages keep `'unsafe-inline'` (see residual risk in the 2026-10-25 report) |
+| D15 | **Low** | No automated tests | Regressions are caught by hand | Playwright smoke tests for the six public routes + one admin mutation | **Partly done**: `scripts/*.mjs` cover routes, headers, guards, CSP and SQL; no CI wiring yet |
 
 ### The assistant (new surface, reviewed on its own terms)
 
@@ -147,7 +164,7 @@ Severity is my assessment of impact in this deployment. "Confirmed" means I repr
 
 ### Ground truth on what "fixed" means here
 
-D1–D7 were changed and built, and the public-facing ones were re-fetched from production. None of them is a claim that the app is now secure end to end: **D8 and D11 are the two that decide whether the admin surface is actually protected**, and both need the database.
+D1–D7 were changed and built, and the public-facing ones were re-fetched from production. None of them is a claim that the app is now secure end to end: **D8 and D11 were the two that decided whether the admin surface is actually protected**. D8 has since shipped; **D11 (the base schema and policies still being absent from the repo) remains the biggest structural gap**, because until `supabase db pull` is committed nobody can review the model from source. See the 2026-10-25 report.
 
 ---
 

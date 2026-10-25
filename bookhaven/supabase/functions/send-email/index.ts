@@ -1,5 +1,19 @@
 // Sends queued transactional email from public.email_outbox.
 //
+// SECURITY: this function must be deployed WITH JWT verification (the Supabase
+// default). Every legitimate caller is a server — the Next.js API with the
+// service-role key, or /api/admin/emails — so `verify_jwt` is what actually
+// proves the token came from this project. `jwtRole()` below only decodes the
+// payload to check what the verified token is allowed to do; it does NOT
+// verify a signature and must never be the only check.
+//
+//   supabase functions deploy send-email            # correct
+//   supabase functions deploy send-email --no-verify-jwt   # NEVER
+//
+// A browser never calls this function, so it returns no CORS headers: a page
+// on another origin can send the request but cannot read the reply, and it
+// cannot send one at all without a token it does not have.
+//
 // Contract:
 //   * Called by the Next.js server with the service-role key (never the
 //     browser), or manually by an admin through /api/admin/emails.
@@ -15,20 +29,28 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const MAX_ATTEMPTS = 5;
 const BATCH = 20;
 const APP_NAME = "Book Haven";
-const SITE_URL = Deno.env.get("SITE_URL") ?? "https://bookstore-puce-sigma.vercel.app";
+const SITE_URL =
+  Deno.env.get("SITE_URL") ?? "https://bookstore-puce-sigma.vercel.app";
+
+// The fallback exists so a missing secret degrades to (correct) links rather
+// than an exception inside the render loop. It is worth a log line, because a
+// stale value sends customers to the wrong domain.
+if (!Deno.env.get("SITE_URL")) {
+  console.warn(
+    "send-email: SITE_URL is not set on this function; links will use the hard-coded fallback. Set it to the public site address.",
+  );
+}
 const FROM =
   Deno.env.get("EMAIL_FROM") ?? "Book Haven <onboarding@resend.dev>";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
-
+// No CORS headers. This endpoint is called server-to-server only, so it does
+// not need to be readable by any browser origin — and "Access-Control-
+// Allow-Origin: *" told every page on the internet that it could try. The
+// Supabase gateway, not CORS, is what protects it (see the header comment).
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...cors, "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" },
   });
 
 const esc = (v: unknown) =>
@@ -41,13 +63,26 @@ const esc = (v: unknown) =>
 const money = (n: unknown) =>
   `KSh ${Number(n ?? 0).toLocaleString("en-KE")}`;
 
+// Decodes the CLAIM SET of a token the gateway has already verified.
+//
+// This is deliberately not a signature check: verifying an HS256/RS256 token
+// here would duplicate the gateway with a second copy of the signing secret,
+// and a bug in the duplicate would be a new way in. The contract is the
+// deployment flag at the top of this file.
+//
+// The expiry check is cheap and local, so it is done here as well: a token
+// that has expired is refused even if the gateway let it through.
 function jwtRole(token: string): string | null {
   try {
     const payload = token.split(".")[1];
+    if (!payload) return null;
     const decoded = JSON.parse(
-      atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+      atob(payload.replace(/-/g, "+").replace(/_/g, "/")),
     );
-    return decoded?.role ?? null;
+    if (typeof decoded?.exp === "number" && decoded.exp * 1000 < Date.now()) {
+      return null;
+    }
+    return typeof decoded?.role === "string" ? decoded.role : null;
   } catch {
     return null;
   }
@@ -160,7 +195,8 @@ function render(template: string, subject: string, payload: EmailPayload) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  // A CORS preflight now gets the same answer as any other non-POST: this is
+  // not a browser endpoint.
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");

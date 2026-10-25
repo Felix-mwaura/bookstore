@@ -1,8 +1,11 @@
 // Single source of truth for the *public* Supabase configuration.
 //
-// The URL and anon key are public by design (they ship to every browser),
-// so falling back to the known project values keeps the deployed app
-// working even if the NEXT_PUBLIC_* variables have not been set yet.
+// The URL and anon key are public by design (they ship to every browser).
+// The fallbacks below are what keeps an ALREADY DEPLOYED build working if the
+// variables are ever unset or renamed — they are never reached in a build:
+// next.config.ts calls assertProductionBuildEnv() (app/lib/env.js), and a
+// production build without these three variables stops with an explanation
+// instead of quietly pointing a new deployment at this project.
 // Server-only secrets (SUPABASE_SERVICE_ROLE_KEY, M-Pesa credentials) are
 // NEVER read here — they live only in process.env on the server.
 

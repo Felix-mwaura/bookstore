@@ -2,6 +2,7 @@ import "./globals.css";
 import { Playfair_Display, Inter } from "next/font/google";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "./lib/site";
 import { StoreProvider } from "./components/StoreShell";
+import { serialiseJsonLd } from "./lib/json-ld";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -81,11 +82,11 @@ export default function RootLayout({ children }) {
         </StoreProvider>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organisationJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: serialiseJsonLd(organisationJsonLd) }}
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: serialiseJsonLd(websiteJsonLd) }}
         />
       </body>
     </html>

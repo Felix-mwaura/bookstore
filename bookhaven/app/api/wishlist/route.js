@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { clientForToken, bearerToken } from "../../lib/server";
+import { readJsonBody, isJsonObject, SMALL_BODY } from "../../lib/request-guard";
 
 // The wishlist routes were broken: they built a plain anon client and never
 // attached the caller's JWT, so every `.from("wishlists")` query ran as the
@@ -40,14 +41,14 @@ export async function POST(request) {
   const { client, user, error } = await requireUser(request);
   if (error) return error;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
   }
 
-  const bookId = validBookId(body?.bookId);
+  const bookId = validBookId(body.bookId);
   if (!bookId) return NextResponse.json({ error: "A valid bookId is required" }, { status: 400 });
 
   const { error: dbError } = await client
@@ -62,14 +63,14 @@ export async function DELETE(request) {
   const { client, user, error } = await requireUser(request);
   if (error) return error;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
   }
 
-  const bookId = validBookId(body?.bookId);
+  const bookId = validBookId(body.bookId);
   if (!bookId) return NextResponse.json({ error: "A valid bookId is required" }, { status: 400 });
 
   const { error: dbError } = await client

@@ -9,6 +9,12 @@ import {
 } from "../../../lib/mpesa";
 import { deliveryFeeFor } from "../../../lib/site";
 import { readJsonBody, ORDER_BODY } from "../../../lib/request-guard";
+import { redactCallbackUrl } from "../../../lib/callback-token";
+import {
+  stkLimitProblem,
+  knownPhoneSet,
+  MAX_STK_PER_PHONE_10MIN,
+} from "../../../lib/mpesa-limits";
 
 // POST /api/mpesa/stk
 //
@@ -73,19 +79,72 @@ export async function POST(request) {
     return NextResponse.json({ error: "Server misconfigured — please contact support." }, { status: 500 });
   }
 
-  // Light abuse guard: cap how many pushes one account can trigger.
+  // ── abuse guards ─────────────────────────────────────────────────────────
+  // Two counts, both against the database so they hold across serverless
+  // instances: this account's recent prompts, and every prompt sent to this
+  // PHONE NUMBER (whatever account asked for it).
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+
   const { count: recentAttempts } = await db
     .from("mpesa_payments")
-    .select("*", { count: "exact", head: true })
+    .select("id", { count: "exact", head: true })
     .eq("user_id", user.id)
     .gte("created_at", tenMinutesAgo);
 
-  if ((recentAttempts || 0) >= 5) {
-    return NextResponse.json(
-      { error: "Too many M-Pesa attempts. Please wait a few minutes and try again." },
-      { status: 429 }
+  const { count: recentForPhone } = await db
+    .from("mpesa_payments")
+    .select("id", { count: "exact", head: true })
+    .eq("phone", formattedPhone)
+    .gte("created_at", tenMinutesAgo);
+
+  if ((recentForPhone || 0) >= MAX_STK_PER_PHONE_10MIN) {
+    console.warn("/api/mpesa/stk: per-phone limit reached", {
+      // Last four digits only: enough to support a customer, not a directory
+      // of numbers in the logs.
+      phone: `••••${formattedPhone.slice(-4)}`,
+      attempts: recentForPhone,
+    });
+  }
+
+  const limitMessage = stkLimitProblem({
+    accountAttempts: recentAttempts || 0,
+    phoneAttempts: recentForPhone || 0,
+  });
+  if (limitMessage) {
+    return NextResponse.json({ error: limitMessage }, { status: 429 });
+  }
+
+  // OPTIONAL strict mode. A prompt is sent to a number the caller typed; if
+  // the account already has a number on file, sending to a different one is
+  // how a stolen session would be used to spam third parties. It is off by
+  // default because a first-time buyer has no number on file yet, and
+  // blocking them at the payment step would be worse than the abuse it
+  // prevents. Turn it on (MPESA_RESTRICT_TO_KNOWN_PHONE=1) once you have
+  // confirmed every customer's number can be saved from the account page.
+  if (process.env.MPESA_RESTRICT_TO_KNOWN_PHONE === "1") {
+    const [profileResult, addressResult] = await Promise.all([
+      db.from("profiles").select("phone").eq("id", user.id).maybeSingle(),
+      db.from("addresses").select("phone").eq("user_id", user.id),
+    ]);
+
+    const known = knownPhoneSet(
+      [
+        profileResult?.data?.phone,
+        ...(addressResult?.data || []).map((row) => row.phone),
+      ],
+      normalisePhone
     );
+
+    if (known.size > 0 && !known.has(formattedPhone)) {
+      return NextResponse.json(
+        {
+          error:
+            "This phone number is not on your account. Use the number saved in Account → Contact details, or update it there first.",
+          code: "PHONE_NOT_ON_ACCOUNT",
+        },
+        { status: 403 }
+      );
+    }
   }
 
   // Refuse to take money for books that cannot be fulfilled. Stock is
@@ -172,6 +231,10 @@ export async function POST(request) {
       user_id: user.id,
       expected_amount: Math.ceil(amount),
       status: "pending",
+      // The number the prompt was sent to. Stored so the per-phone limit can
+      // count it, and so the Payments tab can answer "what was this charge
+      // for?" without asking the customer.
+      phone: formattedPhone,
     })
     .select("id")
     .single();
@@ -246,7 +309,7 @@ export async function POST(request) {
       storeNumber: config.storeNumber,
       shortcode: config.shortcode,
       transactionType: config.transactionType,
-      callbackHost: config.callbackUrl,
+      callbackHost: redactCallbackUrl(config.callbackUrl),
       code: stkData.errorCode || stkData.ResponseCode,
       message: stkData.errorMessage || stkData.ResponseDescription,
     });

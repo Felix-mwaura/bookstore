@@ -83,15 +83,50 @@ if (home) {
   expect("header: strict-transport-security", h("strict-transport-security").includes("max-age="));
   expect("header: no x-powered-by", !home.headers.get("x-powered-by"));
   expect("header: permissions-policy", h("permissions-policy").includes("geolocation=()"));
+  // The home page is prerendered (ISR), so it cannot carry a nonce; its
+  // policy is the 'unsafe-inline' tier. The strict tier is asserted below on
+  // a request-rendered page.
+  expect(
+    "header: home csp has a script-src",
+    /script-src[^;]*'self'/.test(h("content-security-policy")),
+    h("content-security-policy")
+  );
+}
+
+// A request-rendered page must carry a nonce, and every script tag in it must
+// use that nonce. A CSP that says nonce while the tags have none would block
+// the app's own JavaScript — the failure mode this check exists to catch.
+const dynamicPage = await request("/books");
+if (dynamicPage && dynamicPage.ok) {
+  const csp = dynamicPage.headers.get("content-security-policy") || "";
+  const nonce = (csp.match(/'nonce-([^']+)'/) || [])[1];
+  expect("csp: /books carries a nonce", Boolean(nonce), csp);
+
+  if (nonce) {
+    expect(
+      "csp: /books script-src does not fall back to unsafe-inline",
+      !/script-src[^;]*'unsafe-inline'/.test(csp),
+      csp
+    );
+    const html = await dynamicPage.text();
+    const tags = [...html.matchAll(/<script\b[^>]*>/g)].map((m) => m[0]);
+    const executable = tags.filter((tag) => !/type="application\/ld\+json"/.test(tag));
+    const missing = executable.filter((tag) => !tag.includes(`nonce="${nonce}"`));
+    expect(
+      "csp: every executable script on /books carries the response nonce",
+      executable.length > 0 && missing.length === 0,
+      `${missing.length}/${executable.length} without nonce: ${missing.slice(0, 2).join(" ")}`
+    );
+  }
 }
 
 /* ── privileged APIs refuse anonymous callers ───────────────────────── */
 
 /**
- * A privileged route must refuse an anonymous caller. 401/403 is the answer on
- * a configured deployment. A local `next start` has no service-role key, so
- * requireAdmin() returns a 500 that names the missing variable — that is
- * configuration, not an open door, and it is reported separately.
+ * A privileged route must refuse an anonymous caller with 401 (and never leak
+ * which environment variable is missing). If a deployment answers 500 naming
+ * SUPABASE_SERVICE_ROLE_KEY, that is configuration, not an open door, and it
+ * is reported separately.
  */
 async function expectAdminGuard(path, options = {}) {
   const res = await request(path, options);

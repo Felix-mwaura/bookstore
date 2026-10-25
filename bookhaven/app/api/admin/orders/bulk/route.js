@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../../lib/admin-auth";
+import { readJsonBody, isJsonObject, ADMIN_BODY } from "../../../../lib/request-guard";
 import { queueEmailDispatch } from "../../../../lib/email-dispatch";
 
 const ALLOWED_STATUSES = [
@@ -26,11 +27,11 @@ export async function POST(request) {
 
   const { adminClient, user } = auth;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: ADMIN_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
   }
 
   const { ids, status, courier } = body;
