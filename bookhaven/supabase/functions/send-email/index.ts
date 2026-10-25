@@ -21,16 +21,38 @@ const SITE_URL = (Deno.env.get("SITE_URL") ?? "").replace(/\/+$/, "");
 const FROM =
   Deno.env.get("EMAIL_FROM") ?? "Book Haven <onboarding@resend.dev>";
 
-const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// CORS is opt-in per origin.
+//
+// This function is called server-to-server (the Next.js app and
+// /api/admin/emails) and never needs to be readable from an arbitrary page.
+// The wildcard that used to be here meant any site could call it with a
+// service-role bearer token (if one leaked) and read the response — and it
+// advertised the endpoint to scanners. Now a browser origin is echoed only if
+// it is listed in ALLOWED_ORIGINS (comma-separated) or equals SITE_URL;
+// everything else gets no CORS headers at all, which the browser treats as a
+// refusal. Server-to-server calls send no Origin and are unaffected.
+const ALLOWED_ORIGINS = [
+  ...(Deno.env.get("ALLOWED_ORIGINS") ?? "").split(","),
+  Deno.env.get("SITE_URL") ?? "",
+]
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 
-const json = (body: unknown, status = 200) =>
+function corsFor(req?: Request): Record<string, string> {
+  const headers: Record<string, string> = { Vary: "Origin" };
+  const origin = req?.headers.get("Origin")?.replace(/\/+$/, "");
+  if (!origin) return headers;
+  if (!ALLOWED_ORIGINS.includes(origin)) return headers;
+  headers["Access-Control-Allow-Origin"] = origin;
+  headers["Access-Control-Allow-Headers"] = "authorization, content-type";
+  headers["Access-Control-Allow-Methods"] = "POST, OPTIONS";
+  return headers;
+}
+
+const json = (body: unknown, status = 200, req?: Request) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { ...cors, "Content-Type": "application/json" },
+    headers: { ...corsFor(req), "Content-Type": "application/json" },
   });
 
 const esc = (v: unknown) =>
@@ -43,6 +65,12 @@ const esc = (v: unknown) =>
 const money = (n: unknown) =>
   `KSh ${Number(n ?? 0).toLocaleString("en-KE")}`;
 
+// Decoded WITHOUT verifying the signature — safe only because this function is
+// deployed with verify_jwt = true, so the Supabase gateway has already rejected
+// any token it did not sign. The claim is used for authorisation, not for
+// identity: a customer JWT must not be able to trigger a mail run, and only
+// the service role may. If verify_jwt is ever turned off, this check becomes
+// worthless — keep the deployment setting paired with this comment.
 function jwtRole(token: string): string | null {
   try {
     const payload = token.split(".")[1];
@@ -162,15 +190,15 @@ function render(template: string, subject: string, payload: EmailPayload) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsFor(req) });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405, req);
 
   const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!token) return json({ error: "Missing authorization" }, 401);
+  if (!token) return json({ error: "Missing authorization" }, 401, req);
   // The gateway already verified the signature; this only checks what the
   // token is allowed to do, so a customer JWT cannot trigger a mail run.
   if (jwtRole(token) !== "service_role") {
-    return json({ error: "Forbidden" }, 403);
+    return json({ error: "Forbidden" }, 403, req);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -189,10 +217,10 @@ Deno.serve(async (req) => {
     .order("created_at", { ascending: true })
     .limit(BATCH);
 
-  if (error) return json({ error: error.message }, 500);
+  if (error) return json({ error: error.message }, 500, req);
 
   if (!pending || pending.length === 0) {
-    return json({ checked: 0, sent: 0, failed: 0, skipped: 0 });
+    return json({ checked: 0, sent: 0, failed: 0, skipped: 0 }, 200, req);
   }
 
   // Without a provider key, be explicit: mark rows so the admin can see why
@@ -211,7 +239,7 @@ Deno.serve(async (req) => {
       failed: 0,
       skipped: pending.length,
       reason: "RESEND_API_KEY is not configured",
-    });
+    }, 200, req);
   }
 
   let sent = 0;
@@ -282,5 +310,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return json({ checked: pending.length, sent, failed, skipped });
+  return json({ checked: pending.length, sent, failed, skipped }, 200, req);
 });
