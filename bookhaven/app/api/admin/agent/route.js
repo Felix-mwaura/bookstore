@@ -3,6 +3,7 @@ import { requireAdmin } from "../../../lib/admin-auth";
 import { TOOL_DEFINITIONS, storeSnapshot } from "../../../lib/admin-agent-tools";
 import { runAgentTurn } from "../../../lib/agent-runner";
 import { agentConfig, friendlyProviderMessage, ProviderError } from "../../../lib/agent-provider";
+import { readJsonBody, isJsonObject, ADMIN_BODY } from "../../../lib/request-guard";
 
 // Admin-only. The assistant can READ the store and explain it; it cannot
 // change anything. Every write on this dashboard still goes through the
@@ -113,14 +114,14 @@ export async function POST(request) {
     );
   }
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: ADMIN_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
   }
 
-  const messages = cleanMessages(body?.messages);
+  const messages = cleanMessages(body.messages);
   if (!messages) {
     return NextResponse.json(
       { error: "Send at least one question, under 20,000 characters in total." },

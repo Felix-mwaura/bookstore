@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { clientForToken, bearerToken } from "../../lib/server";
+import { readJsonBody, isJsonObject, SMALL_BODY } from "../../lib/request-guard";
 
 // Same bug as the wishlist route: the old code never attached the caller's
 // token, so every address query ran as `anon` and matched nothing.
@@ -49,11 +50,11 @@ export async function POST(request) {
   const { client, user, error } = await requireUser(request);
   if (error) return error;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
   }
 
   const fields = pick(body);
@@ -84,14 +85,14 @@ export async function PATCH(request) {
   const { client, user, error } = await requireUser(request);
   if (error) return error;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
   }
 
-  const id = body?.id;
+  const id = body.id;
   if (!id || typeof id !== "string") {
     return NextResponse.json({ error: "Address id is required" }, { status: 400 });
   }
@@ -122,14 +123,14 @@ export async function DELETE(request) {
   const { client, user, error } = await requireUser(request);
   if (error) return error;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
   }
 
-  const id = body?.id;
+  const id = body.id;
   if (!id || typeof id !== "string") {
     return NextResponse.json({ error: "Address id is required" }, { status: 400 });
   }

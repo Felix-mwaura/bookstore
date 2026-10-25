@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
 import { SUPABASE_URL } from "../../../lib/supabase-config";
+import { readJsonBody, isJsonObject, ADMIN_BODY } from "../../../lib/request-guard";
 
 // Only these columns can ever be written from the browser — blocks
 // mass-assignment of things like rating/reviews/created_at, and `stock`
@@ -162,8 +163,12 @@ export async function POST(request) {
   if (auth instanceof NextResponse) return auth;
   const { adminClient, user } = auth;
 
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
+  const parsed = await readJsonBody(request, { maxBytes: ADMIN_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
+  }
 
   const { data: fields, error: vError } = sanitize(body, { partial: false });
   if (vError) return NextResponse.json({ error: vError }, { status: 400 });
@@ -188,9 +193,17 @@ export async function PATCH(request) {
   if (auth instanceof NextResponse) return auth;
   const { adminClient, user } = auth;
 
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-  if (!body.id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: ADMIN_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
+  }
+
+  const id = Number(body.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "A valid book id is required" }, { status: 400 });
+  }
 
   const { data: fields, error: vError } = sanitize(body, { partial: true });
   if (vError) return NextResponse.json({ error: vError }, { status: 400 });
@@ -210,7 +223,7 @@ export async function PATCH(request) {
   let data;
   if (Object.keys(fields).length > 0) {
     const { data: updated, error } = await adminClient
-      .from("books").update(fields).eq("id", body.id).select().maybeSingle();
+      .from("books").update(fields).eq("id", id).select().maybeSingle();
     if (error) {
       console.error("PATCH /api/admin/books:", error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
@@ -231,7 +244,7 @@ export async function PATCH(request) {
         : "Stock edited from the book form";
 
     const { data: adjusted, error: stockError } = await adminClient.rpc("adjust_book_stock", {
-      p_book_id: body.id,
+      p_book_id: id,
       p_new_quantity: stockTarget,
       p_reason: stockReason,
       p_note: stockNote,
@@ -250,7 +263,7 @@ export async function PATCH(request) {
     data = adjusted;
   }
 
-  await logActivity(adminClient, user, "book_updated", body.id, {
+  await logActivity(adminClient, user, "book_updated", id, {
     title: data.title,
     fields: Object.keys(fields).concat(hasStockChange ? ["stock_quantity"] : []),
   });
@@ -264,10 +277,17 @@ export async function DELETE(request) {
   if (auth instanceof NextResponse) return auth;
   const { adminClient, user } = auth;
 
-  let body;
-  try { body = await request.json(); } catch { return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }); }
-  const { id } = body;
-  if (!id) return NextResponse.json({ error: "id is required" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: ADMIN_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
+  if (!isJsonObject(body)) {
+    return NextResponse.json({ error: "A JSON object is required." }, { status: 400 });
+  }
+
+  const id = Number(body.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "A valid book id is required" }, { status: 400 });
+  }
 
   const { data: book } = await adminClient.from("books").select("title,cover_url").eq("id", id).maybeSingle();
   if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
