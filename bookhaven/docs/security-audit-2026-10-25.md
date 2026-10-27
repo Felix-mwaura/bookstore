@@ -399,14 +399,18 @@ Consequences: anyone who knows (or guesses) a user UUID can trigger a welcome em
 
 ---
 
-## 7. Migrations (written, **not applied**)
+## 7. Migrations
 
-Each file carries its own rollback statements in a trailing comment. None has been executed anywhere — not on a branch database, not in a transaction. **Review the SQL before running it.**
+Each file carries its own rollback statements in a trailing comment.
+
+**Updated 27 October 2026.** The live project was hardened directly, through the Supabase MCP, in three recorded migrations: `20261027173623` (privileges + RLS policies), `20261027173645` (defaults, nullability, the wishlist foreign key, `delivery_rate()`, five FK indexes) and `20261027173820` (`wishlists(book_id)` index). The files are in `supabase/migrations/` under those versions.
+
+What that means for the table below: `20261025121000` is now **applied** (as part of `20261027173645`), and `20261025120000` is **partly** applied — its TRUNCATE/REFERENCES/TRIGGER revokes and its write revokes on the five service-role tables are live, while its extra tightening (revoking anon `INSERT`/`DELETE` on `profiles`, anon writes on `addresses`/`wishlists`) is not. Both files remain safe to replay. `20261025122000` and `20261025130000` are still unapplied.
 
 | File | Purpose | Risk if applied | Rollback |
 | --- | --- | --- | --- |
 | `supabase/migrations/20261025120000_revoke_broad_grants.sql` | Drop unused privileges from `anon`/`authenticated`; keep only what the app uses | If some client path uses a privilege this revokes, that call starts failing with `42501`. The app paths that matter (addresses, wishlists, profile edit, reviews, catalogue reads) are re-granted in the same file | Re-grant the specific privilege named in the error; the file ends with the exact statements |
-| `supabase/migrations/20261025121000_delivery_rate_search_path.sql` | Pin `search_path = ''`; revoke `EXECUTE` from `anon` | `delivery_rate()` is called with `authenticated`/service role only; anon never prices a cart | `alter function … reset search_path; grant execute … to anon;` |
+| `supabase/migrations/20261025121000_delivery_rate_search_path.sql` | Pin `search_path = public`; revoke `EXECUTE` from `anon`, `authenticated` and `PUBLIC`; grant it to `service_role` | Both call sites use the service role, so nothing else needs it; an anon call now fails with `42501` instead of pricing a cart | `alter function … reset search_path; grant execute … to anon, authenticated;` |
 | `supabase/migrations/20261025122000_mpesa_payments_phone_index.sql` | Index `(phone, created_at desc)` | Build locks writes briefly; the table is small | `drop index if exists …` |
 | `supabase/migrations/20261025130000_rate_limit_store.sql` (round 2) | `rate_limits` table + `check_rate_limit()` for the newsletter and admin assistant | None on read paths; without it those two limiters stay per instance (fail-open, logged) | `drop function check_rate_limit(text,int,int); drop table rate_limits;` |
 **Suggested order:** apply the phone index first (purely additive), then the grants, then `search_path`. Apply to a Supabase branch first if you have one; otherwise take a backup (the free plan has none) and apply in a quiet window.
