@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, isOwnerEmail } from "../../../lib/admin-auth";
+import { dbErrorResponse } from "../../../lib/api-error";
 import { readJsonObject, SMALL_BODY } from "../../../lib/request-guard";
 
 // GET /api/admin/users — full user list including real emails.
@@ -17,7 +18,13 @@ export async function GET(request) {
     adminClient.auth.admin.listUsers({ perPage: 1000 }),
   ]);
 
-  if (authError) return NextResponse.json({ error: authError.message }, { status: 500 });
+  if (authError) {
+    return dbErrorResponse({
+      route: "GET /api/admin/users (auth)",
+      error: authError,
+      fallback: "Could not load the account list.",
+    });
+  }
 
   const authUsers = authData?.users || [];
   const users = (profilesData || []).map(p => {
@@ -60,7 +67,13 @@ export async function PATCH(request) {
   }
 
   const { data: target, error: targetError } = await adminClient.from("profiles").select("id, role").eq("id", id).maybeSingle();
-  if (targetError) return NextResponse.json({ error: targetError.message }, { status: 500 });
+  if (targetError) {
+    return dbErrorResponse({
+      route: "PATCH /api/admin/users (lookup)",
+      error: targetError,
+      fallback: "Could not load that user.",
+    });
+  }
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
   if (target.role === role) return NextResponse.json({ profile: target });
 
@@ -79,8 +92,12 @@ export async function PATCH(request) {
 
   const { data, error } = await adminClient.from("profiles").update({ role }).eq("id", id).select().single();
   if (error) {
-    console.error("PATCH /api/admin/users:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse({
+      route: "PATCH /api/admin/users",
+      error,
+      fallback: "Could not change that user's role.",
+      context: { targetId: id, role },
+    });
   }
 
   const { error: logError } = await adminClient.from("admin_activity_log").insert({

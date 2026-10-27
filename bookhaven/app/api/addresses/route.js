@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { clientForToken, bearerToken } from "../../lib/server";
+import { readJsonBody, SMALL_BODY } from "../../lib/request-guard";
+import { dbErrorResponse } from "../../lib/api-error";
 
 // Same bug as the wishlist route: the old code never attached the caller's
 // token, so every address query ran as `anon` and matched nothing.
@@ -41,7 +43,13 @@ export async function GET(request) {
     .eq("user_id", user.id)
     .order("is_default", { ascending: false });
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) {
+    return dbErrorResponse({
+      route: "GET /api/addresses",
+      error: dbError,
+      fallback: "We could not load your addresses. Please try again.",
+    });
+  }
   return NextResponse.json({ addresses: data || [] });
 }
 
@@ -49,12 +57,11 @@ export async function POST(request) {
   const { client, user, error } = await requireUser(request);
   if (error) return error;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
+  const body = parsed.body;
 
   const fields = pick(body);
   if (!fields.name || !fields.address || !fields.city || !fields.phone) {
@@ -76,7 +83,13 @@ export async function POST(request) {
     .select()
     .single();
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) {
+    return dbErrorResponse({
+      route: "POST /api/addresses",
+      error: dbError,
+      fallback: "We could not save that address. Please try again.",
+    });
+  }
   return NextResponse.json({ address: data });
 }
 
@@ -84,12 +97,11 @@ export async function PATCH(request) {
   const { client, user, error } = await requireUser(request);
   if (error) return error;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
+  const body = parsed.body;
 
   const id = body?.id;
   if (!id || typeof id !== "string") {
@@ -113,7 +125,13 @@ export async function PATCH(request) {
     .select()
     .maybeSingle();
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) {
+    return dbErrorResponse({
+      route: "PATCH /api/addresses",
+      error: dbError,
+      fallback: "We could not update that address. Please try again.",
+    });
+  }
   if (!data) return NextResponse.json({ error: "Address not found" }, { status: 404 });
   return NextResponse.json({ address: data });
 }
@@ -122,12 +140,11 @@ export async function DELETE(request) {
   const { client, user, error } = await requireUser(request);
   if (error) return error;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
+  const body = parsed.body;
 
   const id = body?.id;
   if (!id || typeof id !== "string") {
@@ -140,6 +157,12 @@ export async function DELETE(request) {
     .eq("id", id)
     .eq("user_id", user.id);
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) {
+    return dbErrorResponse({
+      route: "DELETE /api/addresses",
+      error: dbError,
+      fallback: "We could not delete that address. Please try again.",
+    });
+  }
   return NextResponse.json({ success: true });
 }

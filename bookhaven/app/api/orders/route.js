@@ -3,6 +3,7 @@ import { clientForToken, bearerToken, serviceClient } from "../../lib/server";
 import { queueEmailDispatch } from "../../lib/email-dispatch";
 import { DELIVERY_PERCENT } from "../../lib/site";
 import { readJsonBody, ORDER_BODY } from "../../lib/request-guard";
+import { dbErrorResponse } from "../../lib/api-error";
 import { codVerdict, codLimitMessage } from "../../lib/request-limits.js";
 
 // GET /api/orders — the signed-in customer's own orders (RLS-enforced)
@@ -20,7 +21,13 @@ export async function GET(request) {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return dbErrorResponse({
+      route: "GET /api/orders",
+      error,
+      fallback: "We could not load your orders. Please try again.",
+    });
+  }
   return NextResponse.json({ orders: data || [] });
 }
 

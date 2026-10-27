@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
 import { readJsonObject, ORDER_BODY } from "../../../lib/request-guard";
 import { sanitize, coverPrefix } from "../../../lib/book-admin.js";
+import { dbErrorResponse } from "../../../lib/api-error";
 
 function logActivity(adminClient, user, action, id, details) {
   return adminClient.from("admin_activity_log").insert({
@@ -19,8 +20,11 @@ export async function GET(request) {
 
   const { data, error } = await adminClient.from("books").select("*").order("id");
   if (error) {
-    console.error("GET /api/admin/books:", error.message);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return dbErrorResponse({
+      route: "GET /api/admin/books",
+      error,
+      fallback: "Could not load the catalogue.",
+    });
   }
 
   // Real ratings, from real reviews. The `rating` and `reviews` columns on
@@ -68,8 +72,12 @@ export async function POST(request) {
     // number this change set removes. Real figures come from book_reviews.
     .from("books").insert({ ...fields, rating: null, reviews: 0, tags: [] }).select().single();
   if (error) {
-    console.error("POST /api/admin/books:", error.message);
-    return NextResponse.json({ error: error.message }, { status: error.code === "23505" ? 409 : 500 });
+    return dbErrorResponse({
+      route: "POST /api/admin/books",
+      error,
+      fallback: "Could not save that book.",
+      context: { title: fields.title },
+    });
   }
 
   await logActivity(adminClient, user, "book_added", data.id, { title: data.title });
@@ -107,8 +115,12 @@ export async function PATCH(request) {
     const { data: updated, error } = await adminClient
       .from("books").update(fields).eq("id", body.id).select().maybeSingle();
     if (error) {
-      console.error("PATCH /api/admin/books:", error.message);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return dbErrorResponse({
+        route: "PATCH /api/admin/books",
+        error,
+        fallback: "Could not save your changes.",
+        context: { bookId: body.id },
+      });
     }
     if (!updated) return NextResponse.json({ error: "Book not found" }, { status: 404 });
     data = updated;
@@ -169,17 +181,38 @@ export async function DELETE(request) {
   if (!book) return NextResponse.json({ error: "Book not found" }, { status: 404 });
 
   const { data: hasOrders, error: checkError } = await adminClient.rpc("book_has_orders", { p_book_id: id });
-  if (checkError) return NextResponse.json({ error: checkError.message }, { status: 500 });
+  if (checkError) {
+    return dbErrorResponse({
+      route: "DELETE /api/admin/books (check)",
+      error: checkError,
+      fallback: "Could not check whether that book can be deleted.",
+      context: { bookId: id },
+    });
+  }
 
   if (hasOrders) {
     const { error } = await adminClient.from("books").update({ is_archived: true }).eq("id", id);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) {
+      return dbErrorResponse({
+        route: "DELETE /api/admin/books (archive)",
+        error,
+        fallback: "Could not archive that book.",
+        context: { bookId: id },
+      });
+    }
     await logActivity(adminClient, user, "book_archived", id, { title: book.title, reason: "referenced by existing orders" });
     return NextResponse.json({ archived: true, deleted: false });
   }
 
   const { error } = await adminClient.from("books").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return dbErrorResponse({
+      route: "DELETE /api/admin/books",
+      error,
+      fallback: "Could not delete that book.",
+      context: { bookId: id },
+    });
+  }
 
   // Best-effort: remove the now-orphaned cover file. Failure here must not
   // fail the delete — the book row is already gone.

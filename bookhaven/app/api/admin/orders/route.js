@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
+import { dbErrorResponse } from "../../../lib/api-error";
 import { readJsonObject, SMALL_BODY } from "../../../lib/request-guard";
 import { queueEmailDispatch } from "../../../lib/email-dispatch";
 
@@ -17,7 +18,13 @@ export async function GET(request) {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return dbErrorResponse({
+      route: "GET /api/admin/orders",
+      error,
+      fallback: "Could not load orders.",
+    });
+  }
   return NextResponse.json(
     { orders: data },
     { headers: { "Cache-Control": "no-store" } }

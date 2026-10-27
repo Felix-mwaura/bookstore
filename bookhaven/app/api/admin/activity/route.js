@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
+import { dbErrorResponse } from "../../../lib/api-error";
 
 // GET /api/admin/activity — recent admin actions (admin only)
 export async function GET(request) {
@@ -13,6 +14,12 @@ export async function GET(request) {
     .order("created_at", { ascending: false })
     .limit(100);
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return dbErrorResponse({
+      route: "GET /api/admin/activity",
+      error,
+      fallback: "Could not load the activity log.",
+    });
+  }
   return NextResponse.json({ log: data || [] });
 }
