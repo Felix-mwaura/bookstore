@@ -4,6 +4,7 @@ import { readJsonObject, ORDER_BODY } from "../../../lib/request-guard";
 import { TOOL_DEFINITIONS, storeSnapshot } from "../../../lib/admin-agent-tools";
 import { runAgentTurn } from "../../../lib/agent-runner";
 import { agentConfig, friendlyProviderMessage, ProviderError } from "../../../lib/agent-provider";
+import { checkRateLimit } from "../../../lib/rate-limit";
 
 // Admin-only. The assistant can READ the store and explain it; it cannot
 // change anything. Every write on this dashboard still goes through the
@@ -15,23 +16,8 @@ const MAX_MESSAGES = 14;
 const MAX_MESSAGE_CHARS = 4000;
 const MAX_TOTAL_CHARS = 20000;
 
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_PER_WINDOW = 20;
-const hits = new Map();
-
-function rateLimited(userId) {
-  const now = Date.now();
-  const recent = (hits.get(userId) || []).filter((t) => now - t < WINDOW_MS);
-  recent.push(now);
-  hits.set(userId, recent);
-
-  if (hits.size > 1000) {
-    for (const [key, times] of hits) {
-      if (!times.some((t) => now - t < WINDOW_MS)) hits.delete(key);
-    }
-  }
-  return recent.length > MAX_PER_WINDOW;
-}
+// 20 turns per admin per 10 minutes, counted in a shared store so a fresh
+// serverless instance does not hand out a fresh allowance (app/lib/rate-limit.js).
 
 /** Merge same-role turns and clamp size. Returns null when unusable. */
 function cleanMessages(raw) {
@@ -107,10 +93,22 @@ export async function POST(request) {
     );
   }
 
-  if (rateLimited(user.id)) {
+  const limit = await checkRateLimit({ scope: "admin-agent", identifier: user.id });
+  if (limit.limited) {
     return NextResponse.json(
       { error: "That is a lot of questions in a short time. Please wait a few minutes." },
-      { status: 429 }
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds || 60) } }
+    );
+  }
+  // Every turn is a paid provider call, so this endpoint fails closed when a
+  // store it depends on breaks. An unconfigured store (nobody has set the
+  // counter up yet) still allows the assistant — the previous behaviour — and
+  // rate-limit.js logs the one-line fix.
+  if (!limit.available && limit.configured) {
+    console.error("POST /api/admin/agent: rate-limit store unavailable, refusing to spend");
+    return NextResponse.json(
+      { error: "The assistant is temporarily unavailable. Nothing was changed — please try again shortly." },
+      { status: 503 }
     );
   }
 

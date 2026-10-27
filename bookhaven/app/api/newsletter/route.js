@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/server";
 import { readJsonBody, SMALL_BODY } from "../../lib/request-guard";
+import { checkRateLimit } from "../../lib/rate-limit";
 
 // POST /api/newsletter — add an address to the announcement list.
 //
@@ -10,30 +11,28 @@ import { readJsonBody, SMALL_BODY } from "../../lib/request-guard";
 //   • the address is normalised and length-checked in one place;
 //   • a duplicate is a success for the reader, not an error.
 //
-// The limiter below is per server instance. On Vercel that means a determined
-// attacker can exceed it by landing on fresh instances, so it raises the cost
-// of casual abuse rather than acting as a hard quota. A durable limiter
-// (Upstash/Redis) is the recommended follow-up — noted in the audit report.
-
-const WINDOW_MS = 10 * 60 * 1000;
-const MAX_PER_WINDOW = 5;
-const hits = new Map();
-
-function tooMany(key) {
-  const now = Date.now();
-  const recent = (hits.get(key) || []).filter((t) => now - t < WINDOW_MS);
-  recent.push(now);
-  hits.set(key, recent);
-  if (hits.size > 5000) {
-    // Keep the map from growing without bound on a long-lived instance.
-    for (const [k, times] of hits) {
-      if (!times.some((t) => now - t < WINDOW_MS)) hits.delete(k);
-    }
-  }
-  return recent.length > MAX_PER_WINDOW;
-}
+// The counter lives in a shared store (app/lib/rate-limit.js), not in this
+// process: 5 sign-ups per connection per 10 minutes.
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/;
+
+// Throwaway inboxes are the fastest way to fill the list with addresses that
+// will never read anything. This is a speed bump, not a gate: the list is
+// short on purpose, because rejecting a real corporate domain costs more than
+// accepting a disposable one.
+const DISPOSABLE = new Set([
+  "mailinator.com",
+  "guerrillamail.com",
+  "10minutemail.com",
+  "tempmail.com",
+  "trashmail.com",
+  "yopmail.com",
+]);
+
+function isDisposable(email) {
+  const domain = email.split("@")[1] || "";
+  return DISPOSABLE.has(domain);
+}
 
 export async function POST(request) {
   const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
@@ -58,10 +57,20 @@ export async function POST(request) {
     request.headers.get("x-real-ip") ||
     "unknown";
 
-  if (tooMany(ip)) {
+  const limit = await checkRateLimit({ scope: "newsletter", identifier: ip });
+  if (limit.limited) {
     return NextResponse.json(
       { error: "Too many sign-ups from this connection. Please try later." },
-      { status: 429 }
+      { status: 429, headers: { "Retry-After": String(limit.retryAfterSeconds || 60) } }
+    );
+  }
+  // A store that is down must not block a sign-up: the worst case is a few
+  // unthrottled addresses, and `checkRateLimit` has already logged why.
+
+  if (isDisposable(email)) {
+    return NextResponse.json(
+      { error: "Please use an address you will keep — that one is a temporary inbox." },
+      { status: 400 }
     );
   }
 
