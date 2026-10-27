@@ -32,7 +32,10 @@ Two backends, neither a new dependency:
 * **Supabase** otherwise — migration `20261025130000_rate_limit_store.sql`
   adds a `rate_limits` table and one `SECURITY DEFINER` function
   (`check_rate_limit`) that increments atomically. RLS is on, `anon` and
-  `authenticated` have no grants, and only the service role calls it.
+  `authenticated` have no grants, and `service_role` gets an explicit
+  `EXECUTE` — it inherits nothing, so revoking the default `PUBLIC` grant
+  would otherwise take the function away from the one caller that needs it
+  (same grant as `set_order_status`/`place_order`).
 
 Identifiers are SHA-256 pseudonyms before they leave the process
 (`bh:rl:<scope>:<32 hex>`): a counter needs a stable key, not an IP address or a
@@ -54,11 +57,13 @@ already the thing that must not be bypassed. Switching it to a generic
 counter would let a failed insert escape the limit it used to count. The money
 path is untouched.
 
-Test: `scripts/security-rate-limit-smoke.mjs` (30 cases). It drives the helper
+Test: `scripts/security-rate-limit-smoke.mjs` (36 cases). It drives the helper
 with injected transports — allowed, limited, TTL fallback, 5xx, network error,
 missing function, empty result, the 60 s cooldown after a failure — then sweeps
 the two routes for a leftover `Map`, and confirms `stk` still limits per
-account and per phone.
+account and per phone. It also asserts the migration itself grants `EXECUTE`
+to `service_role` and to no end-user role — the failure that would only appear
+after applying it.
 
 > **Needs approval:** the migration is written, reviewed and **not applied**.
 > Until it is, or Upstash is configured, both endpoints behave exactly as they
@@ -161,7 +166,7 @@ Test: `scripts/smoke.mjs`, six new live checks (42 total).
 | `app/lib/api-error.js` | log the real error, answer with a sentence |
 | `supabase/migrations/20261025130000_rate_limit_store.sql` | counter table + `check_rate_limit()` — **not applied** |
 | `app/api/addresses/route.js` | the address route, correctly spelled |
-| `scripts/security-rate-limit-smoke.mjs` | 30 cases, injected transports |
+| `scripts/security-rate-limit-smoke.mjs` | 36 cases, injected transports + migration grants |
 | `scripts/security-errors-smoke.mjs` | 23 routes swept |
 | `scripts/security-newsletter-smoke.mjs` | live HTTP, real duplicate |
 | `docs/security-hardening-2026-10-27.md` | this file |

@@ -184,6 +184,21 @@ for (const [name, file] of [
   check(`${name}: sets Retry-After`, /"Retry-After"/.test(source));
 }
 
+console.log("\nThe migration grants what the app actually needs");
+const migration = readFileSync(
+  join(here, "..", "supabase", "migrations", "20261025130000_rate_limit_store.sql"),
+  "utf8"
+);
+check("creates the counter table", /create table if not exists public\.rate_limits/.test(migration));
+check("the function is SECURITY DEFINER", /security definer/.test(migration));
+check("the function pins search_path", /set search_path = ''/.test(migration));
+check("no end-user role may execute it", /revoke execute[\s\S]*?anon, authenticated/.test(migration));
+// service_role inherits nothing: revoking the default PUBLIC grant takes
+// EXECUTE away from it as well, and PostgREST then answers 42501. The live
+// project shows set_order_status/place_order carrying this grant explicitly.
+check("service_role can execute it", /grant execute[\s\S]*?to service_role/.test(migration));
+check("rollback is documented", /Rollback:/.test(migration) && /drop function if exists/.test(migration));
+
 console.log("\nM-Pesa keeps its own durable limiter");
 const stk = readFileSync(join(app, "api", "mpesa", "stk", "route.js"), "utf8");
 check("stk counts payment rows, not memory", /from\("mpesa_payments"\)/.test(stk) && !/new Map\(/.test(stk));

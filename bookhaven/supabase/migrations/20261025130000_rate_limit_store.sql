@@ -93,7 +93,15 @@ comment on function public.check_rate_limit(text, integer, integer) is
 -- The app calls this with the service-role key, which bypasses RLS. No
 -- end-user role has any business counting here, and SECURITY DEFINER would
 -- otherwise let any signed-in user write rows.
-revoke execute on function public.check_rate_limit(text, integer, integer) from public, anon, authenticated;
+revoke execute on function public.check_rate_limit(text, integer, integer)
+  from public, anon, authenticated;
+
+-- ...but `service_role` inherits nothing, so revoking the default PUBLIC grant
+-- takes EXECUTE away from it too: PostgREST would answer 42501 permission
+-- denied and both routes would sit in their failure path. Grant it back
+-- explicitly, the way set_order_status() and place_order() already are.
+grant execute on function public.check_rate_limit(text, integer, integer)
+  to service_role;
 
 -- Rollback:
 --   drop function if exists public.check_rate_limit(text, integer, integer);
