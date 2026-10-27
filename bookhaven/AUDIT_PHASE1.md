@@ -33,7 +33,7 @@ code in this repository. No database rows were modified during the audit
 | 2 | High | `GET /api/mpesa/token` returned a Daraja OAuth token to **any anonymous caller**. | Route had no auth check |
 | 3 | High | `POST /api/mpesa/stk` was unauthenticated and trusted a client-supplied `amount`, so anyone could trigger pushes to arbitrary numbers for any amount. | Route read `phone/amount/orderId` from the body |
 | 4 | Critical | `POST /api/mpesa/callback` **inserted** `mpesa_payments` rows from an unauthenticated request and then updated `orders` directly. A forged success payload could mint a "completed" payment; real successful callbacks never set `user_id` or `expected_amount`, so `place_order()` rejected every M-Pesa order. | Callback inserts with no `user_id`; all 4 stored payments have null amounts |
-| 5 | High | `/api/wishlist` and `/api/adresses` never attached the caller's JWT, so every query ran as the `anon` role: reads silently returned nothing, writes were rejected. `PATCH /api/adresses` spread `...rest` into the update, allowing `user_id` to be reassigned. | Route built a plain `createClient` |
+| 5 | High | `/api/wishlist` and `/api/addresses` never attached the caller's JWT, so every query ran as the `anon` role: reads silently returned nothing, writes were rejected. `PATCH /api/addresses` spread `...rest` into the update, allowing `user_id` to be reassigned. | Route built a plain `createClient` |
 | 6 | High | `orders.total` stored **only the item subtotal**; the delivery fee was dropped. The checkout UI showed subtotal + delivery, plus a KSh 50 COD fee that was never stored anywhere. | `place_order` inserted `v_subtotal`; all 6 orders have `total = items_subtotal` |
 | 7 | High | No duplicate-submission protection. A double click created two orders and decremented stock twice. | No idempotency key |
 | 8 | High | `PATCH /api/admin/orders` did read-then-write with no row lock and no transition rules. Concurrent cancels could restock twice; invalid transitions (Delivered → Processing) were accepted. | Code read `existing` then updated separately |
@@ -86,7 +86,7 @@ code in this repository. No database rows were modified during the audit
 | `app/api/mpesa/query/route.js` | Requires a session; only the owner's checkout id; asks Safaricom and reconciles the row. |
 | `app/api/mpesa/token/route.js` | Admin-only connectivity check; the token never leaves the server. |
 | `app/api/wishlist/route.js` | Attaches the caller's JWT; validates `bookId`. |
-| `app/api/adresses/route.js` | Attaches the caller's JWT; whitelists writable fields; validates input. |
+| `app/api/addresses/route.js` | Attaches the caller's JWT; whitelists writable fields; validates input. |
 | `app/checkout/page.js` | Sign-in gate before payment; `idempotencyKey`; M-Pesa sends items, not an amount; real saved order id on confirmation; server totals; COD surcharge removed; fake card flow removed; cart cleared only after a successful save; retry path when saving fails. |
 | `app/admin/admin-client.js` | Status control only offers transitions the server accepts; terminal states are read-only; cancellation copy no longer says it can be reversed. |
 | `app/login/page.js` | `maybeSingle()` for the role lookup. |
