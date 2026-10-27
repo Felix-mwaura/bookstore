@@ -57,7 +57,7 @@ already the thing that must not be bypassed. Switching it to a generic
 counter would let a failed insert escape the limit it used to count. The money
 path is untouched.
 
-Test: `scripts/security-rate-limit-smoke.mjs` (36 cases). It drives the helper
+Test: `scripts/security-rate-limit-smoke.mjs` (51 checks). It drives the helper
 with injected transports — allowed, limited, TTL fallback, 5xx, network error,
 missing function, empty result, the 60 s cooldown after a failure — then sweeps
 the two routes for a leftover `Map`, and confirms `stk` still limits per
@@ -166,7 +166,7 @@ Test: `scripts/smoke.mjs`, six new live checks (42 total).
 | `app/lib/api-error.js` | log the real error, answer with a sentence |
 | `supabase/migrations/20261025130000_rate_limit_store.sql` | counter table + `check_rate_limit()` — **not applied** |
 | `app/api/addresses/route.js` | the address route, correctly spelled |
-| `scripts/security-rate-limit-smoke.mjs` | 36 cases, injected transports + migration grants |
+| `scripts/security-rate-limit-smoke.mjs` | 51 checks, injected transports + migration grants |
 | `scripts/security-errors-smoke.mjs` | 23 routes swept |
 | `scripts/security-newsletter-smoke.mjs` | live HTTP, real duplicate |
 | `docs/security-hardening-2026-10-27.md` | this file |
