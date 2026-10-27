@@ -176,6 +176,45 @@ if (newsletter) {
   expect("/api/newsletter rejects a bad address → 400", newsletter.status === 400, `got ${newsletter.status}`);
 }
 
+/* ── M-Pesa endpoints stay as narrow as they were ───────────────────── */
+
+// The checkout asks whether M-Pesa is available. That answer is public on
+// purpose, so it must not carry anything else: no shortcode, no callback URL,
+// no hint about which credential is missing.
+const mpesaStatus = await request("/api/mpesa/status");
+if (mpesaStatus) {
+  const payText = await mpesaStatus.text();
+  let payJson = null;
+  try {
+    payJson = JSON.parse(payText);
+  } catch {
+    // Reported by the assertion below.
+  }
+  const keys = payJson ? Object.keys(payJson).sort().join(",") : "(unparseable)";
+  expect("/api/mpesa/status is public → 200", mpesaStatus.status === 200, `got ${mpesaStatus.status}`);
+  expect("/api/mpesa/status returns only enabled/environment", keys === "enabled,environment", `keys: ${keys}`);
+  expect(
+    "/api/mpesa/status names no credential",
+    !/shortcode|consumer|passkey|callback|secret/i.test(payText),
+    payText.slice(0, 120)
+  );
+}
+
+await expectAdminGuard("/api/mpesa/token");
+
+const mpesaToken = await request("/api/mpesa/token");
+if (mpesaToken) {
+  const tokenText = await mpesaToken.text();
+  expect("/api/mpesa/token is admin-only → 401", mpesaToken.status === 401, `got ${mpesaToken.status}`);
+  expect("/api/mpesa/token leaks nothing to an anonymous caller", !/token|secret|password/i.test(tokenText), tokenText.slice(0, 120));
+}
+
+/* ── the address route answers on both spellings ─────────────────────── */
+
+for (const path of ["/api/addresses", "/api/adresses"]) {
+  await expectStatus(path, 401, `${path} GET (no token)`);
+}
+
 /* ── report ─────────────────────────────────────────────────────────── */
 
 console.log(`\nBook Haven smoke test — ${base}\n`);
