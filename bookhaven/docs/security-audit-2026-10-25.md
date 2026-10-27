@@ -59,7 +59,7 @@ Severity: **Critical** (exploitable now, severe impact) · **High** (exploitable
 | SEC-13 | Info | `AUDIT_PHASE4.md:120,133,129` | Stale audit claims | "No `dangerouslySetInnerHTML` on user data", "callback cannot be forged (…) amount ≥ expected" and "CSP (D14) open" now read as if the issues were absent/covered | **Fixed** | see `AUDIT_PHASE4.md` banner |
 | SEC-14 | Medium | Supabase Auth settings | Production auth configuration is a development one | `site_url: http://localhost:3000`, `webauthn_rp_id: localhost`, `mailer_autoconfirm: true`, `password_min_length: 6`, HIBP off, captcha off, no session timeout | **Report only — needs your approval** (§6 J) | — |
 | SEC-15 | Info | migrations | Provenance drift | 17 applied vs 8 files; 13 applied names have no same-named file, 4 files have no same-named applied row | **Reported** (§5 B5) | — |
-| SEC-16 | Low | `app/api/admin/agent/route.js:18-33` | Rate limit is per serverless instance | module-level `Map`, 20 turns/10 min per admin | **Accepted** (low value target, admin-only) | — |
+| SEC-16 | Low | `app/api/admin/agent/route.js:18-33` | Rate limit is per serverless instance | module-level `Map`, 20 turns/10 min per admin | **Fixed in round 2** — shared store, see `docs/security-hardening-2026-10-27.md`; needs migration `20261025130000` | — |
 | SEC-17 | Info | `app/api/admin/agent/*` | AI assistant is read-only and renders text | tools expose only SELECT-shaped helpers + `admin_dashboard_metrics`; no write tool; output rendered as React text | **PASS, no change** | — |
 
 ### What was already right (do not regress these)
@@ -176,7 +176,7 @@ const limit = mpesaAttemptVerdict({ accountAttempts, phoneAttempts });   // 5/ac
 .insert({ user_id: user.id, phone: formattedPhone, expected_amount: Math.ceil(amount), status: "pending" })
 ```
 
-Both counts come from the database, so they survive a serverless cold start (the admin assistant's limiter, by contrast, is per instance — SEC-16). Test: `scripts/security-mpesa-limits-smoke.mjs`; the index that keeps the phone count cheap is migration `20261025122000`.
+Both counts come from the database, so they survive a serverless cold start (the admin assistant's limiter counted per instance until round 2 fixed it — SEC-16). Test: `scripts/security-mpesa-limits-smoke.mjs`; the index that keeps the phone count cheap is migration `20261025122000`.
 
 ### SEC-05 — M-Pesa callback had no shared secret · Medium · `db09561`
 
@@ -326,7 +326,7 @@ Consequences: anyone who knows (or guesses) a user UUID can trigger a welcome em
 | # | Item | Verdict | Evidence |
 | --- | --- | --- | --- |
 | F1 | COD hoarding | **PASS (after fix)** | SEC-07 |
-| F2 | Rate limiter scope | **PARTIAL** | orders and M-Pesa use database counts; the admin agent uses a per-instance `Map` (SEC-16, accepted) |
+| F2 | Rate limiter scope | **PASS (round 2)** | orders and M-Pesa use database counts; the newsletter and admin agent use a shared store (SEC-16), pending migration `20261025130000` |
 | F3 | Flooding | **PASS** | orders 8/10 min; M-Pesa 5/10 min + 3/number; callback body capped |
 | F4 | Post-payment stock/price mismatch | **PASS** | `place_order` re-checks stock and total and refuses; stock is re-checked in `stk` before the push |
 
@@ -408,7 +408,7 @@ Each file carries its own rollback statements in a trailing comment. None has be
 | `supabase/migrations/20261025120000_revoke_broad_grants.sql` | Drop unused privileges from `anon`/`authenticated`; keep only what the app uses | If some client path uses a privilege this revokes, that call starts failing with `42501`. The app paths that matter (addresses, wishlists, profile edit, reviews, catalogue reads) are re-granted in the same file | Re-grant the specific privilege named in the error; the file ends with the exact statements |
 | `supabase/migrations/20261025121000_delivery_rate_search_path.sql` | Pin `search_path = ''`; revoke `EXECUTE` from `anon` | `delivery_rate()` is called with `authenticated`/service role only; anon never prices a cart | `alter function … reset search_path; grant execute … to anon;` |
 | `supabase/migrations/20261025122000_mpesa_payments_phone_index.sql` | Index `(phone, created_at desc)` | Build locks writes briefly; the table is small | `drop index if exists …` |
-
+| `supabase/migrations/20261025130000_rate_limit_store.sql` (round 2) | `rate_limits` table + `check_rate_limit()` for the newsletter and admin assistant | None on read paths; without it those two limiters stay per instance (fail-open, logged) | `drop function check_rate_limit(text,int,int); drop table rate_limits;` |
 **Suggested order:** apply the phone index first (purely additive), then the grants, then `search_path`. Apply to a Supabase branch first if you have one; otherwise take a backup (the free plan has none) and apply in a quiet window.
 
 ---
@@ -484,7 +484,7 @@ Rendered checks against the local production build:
 
 9. **Nonce-based CSP** — widen the `proxy.js` matcher, mint a nonce per request, read it in `app/layout.js`, and verify hydration on `/checkout`, `/cart` and `/admin` before promoting. This is the one finding I deliberately left open.
 10. **Commit the nine unrepresented migrations** (or a comment mapping them) so a fresh database can be rebuilt from this repo.
-11. **Add `DB`-backed rate limits** to the admin assistant if it ever becomes a cost problem (SEC-16).
+11. ~~Add `DB`-backed rate limits to the admin assistant (SEC-16).~~ Done in round 2 — apply `20261025130000_rate_limit_store.sql` or set `UPSTASH_REDIS_REST_URL`/`_TOKEN`.
 12. **Wire `npm test` into CI** so these regression guards run on every push.
 
 ---
