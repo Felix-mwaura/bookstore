@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { serviceClient } from "../../lib/server";
 import { readJsonBody, SMALL_BODY } from "../../lib/request-guard";
 import { checkRateLimit } from "../../lib/rate-limit";
+import { logRouteError } from "../../lib/api-error";
 
 // POST /api/newsletter — add an address to the announcement list.
 //
@@ -88,7 +89,7 @@ export async function POST(request) {
   // 23505 = unique violation, i.e. already on the list. That is a success
   // from the reader's point of view and should not reveal who is subscribed.
   if (error && error.code !== "23505") {
-    console.error("/api/newsletter insert failed:", error.message);
+    logRouteError("POST /api/newsletter", error, { source: "homepage" });
     return NextResponse.json({ error: "We could not save your address. Please try again." }, { status: 500 });
   }
 

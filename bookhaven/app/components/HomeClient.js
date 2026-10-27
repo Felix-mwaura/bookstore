@@ -224,6 +224,10 @@ function TrustStrip({ mpesaEnabled }) {
 
 function Newsletter() {
   const [email, setEmail] = useState("");
+  // Honeypot. The route answers a filled trap with success, so a script that
+  // posts every field it finds learns nothing. Kept out of the tab order and
+  // out of the accessibility tree, because a person must never land on it.
+  const [company, setCompany] = useState("");
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -242,7 +246,7 @@ function Newsletter() {
       const response = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: value }),
+        body: JSON.stringify({ email: value, company }),
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
@@ -279,6 +283,18 @@ function Newsletter() {
           ) : (
             <form onSubmit={subscribe} className="w-full">
               <label htmlFor="newsletter-email" className="sr-only">Email address</label>
+              <div aria-hidden="true" className="sr-only">
+                <label htmlFor="newsletter-company">Company</label>
+                <input
+                  id="newsletter-company"
+                  name="company"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={company}
+                  onChange={(event) => setCompany(event.target.value)}
+                />
+              </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <input
                   id="newsletter-email"
