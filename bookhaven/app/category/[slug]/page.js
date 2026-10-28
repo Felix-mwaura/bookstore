@@ -6,7 +6,7 @@ import BookGrid, { CatalogueEmpty } from "../../components/BookGrid";
 import Pagination from "../../components/Pagination";
 import { ActiveFilterChips, CatalogueSidebar, MobileFilterButton, SortSelect } from "../../components/CatalogueControls";
 import { getCategoryCounts, isSort, priceBand, queryCatalogue } from "../../lib/catalogue";
-import { categories, categoryFromSlug, categorySlug } from "../../lib/categories";
+import { findGenre, getGenres } from "../../lib/genres-data";
 import { SITE_NAME } from "../../lib/site";
 
 export const dynamic = "force-dynamic";
@@ -32,15 +32,15 @@ const descriptions = {
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const category = categoryFromSlug(slug);
-  if (!category) return { title: "Category not found" };
+  const genre = findGenre(await getGenres(), slug);
+  if (!genre) return { title: "Category not found" };
 
-  const title = `${category} books · ${SITE_NAME}`;
+  const title = `${genre.name} books · ${SITE_NAME}`;
   return {
     title,
-    description: descriptions[category] ?? `Browse ${category} books at ${SITE_NAME}.`,
-    alternates: { canonical: `/category/${categorySlug(category)}` },
-    openGraph: { title, url: `/category/${categorySlug(category)}` },
+    description: descriptions[genre.name] ?? `Browse ${genre.name} books at ${SITE_NAME}.`,
+    alternates: { canonical: `/category/${genre.slug}` },
+    openGraph: { title, url: `/category/${genre.slug}` },
   };
 }
 
@@ -48,8 +48,13 @@ const one = (value) => (Array.isArray(value) ? value[0] : value) || "";
 
 export default async function CategoryPage({ params, searchParams }) {
   const { slug } = await params;
-  const category = categoryFromSlug(slug);
-  if (!category) notFound();
+  // Genres are data now (see app/lib/genres-data.js). The old slug lookup
+  // could only ever know the eight hard-coded names; this one knows whatever
+  // the admin has added, and a slug that matches nothing is still a 404.
+  const genres = await getGenres();
+  const genre = findGenre(genres, slug);
+  if (!genre) notFound();
+  const category = genre.name;
 
   const sp = await searchParams;
   const sort = isSort(one(sp.sort)) ? one(sp.sort) : "newest";
@@ -58,7 +63,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const q = one(sp.q).slice(0, 80);
   const page = Math.max(1, Number(one(sp.page)) || 1);
 
-  const basePath = `/category/${categorySlug(category)}`;
+  const basePath = `/category/${genre.slug}`;
   const queryParams = { q, category: "", sort, price, availability, page };
   // Category pages are already scoped, so the sidebar only offers the other
   // shelves as cross-links instead of a competing "category" filter.
@@ -93,7 +98,9 @@ export default async function CategoryPage({ params, searchParams }) {
           <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
             <div className="max-w-2xl min-w-0">
               <h1 className="text-2xl font-bold text-navy sm:text-3xl">{category}</h1>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted">{descriptions[category]}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-muted">
+                {descriptions[category] ?? `Everything we have on the ${category} shelf.`}
+              </p>
               <p className="mt-1 text-xs text-muted">
                 {total} {total === 1 ? "title" : "titles"} in this genre
               </p>
@@ -136,13 +143,13 @@ export default async function CategoryPage({ params, searchParams }) {
         <nav aria-label="Other genres" className="mt-12 border-t border-line pt-6">
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">Other genres</h2>
           <ul role="list" className="flex flex-wrap gap-2">
-            {categories.filter((c) => c !== "All" && c !== category).map((c) => (
-              <li key={c}>
+            {genres.filter((other) => other.slug !== genre.slug).map((other) => (
+              <li key={other.slug}>
                 <Link
-                  href={`/category/${categorySlug(c)}`}
+                  href={`/category/${other.slug}`}
                   className="inline-flex items-center rounded-full border border-line bg-white px-3 py-2 text-sm text-ink hover:border-navy"
                 >
-                  {c}
+                  {other.name}
                 </Link>
               </li>
             ))}

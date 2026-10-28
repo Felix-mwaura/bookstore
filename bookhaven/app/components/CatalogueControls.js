@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { categories, categorySlug } from "../lib/categories";
+import { categorySlug } from "../lib/categories";
+import { useGenres } from "./GenreProvider";
 import { PRICE_BANDS, SORT_OPTIONS } from "../lib/catalogue";
 import { buildCatalogueHref } from "../lib/catalogue-url";
 
@@ -30,6 +31,7 @@ function FilterLink({ href, active, children, count }) {
 
 /** Desktop sidebar. Plain links, so filtering works without JavaScript. */
 export function CatalogueSidebar({ basePath, params, counts }) {
+  const genres = useGenres();
   return (
     <div className="hidden lg:block">
       <div className="sticky top-24 space-y-6">
@@ -42,14 +44,14 @@ export function CatalogueSidebar({ basePath, params, counts }) {
             >
               All genres
             </FilterLink>
-            {categories.filter((c) => c !== "All").map((c) => (
+            {genres.map((genre) => (
               <FilterLink
-                key={c}
-                href={buildCatalogueHref(basePath, params, { category: c, page: 1 })}
-                active={params.category === c}
-                count={counts?.get ? counts.get(c) ?? 0 : counts?.[c]}
+                key={genre.slug}
+                href={buildCatalogueHref(basePath, params, { category: genre.name, page: 1 })}
+                active={params.category === genre.name}
+                count={counts?.get ? counts.get(genre.name) ?? 0 : counts?.[genre.name]}
               >
-                {c}
+                {genre.name}
               </FilterLink>
             ))}
           </nav>
@@ -126,6 +128,7 @@ export function SortSelect({ basePath, params }) {
 /* ── mobile filter sheet ──────────────────────────────── */
 
 export function MobileFilterButton({ basePath, params, counts, resultCount }) {
+  const genres = useGenres();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({ category: params.category || "", price: params.price || "", availability: params.availability || "" });
   const router = useRouter();
@@ -240,20 +243,20 @@ export function MobileFilterButton({ basePath, params, counts, resultCount }) {
               <fieldset>
                 <legend className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Genre</legend>
                 <div className="flex flex-wrap gap-2">
-                  {categories.filter((c) => c !== "All").map((c) => (
+                  {genres.map((genre) => (
                     <button
-                      key={c}
+                      key={genre.slug}
                       type="button"
-                      onClick={() => toggle("category", c)}
-                      aria-pressed={draft.category === c}
+                      onClick={() => toggle("category", genre.name)}
+                      aria-pressed={draft.category === genre.name}
                       className={`rounded-full border px-3 py-2 text-sm min-h-11 ${
-                        draft.category === c
+                        draft.category === genre.name
                           ? "border-navy bg-navy text-white"
                           : "border-line bg-white text-ink"
                       }`}
                     >
-                      {c}
-                      {counts?.get ? ` (${counts.get(c) ?? 0})` : ""}
+                      {genre.name}
+                      {counts?.get ? ` (${counts.get(genre.name) ?? 0})` : ""}
                     </button>
                   ))}
                 </div>

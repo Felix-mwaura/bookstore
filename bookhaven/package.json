@@ -10,7 +10,7 @@
     "agent:smoke": "node scripts/agent-smoke.mjs",
     "smoke": "node scripts/smoke.mjs",
     "cart:smoke": "node scripts/cart-smoke.mjs",
-    "test": "node scripts/cart-smoke.mjs && node scripts/price-smoke.mjs && node scripts/store-wiring.mjs && node scripts/delivery-smoke.mjs && node scripts/mpesa-smoke.mjs && node scripts/mpesa-callback-smoke.mjs && node scripts/agent-smoke.mjs && node scripts/reviews-smoke.mjs && node scripts/reviews-sql-test.mjs && node scripts/security-redirect-smoke.mjs && node scripts/security-jsonld-smoke.mjs && node scripts/security-rate-limit-smoke.mjs && node scripts/security-admin-bodies-smoke.mjs && node scripts/security-mpesa-limits-smoke.mjs && node scripts/security-callback-token-smoke.mjs && node scripts/security-config-smoke.mjs && node scripts/browser-modules-smoke.mjs && node scripts/security-edge-cors-smoke.mjs && node scripts/motion-smoke.mjs && node scripts/security-errors-smoke.mjs && node scripts/security-cod-smoke.mjs && node scripts/security-newsletter-smoke.mjs && node scripts/smoke.mjs",
+    "test": "node scripts/cart-smoke.mjs && node scripts/price-smoke.mjs && node scripts/store-wiring.mjs && node scripts/delivery-smoke.mjs && node scripts/mpesa-smoke.mjs && node scripts/mpesa-callback-smoke.mjs && node scripts/agent-smoke.mjs && node scripts/reviews-smoke.mjs && node scripts/reviews-sql-test.mjs && node scripts/security-redirect-smoke.mjs && node scripts/security-jsonld-smoke.mjs && node scripts/security-rate-limit-smoke.mjs && node scripts/security-admin-bodies-smoke.mjs && node scripts/security-mpesa-limits-smoke.mjs && node scripts/security-callback-token-smoke.mjs && node scripts/security-config-smoke.mjs && node scripts/browser-modules-smoke.mjs && node scripts/security-edge-cors-smoke.mjs && node scripts/motion-smoke.mjs && node scripts/security-errors-smoke.mjs && node scripts/security-cod-smoke.mjs && node scripts/security-newsletter-smoke.mjs && node scripts/genres-smoke.mjs && node scripts/smoke.mjs",
     "store:wiring": "node scripts/store-wiring.mjs",
     "price:smoke": "node scripts/price-smoke.mjs",
     "delivery:smoke": "node scripts/delivery-smoke.mjs",
@@ -30,7 +30,8 @@
     "security:errors": "node scripts/security-errors-smoke.mjs",
     "security:newsletter": "node scripts/security-newsletter-smoke.mjs",
     "motion:smoke": "node scripts/motion-smoke.mjs",
-    "security:browser": "node scripts/browser-modules-smoke.mjs"
+    "security:browser": "node scripts/browser-modules-smoke.mjs",
+    "genres": "node scripts/genres-smoke.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

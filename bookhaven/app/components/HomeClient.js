@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { GenreCarousel } from "./GenreCarousel";
+import { useGenres } from "./GenreProvider";
 import { HeroFan } from "./HeroFan";
 import ProductCard from "./ProductCard";
 import SectionHeading from "./SectionHeading";
 import { useStore } from "./StoreShell";
 import { armRevealOnScroll } from "../lib/reveal";
 import { STORE_CONTACT } from "../lib/site";
-import { categories } from "../lib/categories";
 
 /* ── reveal on scroll ─────────────────────────────────── */
 
@@ -401,7 +401,10 @@ export default function HomeClient({ initialBooks = [], stats: catalogueStats, m
       return acc;
     }, {});
 
-  const genres = categories.filter((category) => category !== "All");
+  // The shelf taxonomy as the database currently defines it (see
+  // app/lib/genres-data.js). A genre added in the admin appears here on the
+  // next render, with no deploy.
+  const genres = useGenres();
 
   return (
     <>

@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
-import { categories, categorySlug } from "../lib/categories";
+import { useGenres } from "./GenreProvider";
 
 /* ── icons ────────────────────────────────────────────── */
 const SearchIcon = ({ className = "w-5 h-5" }) => (
@@ -147,6 +147,9 @@ function useSessionUser() {
 
 export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartClick, onWishlistClick }) {
   const router = useRouter();
+  // The genres the shop currently sells, from the database via the root
+  // layout, with the built-in list as the value before that resolves.
+  const genres = useGenres();
   const { user, ready: sessionReady } = useSessionUser();
   const [signingOut, setSigningOut] = useState(false);
   const [query, setQuery] = useState("");
@@ -225,7 +228,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
         onChange={(e) => setCategory(e.target.value)}
         className="hidden sm:block bg-transparent pl-3 pr-1 py-2.5 text-sm text-muted border-r border-line focus:outline-none max-w-[9.5rem]"
       >
-        {categories.map((c) => (
+        {["All", ...genres.map((g) => g.name)].map((c) => (
           <option key={c} value={c}>{c === "All" ? "All categories" : c}</option>
         ))}
       </select>
@@ -359,11 +362,15 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
 
             <nav className="flex-1 overflow-y-auto py-3" aria-label="Shop">
               <p className="px-5 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted">Browse</p>
-              {categories.map((c) => (
-                <Link key={c} href={c === "All" ? "/books" : `/category/${categorySlug(c)}`}
+              <Link href="/books" onClick={() => setMenuOpen(false)}
+                className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">
+                All books
+              </Link>
+              {genres.map((genre) => (
+                <Link key={genre.slug} href={`/category/${genre.slug}`}
                   onClick={() => setMenuOpen(false)}
                   className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">
-                  {c === "All" ? "All books" : c}
+                  {genre.name}
                 </Link>
               ))}
 
