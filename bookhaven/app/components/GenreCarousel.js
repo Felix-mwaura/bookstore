@@ -58,6 +58,9 @@ export function GenreCarousel({ genres = [], counts = {} }) {
   const length = genres.length;
   const [active, setActive] = useState(0);
   const [dragging, setDragging] = useState(false);
+  // A card whose image 404s falls back to the plain panel rather than showing
+  // a broken-image glyph on a navy rectangle.
+  const [brokenArt, setBrokenArt] = useState({});
 
   // Derived, not stored: the list can change under a mounted deck (a genre
   // added or removed in the admin, then a soft navigation), and an index that
@@ -199,9 +202,12 @@ export function GenreCarousel({ genres = [], counts = {} }) {
             data-dragging={dragging ? "true" : "false"}
             style={{ "--gc-count": length }}
           >
-            {cards.map(({ name, slug, distance }) => {
+            {cards.map(({ name, slug, image_url: uploaded, distance }) => {
               const count = counts[name] || 0;
-              const art = genreArtwork(slug);
+              // The admin's own image wins; otherwise the artwork bundled for
+              // this slug, if this shop has any; otherwise the plain panel.
+              const art = uploaded ? { src: uploaded } : genreArtwork(slug);
+              const showArt = art && !brokenArt[slug];
               const depth = Math.abs(distance);
               const scale = depth === 0 ? 1 : depth === 1 ? 0.84 : 0.68;
               const opacity = depth === 0 ? 1 : depth === 1 ? 0.96 : 0.72;
@@ -226,11 +232,12 @@ export function GenreCarousel({ genres = [], counts = {} }) {
                     "--z": 30 - depth * 10,
                   }}
                 >
-                  {art ? (
+                  {showArt ? (
                     <Image
                       src={art.src}
                       alt=""
                       fill
+                      onError={() => setBrokenArt((current) => ({ ...current, [slug]: true }))}
                       // The card's own width, so the browser asks the
                       // optimiser for the smallest rendition that is still
                       // sharp — 256px on a phone, 640px on a desktop.

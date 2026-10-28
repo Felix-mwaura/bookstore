@@ -72,3 +72,45 @@ export function planGenreName(raw) {
 
   return { ok: true, name, slug };
 }
+
+/**
+ * A genre's card art has to be an image this shop is hosting, under
+ * `genres/` in the public covers bucket.
+ *
+ * Not an arbitrary URL: the homepage would then be pulling a picture from
+ * someone else's server — their tracking, their uptime, their ability to
+ * swap the image later — and next/image would refuse it anyway, because the
+ * optimiser only trusts this project's storage host.
+ *
+ * @param {unknown} raw          the field from the request body
+ * @param {string}  publicPrefix `${SUPABASE_URL}/storage/v1/object/public/book-covers/`
+ */
+export function planGenreImage(raw, publicPrefix) {
+  if (raw === null || raw === undefined || raw === "") return { ok: true, imageUrl: null };
+
+  if (typeof raw !== "string") {
+    return { ok: false, error: "The image must be a URL." };
+  }
+
+  const url = raw.trim();
+  if (!url) return { ok: true, imageUrl: null };
+
+  if (!publicPrefix || !url.startsWith(publicPrefix)) {
+    return { ok: false, error: "Upload the image here; it has to live in this store's storage." };
+  }
+
+  const path = url.slice(publicPrefix.length);
+  // One flat folder, one file: no ../, no query strings, no second folder.
+  if (!/^genres\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(path)) {
+    return { ok: false, error: "That is not a genre image path." };
+  }
+
+  return { ok: true, imageUrl: url };
+}
+
+/** The storage path inside the covers bucket, or null if the URL is not ours. */
+export function genreImagePath(url, publicPrefix) {
+  if (typeof url !== "string" || !publicPrefix || !url.startsWith(publicPrefix)) return null;
+  const path = url.slice(publicPrefix.length);
+  return /^genres\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(path) ? path : null;
+}

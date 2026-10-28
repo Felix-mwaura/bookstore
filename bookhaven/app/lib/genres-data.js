@@ -39,12 +39,29 @@ function fallback() {
   return FALLBACK.map((genre) => ({ ...genre }));
 }
 
-/** Accepts whatever the table holds; drops rows that cannot be rendered. */
+/**
+ * Accepts whatever the table holds; drops rows that cannot be rendered.
+ *
+ * The image is filtered here rather than trusted: it goes straight into an
+ * <Image src>, and the only values that are allowed to reach it are an
+ * https URL (the storage bucket the admin uploads to) or a path inside this
+ * app. A row edited by hand in the SQL editor cannot turn the homepage's
+ * genre cards into a request to somebody else's server, and cannot smuggle
+ * a `javascript:` or `data:` URL into an attribute.
+ */
+function safeImageUrl(value) {
+  if (typeof value !== "string") return null;
+  const url = value.trim();
+  if (!url) return null;
+  if (url.startsWith("/") && !url.startsWith("//")) return url;
+  return /^https:\/\//i.test(url) ? url : null;
+}
+
 function toGenre(row) {
   const name = typeof row?.name === "string" ? row.name.trim() : "";
   if (!name) return null;
   const slug = typeof row?.slug === "string" && row.slug.trim() ? row.slug.trim() : categorySlug(name);
-  return { name, slug };
+  return { name, slug, image_url: safeImageUrl(row?.image_url) };
 }
 
 async function readGenres() {
@@ -59,7 +76,7 @@ async function readGenres() {
 
     const { data, error } = await supabase
       .from("genres")
-      .select("name, slug")
+      .select("name, slug, image_url")
       .order("name")
       .abortSignal(AbortSignal.timeout(TIMEOUT_MS));
 

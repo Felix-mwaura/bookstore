@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 
 import { requireAdmin } from "../../../lib/admin-auth";
 import { readJsonObject, ORDER_BODY } from "../../../lib/request-guard";
-import { planGenreName } from "../../../lib/genre-admin.js";
+import { planGenreName, planGenreImage, genreImagePath } from "../../../lib/genre-admin.js";
+import { coverPrefix } from "../../../lib/book-admin.js";
 import { dbErrorResponse } from "../../../lib/api-error";
 
 // ── /api/admin/genres ───────────────────────────────────────
@@ -53,7 +54,7 @@ export async function GET(request) {
   const { adminClient } = auth;
 
   const [genresResult, counts] = await Promise.all([
-    adminClient.from("genres").select("id, name, slug, created_at").order("name"),
+    adminClient.from("genres").select("id, name, slug, image_url, created_at").order("name"),
     bookCounts(adminClient).catch((error) => {
       // The list is still worth showing without the counts; the delete guard
       // in the database is what actually protects the books.
@@ -90,10 +91,13 @@ export async function POST(request) {
   const plan = planGenreName(parsed.body.name);
   if (!plan.ok) return NextResponse.json({ error: plan.error }, { status: 400 });
 
+  const image = planGenreImage(parsed.body.image_url, coverPrefix());
+  if (!image.ok) return NextResponse.json({ error: image.error }, { status: 400 });
+
   const { data, error } = await adminClient
     .from("genres")
-    .insert({ name: plan.name, slug: plan.slug, created_by: user.id })
-    .select("id, name, slug, created_at")
+    .insert({ name: plan.name, slug: plan.slug, image_url: image.imageUrl, created_by: user.id })
+    .select("id, name, slug, image_url, created_at")
     .single();
 
   if (error) {
@@ -113,8 +117,80 @@ export async function POST(request) {
     });
   }
 
-  await logActivity(adminClient, user, "genre.create", { name: data.name, slug: data.slug });
+  await logActivity(adminClient, user, "genre.create", {
+    name: data.name,
+    slug: data.slug,
+    image: Boolean(data.image_url),
+  });
   return NextResponse.json({ genre: { ...data, books: 0 } }, { status: 201 });
+}
+
+// PATCH /api/admin/genres — replace or clear one genre's card art.
+//
+// Separate from POST because the picture is chosen after the genre exists, in
+// the row it belongs to. The old file is deleted only once the database has
+// accepted the new URL, so a failed update can never leave a row pointing at
+// an image that is already gone.
+export async function PATCH(request) {
+  const auth = await requireAdmin(request);
+  if (auth instanceof NextResponse) return auth;
+  const { adminClient, user } = auth;
+
+  const parsed = await readJsonObject(request, { maxBytes: ORDER_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+
+  const id = Number(parsed.body.id);
+  if (!Number.isInteger(id) || id <= 0) {
+    return NextResponse.json({ error: "Which genre should change?" }, { status: 400 });
+  }
+
+  const image = planGenreImage(parsed.body.image_url, coverPrefix());
+  if (!image.ok) return NextResponse.json({ error: image.error }, { status: 400 });
+
+  const { data: before, error: readError } = await adminClient
+    .from("genres")
+    .select("id, name, slug, image_url")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (readError) {
+    return dbErrorResponse({
+      route: "PATCH /api/admin/genres",
+      error: readError,
+      fallback: "Could not reach that genre.",
+    });
+  }
+  if (!before) return NextResponse.json({ error: "That genre no longer exists." }, { status: 404 });
+
+  const { data, error } = await adminClient
+    .from("genres")
+    .update({ image_url: image.imageUrl })
+    .eq("id", id)
+    .select("id, name, slug, image_url, created_at")
+    .single();
+
+  if (error) {
+    return dbErrorResponse({
+      route: "PATCH /api/admin/genres",
+      error,
+      fallback: "Could not save that image.",
+      context: { genre: before.slug },
+    });
+  }
+
+  const oldPath = genreImagePath(before.image_url, coverPrefix());
+  if (oldPath && oldPath !== genreImagePath(data.image_url, coverPrefix())) {
+    const { error: rmError } = await adminClient.storage.from("book-covers").remove([oldPath]);
+    if (rmError) console.error("old genre image cleanup failed:", rmError.message);
+  }
+
+  await logActivity(adminClient, user, "genre.image", {
+    name: data.name,
+    slug: data.slug,
+    removed: !data.image_url,
+  });
+
+  return NextResponse.json({ genre: { ...data, books: 0 } });
 }
 
 // DELETE /api/admin/genres?id=12 — remove one that has no books on it.
@@ -130,7 +206,7 @@ export async function DELETE(request) {
 
   const { data: genre, error: readError } = await adminClient
     .from("genres")
-    .select("id, name, slug")
+    .select("id, name, slug, image_url")
     .eq("id", id)
     .maybeSingle();
 
@@ -175,6 +251,15 @@ export async function DELETE(request) {
       fallback: "Could not remove that genre.",
       context: { name: genre.name },
     });
+  }
+
+  // The row is gone; the picture it pointed at is not doing anything useful.
+  // Best effort: a leftover file in the bucket is untidy, not broken, and
+  // must never make a successful delete look like a failure.
+  const removedPath = genreImagePath(genre.image_url, coverPrefix());
+  if (removedPath) {
+    const { error: rmError } = await adminClient.storage.from("book-covers").remove([removedPath]);
+    if (rmError) console.error("genre image cleanup failed:", rmError.message);
   }
 
   await logActivity(adminClient, user, "genre.delete", { name: genre.name, slug: genre.slug });
