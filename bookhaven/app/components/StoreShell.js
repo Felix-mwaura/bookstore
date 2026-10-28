@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "motion/react";
 
 import { BookCover } from "./BookCover";
 import { bookPath } from "../lib/book-url";
@@ -20,21 +21,37 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
   const close = useCallback(() => onClose(), [onClose]);
   const panelRef = useDialog(isOpen, close);
 
-  if (!isOpen) return null;
-
   const itemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
 
   return (
+    // AnimatePresence keeps the panel mounted for the exit, which is the only
+    // way a drawer can close as smoothly as it opens. useDialog's focus trap
+    // still runs off `isOpen`, so Escape, Tab and the focus restore are
+    // unchanged - they simply finish while the panel slides away.
+    <AnimatePresence>
+      {isOpen && (
     <div className="fixed inset-0 z-[60]">
-      <div className="absolute inset-0 bg-navy/50" onClick={close} aria-hidden="true" />
-      <div
+      <motion.div
+        className="absolute inset-0 bg-navy/50"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+        onClick={close}
+        aria-hidden="true"
+      />
+      <motion.div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="basket-title"
         tabIndex={-1}
-        className="absolute right-0 top-0 h-[100dvh] w-full max-w-md bg-cream shadow-pop flex flex-col animate-slide-in-right"
+        initial={{ x: "100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "100%" }}
+        transition={{ type: "spring", stiffness: 340, damping: 36, mass: 0.9 }}
+        className="absolute right-0 top-0 h-[100dvh] w-full max-w-md bg-cream shadow-pop flex flex-col"
       >
         <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-line">
           <div>
@@ -153,8 +170,10 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
             <p className="mt-2 text-center text-xs text-muted">Delivery is {DELIVERY_PERCENT}% of the book total.</p>
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
+      )}
+    </AnimatePresence>
   );
 }
 

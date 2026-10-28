@@ -27,6 +27,8 @@ import { dirname, join } from "node:path";
 
 import { armRevealOnScroll } from "../app/lib/reveal.js";
 
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+
 const here = dirname(fileURLToPath(import.meta.url));
 const app = join(here, "..", "app");
 
@@ -39,6 +41,8 @@ const revealSource = readFileSync(join(app, "lib", "reveal.js"), "utf8");
 const carousel = readFileSync(join(app, "components", "GenreCarousel.js"), "utf8");
 const kitten = readFileSync(join(app, "components", "KittenScene.js"), "utf8");
 const kittenCss = readFileSync(join(app, "components", "kitten-scene.module.css"), "utf8");
+const header = readFileSync(join(app, "components", "StoreHeader.js"), "utf8");
+const layout = readFileSync(join(app, "layout.js"), "utf8");
 
 let failures = 0;
 function check(label, condition, detail = "") {
@@ -282,6 +286,38 @@ check(
   "the drag layer is promoted only while dragging",
   /\[data-dragging="true"\]\s*\.genre-card\s*\{[^}]*will-change:\s*transform/.test(css)
 );
+
+console.log("\nThe Motion layer");
+
+// Motion (the library) is used for the things CSS cannot do: exit animations,
+// and press feedback that springs back. Everything it touches has to respect
+// the same rules as the CSS layer, and the two must never animate the same
+// element at once.
+const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+check("motion is a dependency", Boolean(pkg.dependencies?.motion), pkg.dependencies?.motion);
+check("its predecessor is gone", !pkg.dependencies?.["framer-motion"]);
+check("no second animation library", !pkg.dependencies?.gsap && !pkg.dependencies?.["framer-motion"]);
+
+const motionFiles = ["StoreHeader.js", "StoreShell.js", "WishlistDrawer.js", "ProductCard.js", "MotionRoot.js"]
+  .map((name) => [name, readFileSync(join(app, "components", name), "utf8")]);
+for (const [name, source] of motionFiles) {
+  check(`${name} imports from motion/react`, /from "motion\/react"/.test(source) || !/from "motion"/.test(source));
+  for (const duration of source.matchAll(/duration:\s*([\d.]+)/g)) {
+    check(`${name} keeps every duration under 300ms`, Number(duration[1]) <= 0.3, duration[1]);
+  }
+}
+
+const motionRoot = readFileSync(join(app, "components", "MotionRoot.js"), "utf8");
+check("Motion follows the system preference", /reducedMotion="user"/.test(motionRoot));
+
+check("the whole tree is under that config", /<MotionRoot>/.test(layout) && /<\/MotionRoot>/.test(layout));
+
+const shell = readFileSync(join(app, "components", "StoreShell.js"), "utf8");
+const wishlist = readFileSync(join(app, "components", "WishlistDrawer.js"), "utf8");
+for (const [name, source] of [["StoreHeader", header], ["StoreShell", shell], ["WishlistDrawer", wishlist]]) {
+  check(`${name} animates its exits`, /AnimatePresence/.test(source) && /exit=\{\{/.test(source));
+}
+check("the menus and drawers are no longer CSS-keyframed", !/animate-slide-in|animate-fade-in|animate-badge-pop/.test(header + shell + wishlist));
 
 if (failures) {
   console.error(`\n${failures} failure(s)`);

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { motion } from "motion/react";
 
 import { BookCover } from "./BookCover";
 import { StarRating } from "./StarRating";
@@ -141,12 +142,17 @@ export default function ProductCard({ book, onAddToCart, note }) {
             )}
           </div>
 
-          <button
+          {/* A press is feedback, not motion: 4% and released on a spring, so
+              a tap on a slow phone still registers as "yes, that counted".
+              The colour change and the Added state are unchanged CSS. */}
+          <motion.button
             type="button"
             onClick={handleAdd}
             disabled={!state.canBuy}
+            whileTap={state.canBuy ? { scale: 0.96 } : undefined}
+            transition={{ type: "spring", stiffness: 600, damping: 26 }}
             aria-label={state.canBuy ? `Add ${book.title} to basket` : `${book.title} is out of stock`}
-            className={`relative z-20 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-white transition-colors active:scale-95 disabled:cursor-not-allowed disabled:bg-stone-300 sm:min-w-0 sm:px-3 ${
+            className={`relative z-20 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-white transition-colors disabled:cursor-not-allowed disabled:bg-stone-300 sm:min-w-0 sm:px-3 ${
               justAdded ? "bg-success" : "bg-navy hover:bg-sienna"
             }`}
           >
@@ -154,9 +160,18 @@ export default function ProductCard({ book, onAddToCart, note }) {
               <span className="px-2 text-[11px]">Sold out</span>
             ) : justAdded ? (
               <span className="flex items-center gap-1.5 px-2 sm:px-0">
-                <svg className="h-4 w-4 animate-pop" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <motion.svg
+                  initial={{ scale: 0.5, rotate: -12 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                  transition={{ type: "spring", stiffness: 520, damping: 20 }}
+                  className="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M5 13l4 4L19 7" />
-                </svg>
+                </motion.svg>
                 <span className="hidden text-xs font-semibold sm:inline">Added</span>
               </span>
             ) : (
@@ -168,7 +183,7 @@ export default function ProductCard({ book, onAddToCart, note }) {
               </>
             )}
             <span className="sr-only" aria-live="polite">{justAdded ? "Added to basket" : ""}</span>
-          </button>
+          </motion.button>
         </div>
       </div>
     </article>

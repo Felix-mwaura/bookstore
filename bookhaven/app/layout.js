@@ -3,6 +3,7 @@ import { Playfair_Display, Inter } from "next/font/google";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "./lib/site";
 import { StoreProvider } from "./components/StoreShell";
 import { GenreProvider } from "./components/GenreProvider";
+import MotionRoot from "./components/MotionRoot";
 import { getGenres } from "./lib/genres-data";
 import { jsonLdProps } from "./lib/json-ld";
 
@@ -89,7 +90,9 @@ export default async function RootLayout({ children }) {
         </a>
         <StoreProvider>
           <GenreProvider genres={genres}>
-            <div id="main-content">{children}</div>
+            <MotionRoot>
+              <div id="main-content">{children}</div>
+            </MotionRoot>
           </GenreProvider>
         </StoreProvider>
         <script {...jsonLdProps(organisationJsonLd)} />
