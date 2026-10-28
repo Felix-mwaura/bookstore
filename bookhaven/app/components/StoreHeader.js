@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
-import { categories, categorySlug } from "../lib/categories";
+import { useGenres } from "./GenreProvider";
 
 /* ── icons ────────────────────────────────────────────── */
 const SearchIcon = ({ className = "w-5 h-5" }) => (
@@ -61,10 +62,19 @@ function AccountMenu({ onNavigate, user, onSignOut, signingOut }) {
         <span className="hidden xl:block text-sm font-medium text-navy">{user ? user.name : "Account"}</span>
       </button>
 
-      {open && (
-        <div
+      {/* Exit animations are the one thing CSS cannot do: the element is
+          gone before a transition can run. AnimatePresence keeps it mounted
+          for the length of the exit, so the menu closes as deliberately as it
+          opens. */}
+      <AnimatePresence>
+        {open && (
+        <motion.div
           role="menu"
-          className="absolute right-0 top-full mt-2 w-64 bg-white rounded-card shadow-pop border border-line z-[60] overflow-hidden animate-fade-in"
+          initial={{ opacity: 0, y: -6, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -4, scale: 0.99 }}
+          transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute right-0 top-full mt-2 w-64 origin-top-right bg-white rounded-card shadow-pop border border-line z-[60] overflow-hidden"
         >
           {user ? (
             <>
@@ -103,8 +113,9 @@ function AccountMenu({ onNavigate, user, onSignOut, signingOut }) {
               </div>
             </div>
           )}
-        </div>
-      )}
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -147,6 +158,9 @@ function useSessionUser() {
 
 export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartClick, onWishlistClick }) {
   const router = useRouter();
+  // The genres the shop currently sells, from the database via the root
+  // layout, with the built-in list as the value before that resolves.
+  const genres = useGenres();
   const { user, ready: sessionReady } = useSessionUser();
   const [signingOut, setSigningOut] = useState(false);
   const [query, setQuery] = useState("");
@@ -225,7 +239,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
         onChange={(e) => setCategory(e.target.value)}
         className="hidden sm:block bg-transparent pl-3 pr-1 py-2.5 text-sm text-muted border-r border-line focus:outline-none max-w-[9.5rem]"
       >
-        {categories.map((c) => (
+        {["All", ...genres.map((g) => g.name)].map((c) => (
           <option key={c} value={c}>{c === "All" ? "All categories" : c}</option>
         ))}
       </select>
@@ -314,33 +328,73 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
                 className="relative w-11 h-11 flex items-center justify-center rounded-lg hover:bg-subtle transition"
               >
                 <CartIcon />
-                {cartCount > 0 && (
-                  <span
-                    key={cartCount}
-                    className="animate-badge-pop absolute right-1 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sienna px-1 text-[10px] font-bold text-white"
-                  >
-                    {cartCount}
-                  </span>
-                )}
+                <AnimatePresence initial={false}>
+                  {cartCount > 0 && (
+                    <motion.span
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.6, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 520, damping: 26 }}
+                      className="absolute right-1 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sienna px-1 text-[10px] font-bold text-white"
+                    >
+                      {/* Keyed on the count, so a change re-mounts only the
+                          numeral and gives it one short spring — the badge
+                          itself keeps its place. */}
+                      <motion.span
+                        key={cartCount}
+                        initial={{ scale: 1.35 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 600, damping: 24 }}
+                        className="tabular-nums"
+                      >
+                        {cartCount}
+                      </motion.span>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </button>
             </div>
           </div>
 
-          {searchOpen && (
-            <div className="md:hidden pb-3">{searchForm("mobile")}</div>
-          )}
+          <AnimatePresence initial={false}>
+            {searchOpen && (
+              <motion.div
+                key="mobile-search"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="md:hidden overflow-hidden"
+              >
+                <div className="pb-3">{searchForm("mobile")}</div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 
+      <AnimatePresence>
       {menuOpen && (
         <div className="fixed inset-0 z-[70] lg:hidden">
-          <div className="absolute inset-0 bg-navy/50" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-          <div
+          <motion.div
+            className="absolute inset-0 bg-navy/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => setMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <motion.div
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
             aria-label="Menu"
-            className="absolute left-0 top-0 h-full w-[85%] max-w-xs bg-cream shadow-pop flex flex-col animate-slide-in-left"
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", stiffness: 340, damping: 36, mass: 0.9 }}
+            className="absolute left-0 top-0 h-full w-[85%] max-w-xs bg-cream shadow-pop flex flex-col"
           >
             <div className="flex items-center justify-between px-4 h-14 border-b border-line">
               <span className="font-playfair text-lg font-bold text-navy">Book Haven</span>
@@ -359,11 +413,15 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
 
             <nav className="flex-1 overflow-y-auto py-3" aria-label="Shop">
               <p className="px-5 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted">Browse</p>
-              {categories.map((c) => (
-                <Link key={c} href={c === "All" ? "/books" : `/category/${categorySlug(c)}`}
+              <Link href="/books" onClick={() => setMenuOpen(false)}
+                className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">
+                All books
+              </Link>
+              {genres.map((genre) => (
+                <Link key={genre.slug} href={`/category/${genre.slug}`}
                   onClick={() => setMenuOpen(false)}
                   className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">
-                  {c === "All" ? "All books" : c}
+                  {genre.name}
                 </Link>
               ))}
 
@@ -430,9 +488,10 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
             <div className="p-4 border-t border-line">
               <Link href="/books" onClick={() => setMenuOpen(false)} className="btn-primary w-full text-sm">Browse all books</Link>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
+      </AnimatePresence>
     </>
   );
 }

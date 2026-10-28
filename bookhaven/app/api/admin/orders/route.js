@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../lib/admin-auth";
+import { dbErrorResponse } from "../../../lib/api-error";
+import { readJsonObject, SMALL_BODY } from "../../../lib/request-guard";
 import { queueEmailDispatch } from "../../../lib/email-dispatch";
 
 const ALLOWED_STATUSES = ["Pending", "Processing", "Packed", "Shipped", "Delivered", "Cancelled"];
@@ -16,7 +18,13 @@ export async function GET(request) {
     .select("*")
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return dbErrorResponse({
+      route: "GET /api/admin/orders",
+      error,
+      fallback: "Could not load orders.",
+    });
+  }
   return NextResponse.json(
     { orders: data },
     { headers: { "Cache-Control": "no-store" } }
@@ -39,12 +47,9 @@ export async function PATCH(request) {
 
   const { adminClient, user } = auth;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsed = await readJsonObject(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
 
   const { id, status, courier, tracking_ref: trackingRef } = body;
   if (!id || typeof id !== "string") {

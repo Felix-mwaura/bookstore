@@ -2,15 +2,19 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import SectionHeading from "./SectionHeading";
-import { categorySlug } from "../lib/categories";
 import { genreArtwork, genreBlurb } from "../lib/genres";
 
 // How far a finger (or mouse) must travel before a press becomes a swipe
 // rather than a tap on a genre.
 const DRAG_THRESHOLD = 56;
+
+// Below this a movement is a wobble, not a gesture: thumbs roll a few pixels
+// on every tap, and treating that as a swipe is how a "click" on a genre ends
+// up doing nothing at all.
+const DRAG_SLOP = 12;
 
 // Cards beyond this distance from the active one are not rendered at all.
 const VISIBLE_DEPTH = 2;
@@ -47,16 +51,31 @@ function loopOffset(index, active, length) {
  *     answers Left/Right arrow keys.
  */
 export function GenreCarousel({ genres = [], counts = {} }) {
+  // `genres` are { name, slug } pairs from the storefront's genre list (see
+  // GenreProvider). The slug comes from the database, not from re-deriving it
+  // here, so a genre whose name contains "&" links to the address the
+  // catalogue actually serves.
   const length = genres.length;
   const [active, setActive] = useState(0);
   const [dragging, setDragging] = useState(false);
+  // A card whose image 404s falls back to the plain panel rather than showing
+  // a broken-image glyph on a navy rectangle.
+  const [brokenArt, setBrokenArt] = useState({});
+
+  // Derived, not stored: the list can change under a mounted deck (a genre
+  // added or removed in the admin, then a soft navigation), and an index that
+  // points past the end would leave no card at distance 0 — an empty stage
+  // rather than a deck.
+  const activeIndex = length === 0 ? 0 : Math.min(active, length - 1);
 
   const deckRef = useRef(null);
   const drag = useRef({ active: false, startX: 0, startY: 0, dx: 0, moved: false });
+  // True from the moment a press turns into a swipe until the click that
+  // follows it has been swallowed. Cleared at the start of the next press, so
+  // it can never outlive the gesture it belongs to — the old version cleared
+  // it on a zero-delay timer, which fires before some browsers dispatch the
+  // click, letting a completed swipe navigate anyway.
   const suppressClick = useRef(false);
-  const resetTimer = useRef(null);
-
-  useEffect(() => () => clearTimeout(resetTimer.current), []);
 
   const step = useCallback(
     (delta) => setActive((current) => wrap(current + delta, Math.max(length, 1))),
@@ -65,8 +84,16 @@ export function GenreCarousel({ genres = [], counts = {} }) {
 
   // ── pointer / touch ────────────────────────────────────
   const onPointerDown = (event) => {
+    // Every new gesture starts honest: whatever the last one suppressed is
+    // over by definition.
+    suppressClick.current = false;
     if (length < 2) return;
     if (event.pointerType === "mouse" && event.button !== 0) return;
+    // The arrows and the dots are ordinary buttons inside this region. A
+    // press on one of them is never the start of a swipe, so it must not be
+    // armed as one — otherwise a finger that drifts sideways on its way to a
+    // dot had its tap cancelled by drag logic.
+    if (event.target?.closest?.(".genre-controls")) return;
     drag.current = { active: true, startX: event.clientX, startY: event.clientY, dx: 0, moved: false };
   };
 
@@ -80,7 +107,7 @@ export function GenreCarousel({ genres = [], counts = {} }) {
     if (!state.moved) {
       // Ignore presses that are mostly vertical: that gesture belongs to the
       // page scroller, not to the deck.
-      if (Math.abs(dx) < 8 || Math.abs(dx) <= Math.abs(dy)) return;
+      if (Math.abs(dx) < DRAG_SLOP || Math.abs(dx) <= Math.abs(dy)) return;
       state.moved = true;
       suppressClick.current = true;
       setDragging(true);
@@ -108,14 +135,8 @@ export function GenreCarousel({ genres = [], counts = {} }) {
     if (state.moved && Math.abs(state.dx) > DRAG_THRESHOLD) {
       step(state.dx < 0 ? 1 : -1);
     }
-    if (!state.moved) return;
-
-    // The click that follows a pointerup on a card must not navigate.
-    clearTimeout(resetTimer.current);
-    resetTimer.current = setTimeout(() => {
-      suppressClick.current = false;
-    }, 0);
-
+    // The click that follows a swipe on a card must not navigate. It is
+    // swallowed by onClickCapture below, which is also what clears it.
     if (event?.pointerType === "mouse") state.dx = 0;
   };
 
@@ -140,7 +161,7 @@ export function GenreCarousel({ genres = [], counts = {} }) {
   if (length === 0) return null;
 
   const cards = genres
-    .map((name, index) => ({ name, index, distance: loopOffset(index, active, length) }))
+    .map((genre, index) => ({ ...genre, index, distance: loopOffset(index, activeIndex, length) }))
     .filter((card) => Math.abs(card.distance) <= VISIBLE_DEPTH)
     // Painted back to front so the active card is on top even in browsers
     // that ignore z-index on transformed elements.
@@ -181,17 +202,20 @@ export function GenreCarousel({ genres = [], counts = {} }) {
             data-dragging={dragging ? "true" : "false"}
             style={{ "--gc-count": length }}
           >
-            {cards.map(({ name, distance }) => {
+            {cards.map(({ name, slug, image_url: uploaded, distance }) => {
               const count = counts[name] || 0;
-              const art = genreArtwork(categorySlug(name));
+              // The admin's own image wins; otherwise the artwork bundled for
+              // this slug, if this shop has any; otherwise the plain panel.
+              const art = uploaded ? { src: uploaded } : genreArtwork(slug);
+              const showArt = art && !brokenArt[slug];
               const depth = Math.abs(distance);
               const scale = depth === 0 ? 1 : depth === 1 ? 0.84 : 0.68;
               const opacity = depth === 0 ? 1 : depth === 1 ? 0.96 : 0.72;
 
               return (
                 <Link
-                  key={name}
-                  href={`/category/${categorySlug(name)}`}
+                  key={slug}
+                  href={`/category/${slug}`}
                   className="genre-card"
                   data-depth={depth}
                   aria-label={count > 0 ? `${name}, ${count} ${count === 1 ? "book" : "books"}` : name}
@@ -208,11 +232,12 @@ export function GenreCarousel({ genres = [], counts = {} }) {
                     "--z": 30 - depth * 10,
                   }}
                 >
-                  {art ? (
+                  {showArt ? (
                     <Image
                       src={art.src}
                       alt=""
                       fill
+                      onError={() => setBrokenArt((current) => ({ ...current, [slug]: true }))}
                       // The card's own width, so the browser asks the
                       // optimiser for the smallest rendition that is still
                       // sharp — 256px on a phone, 640px on a desktop.
@@ -250,13 +275,13 @@ export function GenreCarousel({ genres = [], counts = {} }) {
             </button>
 
             <ol className="genre-dots" aria-label="Choose a genre">
-              {genres.map((name, index) => (
-                <li key={name}>
+              {genres.map((genre, index) => (
+                <li key={genre.slug}>
                   <button
                     type="button"
                     onClick={() => setActive(index)}
-                    aria-label={`Show ${name}`}
-                    aria-current={index === active ? "true" : undefined}
+                    aria-label={`Show ${genre.name}`}
+                    aria-current={index === activeIndex ? "true" : undefined}
                     className="genre-dot"
                   >
                     <span className="genre-dot-mark" aria-hidden="true" />
@@ -273,7 +298,7 @@ export function GenreCarousel({ genres = [], counts = {} }) {
           </div>
 
           <p className="sr-only" aria-live="polite">
-            {`${genres[active]} selected`}
+            {`${genres[activeIndex]?.name || ""} selected`}
           </p>
         </div>
       </div>

@@ -2,6 +2,10 @@ import "./globals.css";
 import { Playfair_Display, Inter } from "next/font/google";
 import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "./lib/site";
 import { StoreProvider } from "./components/StoreShell";
+import { GenreProvider } from "./components/GenreProvider";
+import MotionRoot from "./components/MotionRoot";
+import { getGenres } from "./lib/genres-data";
+import { jsonLdProps } from "./lib/json-ld";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -66,7 +70,15 @@ const websiteJsonLd = {
   },
 };
 
-export default function RootLayout({ children }) {
+// The genre list is read once here rather than by each nav that needs it.
+// getGenres() falls back to the built-in taxonomy and never throws, so this
+// await cannot take the page down — it can only make the nav older than the
+// database for up to a minute.
+export const revalidate = 60;
+
+export default async function RootLayout({ children }) {
+  const genres = await getGenres();
+
   return (
     <html lang="en" className="scroll-smooth" data-scroll-behavior="smooth">
       <body className={`${playfair.variable} ${inter.variable}`}>
@@ -77,16 +89,14 @@ export default function RootLayout({ children }) {
           Skip to content
         </a>
         <StoreProvider>
-          <div id="main-content">{children}</div>
+          <GenreProvider genres={genres}>
+            <MotionRoot>
+              <div id="main-content">{children}</div>
+            </MotionRoot>
+          </GenreProvider>
         </StoreProvider>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organisationJsonLd) }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
-        />
+        <script {...jsonLdProps(organisationJsonLd)} />
+        <script {...jsonLdProps(websiteJsonLd)} />
       </body>
     </html>
   );

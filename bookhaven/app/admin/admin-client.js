@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import { useDialog } from "../lib/useDialog";
+import { categories as BUILT_IN_GENRES } from "../lib/categories";
+import { genreArtwork } from "../lib/genres";
 import AssistantTab from "./assistant-tab";
 
 // ─────────────────────────────────────────────────────────
@@ -262,6 +264,7 @@ const NAV = [
   { section:"Store" },
   { id:"inventory", label:"Inventory", icon:"inventory" },
   { id:"reviews", label:"Reviews", icon:"reviews" },
+  { id:"genres", label:"Genres", icon:"genres" },
   { id:"coupons", label:"Coupons", icon:"coupons" },
   { section:"System" },
   { id:"users", label:"Users & Roles", icon:"users" },
@@ -328,7 +331,7 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
 // TOPBAR
 // ─────────────────────────────────────────────────────────
 function Topbar({ activeTab, sessionUser, onLogout, onMenu }) {
-  const labels = { overview:"Dashboard", assistant:"Assistant", orders:"Orders", books:"Products", customers:"Customers", payments:"Payments", reports:"Reports", inventory:"Inventory", reviews:"Reviews", coupons:"Coupons", users:"Users & Roles", activity:"Activity Logs", settings:"Settings" };
+  const labels = { overview:"Dashboard", assistant:"Assistant", orders:"Orders", books:"Products", customers:"Customers", payments:"Payments", reports:"Reports", inventory:"Inventory", reviews:"Reviews", genres:"Genres", coupons:"Coupons", users:"Users & Roles", activity:"Activity Logs", settings:"Settings" };
   const meta = sessionUser?.user_metadata || {};
   const displayName = [meta.first_name, meta.last_name].filter(Boolean).join(" ") || sessionUser?.email?.split("@")[0] || "Admin";
 
@@ -1412,7 +1415,27 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
   const [removeCover, setRemoveCover] = useState(false);
   const [saveStage, setSaveStage] = useState("");
 
-  const categories = ["Self-Help","Finance","Productivity","Psychology","History","Philosophy","Fiction","Biography"];
+  // The genre list is data (see GenresTab / /api/admin/genres). Until it
+  // arrives the built-in list renders, so the form is never empty, and a
+  // genre added in this dashboard shows up here without a deploy.
+  const [categories, setCategories] = useState(BUILT_IN_GENRES.filter((c) => c !== "All"));
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch("/api/admin/genres", {
+          headers: { authorization: `Bearer ${session?.access_token}` },
+          cache: "no-store",
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const names = (json.genres || []).map((g) => g.name);
+        if (alive && names.length) setCategories(names);
+      } catch { /* the built-in list stays */ }
+    })();
+    return () => { alive = false; };
+  }, []);
   const coverMap = {"Self-Help":["#2d4a22","#86efac"],"Finance":["#0f3460","#fbbf24"],"Productivity":["#1b1b2f","#f87171"],"Psychology":["#3b1f5e","#a78bfa"],"History":["#2c1810","#fb923c"],"Philosophy":["#0d0d0d","#f9a8d4"],"Fiction":["#1a3a4a","#67e8f9"],"Biography":["#1c3a5e","#6ee7b7"]};
 
   // Throws a real Error (with a useful message) instead of ever returning
@@ -2929,6 +2952,396 @@ function Stars({ value, className = "" }) {
   );
 }
 
+// ─────────────────────────────────────────────────────────
+// Genres — the shelves the shop browses by
+// ─────────────────────────────────────────────────────────
+//
+// Genres are rows in public.genres now, not entries in a bundled array, so
+// this tab is the only way they change. Everything here is a thin skin over
+// /api/admin/genres: the route decides who may write, the database decides
+// what a duplicate is, and a trigger refuses to delete a genre that still has
+// books on it — this component only explains those answers.
+//
+// The card art is uploaded to the same public bucket as book covers, under a
+// `genres/` prefix, and the row stores the public URL. Upload first, save
+// second: a genre is never created pointing at an image that did not arrive,
+// and a failed save removes the orphan rather than leaving it in the bucket.
+function GenresTab({ showToast }) {
+  const [genres, setGenres] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [name, setName] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [confirming, setConfirming] = useState(null);
+  const [removing, setRemoving] = useState(null);
+  const [busyImage, setBusyImage] = useState(null); // genre id, or "new"
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+      const res = await fetch("/api/admin/genres", {
+        headers: { authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+      setGenres(json?.genres || []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load(); }, [load]);
+
+  // Returns the public URL of the uploaded file, or throws with something the
+  // admin can act on. The same limits as a book cover, because it is the same
+  // bucket and the same 2 MB ceiling.
+  async function uploadArt(file) {
+    if (!COVER_TYPES[file.type]) throw new Error("Use a JPG, PNG or WebP image.");
+    if (file.size > MAX_COVER_BYTES) throw new Error("That image is larger than 2 MB.");
+    const path = `genres/${crypto.randomUUID()}.${COVER_TYPES[file.type]}`;
+    const { error: upError } = await supabase.storage
+      .from(COVER_BUCKET)
+      .upload(path, file, { contentType: file.type, upsert: false, cacheControl: "3600" });
+    if (upError) throw new Error("Image upload failed: " + upError.message);
+    return { url: supabase.storage.from(COVER_BUCKET).getPublicUrl(path).data.publicUrl, path };
+  }
+
+  function pickFile(file, onDone) {
+    if (!file) return;
+    setImageFile(file);
+    const reader = new FileReader();
+    reader.onload = () => { setImagePreview(String(reader.result)); onDone?.(); };
+    reader.readAsDataURL(file);
+  }
+
+  const add = async (event) => {
+    event.preventDefault();
+    if (saving) return;
+    const trimmed = name.trim();
+    if (!trimmed) {
+      showToast?.("Enter a genre name", "error");
+      return;
+    }
+
+    setSaving(true);
+    setBusyImage("new");
+    let uploaded = null;
+    try {
+      const imageUrl = imageFile ? (uploaded = await uploadArt(imageFile)).url : null;
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/admin/genres", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ name: trimmed, image_url: imageUrl }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Could not add that genre");
+
+      showToast?.(`“${json.genre.name}” added`);
+      setName("");
+      setImageFile(null);
+      setImagePreview(null);
+      await load();
+    } catch (err) {
+      // The genre row was not created — don't leave its picture behind.
+      if (uploaded) {
+        const { error: rmError } = await supabase.storage.from(COVER_BUCKET).remove([uploaded.path]);
+        if (rmError) console.error("Cleanup of uploaded genre art failed:", rmError.message);
+      }
+      showToast?.(err.message, "error");
+    } finally {
+      setSaving(false);
+      setBusyImage(null);
+    }
+  };
+
+  const setArt = async (genre, file) => {
+    if (!file) return;
+    if (busyImage) return;
+    setBusyImage(genre.id);
+    try {
+      const { url } = await uploadArt(file);
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/admin/genres", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ id: genre.id, image_url: url }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        // The row kept its old picture, so the file that was just uploaded
+        // is an orphan. Best effort — a leftover file is untidy, not broken.
+        const orphan = coverPathFromUrl(url);
+        if (orphan) await supabase.storage.from(COVER_BUCKET).remove([orphan]);
+        throw new Error(json?.error || "Could not save that image");
+      }
+      showToast?.(`Image updated for “${genre.name}”`);
+      await load();
+    } catch (err) {
+      showToast?.(err.message, "error");
+    } finally {
+      setBusyImage(null);
+    }
+  };
+
+  const clearArt = async (genre) => {
+    if (busyImage) return;
+    setBusyImage(genre.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/admin/genres", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ id: genre.id, image_url: null }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Could not remove that image");
+      showToast?.(`Image removed from “${genre.name}”`);
+      await load();
+    } catch (err) {
+      showToast?.(err.message, "error");
+    } finally {
+      setBusyImage(null);
+    }
+  };
+
+  const remove = async (genre) => {
+    if (removing) return;
+    setRemoving(genre.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/admin/genres?id=${encodeURIComponent(genre.id)}`, {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${session?.access_token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Could not remove that genre");
+      showToast?.(`“${genre.name}” removed`);
+      setConfirming(null);
+      await load();
+    } catch (err) {
+      showToast?.(err.message, "error");
+      setConfirming(null);
+    } finally {
+      setRemoving(null);
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-bold text-[#1B2A4A]">Genres</h2>
+          <p className="text-sm text-muted mt-0.5">
+            The shelves shoppers browse by. A genre appears on the homepage and in the book form
+            as soon as it is added here.
+          </p>
+        </div>
+        <span className="text-xs text-muted tabular-nums">
+          {loading ? "Loading…" : `${genres.length} ${genres.length === 1 ? "genre" : "genres"}`}
+        </span>
+      </div>
+
+      <form onSubmit={add} className="bg-white border border-[#E3DCCB] rounded-2xl p-5 shadow-sm">
+        <label htmlFor="new-genre" className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">
+          Add a genre
+        </label>
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+          <input
+            id="new-genre"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={40}
+            placeholder="e.g. Business"
+            aria-describedby="new-genre-hint"
+            className="flex-1 bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"
+          />
+          <label className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-[#E3DCCB] bg-white px-4 py-2.5 text-sm font-semibold text-[#1B2A4A] hover:bg-stone-50 transition ${saving ? "opacity-50 pointer-events-none" : ""}`}>
+            {imagePreview ? "Change image" : "Choose image"}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="sr-only"
+              disabled={saving}
+              onChange={(e) => pickFile(e.target.files?.[0])}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={saving || !name.trim()}
+            className="rounded-xl bg-[#1B2A4A] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#24375c] disabled:opacity-50 disabled:cursor-not-allowed min-h-11"
+          >
+            {saving ? (busyImage === "new" ? "Uploading…" : "Adding…") : "Add genre"}
+          </button>
+        </div>
+
+        {imagePreview && (
+          <div className="mt-3 flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imagePreview} alt="The selected genre image" className="h-14 w-14 rounded-lg object-cover border border-[#E3DCCB]" />
+            <button
+              type="button"
+              onClick={() => { setImageFile(null); setImagePreview(null); }}
+              disabled={saving}
+              className="rounded-lg border border-[#E3DCCB] px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+            >
+              Remove image
+            </button>
+          </div>
+        )}
+
+        <p id="new-genre-hint" className="mt-2 text-xs text-muted">
+          Up to 40 characters. Duplicates are refused, including ones that differ only in
+          capitalisation or spacing. A JPG, PNG or WebP up to 2 MB is used as the card art on the
+          homepage; without one the shop uses its own artwork, or a plain panel.
+        </p>
+      </form>
+
+      <div className="bg-white border border-[#E3DCCB] rounded-2xl shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-sm text-muted">Loading genres…</div>
+        ) : error ? (
+          <div className="p-8 text-center" role="alert">
+            <p className="text-sm text-navy font-semibold">The genres didn’t load</p>
+            <p className="mt-1 text-xs text-muted">{error}</p>
+            <button onClick={load} className="mt-4 rounded-lg border border-[#E3DCCB] px-3 py-2 text-sm font-semibold text-navy hover:bg-stone-50">
+              Try again
+            </button>
+          </div>
+        ) : genres.length === 0 ? (
+          <div className="p-8 text-center text-sm text-muted">
+            No genres yet. The first one you add appears on the homepage.
+          </div>
+        ) : (
+          <ul role="list" className="divide-y divide-[#F0EAD9]">
+            {genres.map((genre) => {
+              const fallbackArt = genreArtwork(genre.slug);
+              const thumb = genre.image_url || fallbackArt?.src || null;
+              const busy = busyImage === genre.id;
+              return (
+                <li key={genre.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                  {thumb ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={thumb}
+                      alt=""
+                      className="h-12 w-12 shrink-0 rounded-lg border border-[#E3DCCB] object-cover"
+                    />
+                  ) : (
+                    <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#1B2A4A] font-playfair text-lg italic text-white/50">
+                      {genre.name.charAt(0)}
+                    </span>
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-[#1B2A4A] truncate">{genre.name}</p>
+                    <p className="text-xs text-muted truncate">
+                      /category/{genre.slug}
+                      {genre.image_url ? " · own image" : " · shop artwork"}
+                    </p>
+                  </div>
+
+                  <span className={`rounded-full px-2.5 py-1 text-xs tabular-nums ${
+                    genre.books > 0 ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-stone-50 text-stone-500 border border-[#E3DCCB]"
+                  }`}>
+                    {genre.books} {genre.books === 1 ? "book" : "books"}
+                  </span>
+
+                  <label className={`cursor-pointer rounded-lg border border-[#E3DCCB] px-3 py-1.5 text-xs font-semibold text-[#1B2A4A] hover:bg-stone-50 ${busy ? "opacity-50 pointer-events-none" : ""}`}>
+                    {busy ? "Saving…" : genre.image_url ? "Replace image" : "Add image"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      disabled={busy}
+                      onChange={(e) => { setArt(genre, e.target.files?.[0]); e.target.value = ""; }}
+                    />
+                  </label>
+
+                  {genre.image_url && (
+                    <button
+                      onClick={() => clearArt(genre)}
+                      disabled={busy}
+                      className="rounded-lg border border-[#E3DCCB] px-3 py-1.5 text-xs font-semibold text-muted hover:bg-stone-50 disabled:opacity-50"
+                    >
+                      Remove image
+                    </button>
+                  )}
+
+                  {confirming === genre.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted">Remove “{genre.name}”?</span>
+                      <button
+                        onClick={() => setConfirming(null)}
+                        className="rounded-lg border border-[#E3DCCB] px-3 py-1.5 text-xs font-semibold text-navy hover:bg-stone-50"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={() => remove(genre)}
+                        disabled={removing === genre.id}
+                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {removing === genre.id ? "Removing…" : "Remove"}
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (genre.books > 0) {
+                          showToast?.(
+                            `“${genre.name}” still has ${genre.books} ${genre.books === 1 ? "book" : "books"}. Move them to another genre first.`,
+                            "error"
+                          );
+                          return;
+                        }
+                        setConfirming(genre.id);
+                      }}
+                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                        genre.books > 0
+                          ? "border-[#E3DCCB] text-muted cursor-not-allowed"
+                          : "border-[#E3DCCB] text-red-600 hover:bg-red-50"
+                      }`}
+                      aria-disabled={genre.books > 0}
+                    >
+                      Remove
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      <p className="text-xs text-muted">
+        A genre with books on it cannot be removed: the books would be left pointing at a shelf
+        that no longer exists, which is why the database refuses the delete as well. A new or
+        replaced image reaches the homepage within a minute.
+      </p>
+    </div>
+  );
+}
+
 function ReviewsTab({ showToast, canMutate }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -3715,6 +4128,7 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
           {activeTab==="inventory"&&<InventoryTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}
           {activeTab==="notifications"&&<NotificationsTab showToast={showToast}/>}
           {activeTab==="reviews"&&<ReviewsTab showToast={showToast} canMutate={canMutate}/>}
+          {activeTab==="genres"&&<GenresTab showToast={showToast}/>}
           {activeTab==="coupons"&&<PlaceholderTab icon="🏷️" title="Coupons" description="Create and manage discount codes and promotional offers."/>}
           {activeTab==="users"&&<UsersTab users={users} orders={orders} session={sessionUser} showToast={showToast}/>}
           {activeTab==="activity"&&<ActivityLogTab showToast={showToast}/>}

@@ -3,6 +3,8 @@ import { clientForToken, bearerToken, serviceClient } from "../../lib/server";
 import { queueEmailDispatch } from "../../lib/email-dispatch";
 import { DELIVERY_PERCENT } from "../../lib/site";
 import { readJsonBody, ORDER_BODY } from "../../lib/request-guard";
+import { dbErrorResponse } from "../../lib/api-error";
+import { codVerdict, codLimitMessage } from "../../lib/request-limits.js";
 
 // GET /api/orders — the signed-in customer's own orders (RLS-enforced)
 export async function GET(request) {
@@ -19,7 +21,13 @@ export async function GET(request) {
     .eq("user_id", user.id)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    return dbErrorResponse({
+      route: "GET /api/orders",
+      error,
+      fallback: "We could not load your orders. Please try again.",
+    });
+  }
   return NextResponse.json({ orders: data || [] });
 }
 
@@ -140,6 +148,26 @@ export async function POST(request) {
       { error: "Server misconfigured — please contact support" },
       { status: 500 }
     );
+  }
+
+  // Cash on delivery reserves stock without payment. Without a ceiling one
+  // account can hold the last copies of a title off the shelf by placing order
+  // after order and never collecting. The limits are deliberately generous
+  // (3 open COD orders, 5 copies per title, 15 books total) — well above a
+  // household order, well below "clearing the shelf". The count is read from
+  // the database, not from a process-local Map.
+  if (method === "cod") {
+    const { count: openCod } = await serverClient
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("payment_method", "cod")
+      .not("status", "in", "(Delivered,Cancelled)");
+
+    const codIssue = codVerdict({ openCodOrders: openCod || 0, lines: cleanItemList });
+    if (codIssue) {
+      return NextResponse.json({ error: codLimitMessage(codIssue) }, { status: 429 });
+    }
   }
 
   // Cheap per-account throttle: a real customer does not place eight orders

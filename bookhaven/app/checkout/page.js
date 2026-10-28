@@ -1050,7 +1050,7 @@ export default function CheckoutPage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const res = await fetch("/api/adresses", {
+        const res = await fetch("/api/addresses", {
           headers: { authorization: `Bearer ${session.access_token}` },
           cache: "no-store",
         });
@@ -1090,7 +1090,7 @@ export default function CheckoutPage() {
     if (duplicate) return;
 
     try {
-      await fetch("/api/adresses", {
+      await fetch("/api/addresses", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

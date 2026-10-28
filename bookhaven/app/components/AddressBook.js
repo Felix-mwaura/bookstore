@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabase";
 
 // The customer's address book.
 //
-// /api/adresses has existed since the checkout work but nothing in the
+// /api/addresses has existed since the checkout work but nothing in the
 // customer UI ever called it, so the table sits empty and every order asks
 // for the same address again. This is the missing half: list, add, edit,
 // delete and choose a default.
@@ -55,7 +55,7 @@ export default function AddressBook() {
   const load = useCallback(async () => {
     try {
       const headers = await authHeader();
-      const res = await fetch("/api/adresses", { headers, cache: "no-store" });
+      const res = await fetch("/api/addresses", { headers, cache: "no-store" });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(json?.error || "Could not load your addresses.");
       setAddresses(Array.isArray(json?.addresses) ? json.addresses : []);
@@ -128,7 +128,7 @@ export default function AddressBook() {
       };
       if (editing !== "new" && payload.is_default === undefined) delete payload.is_default;
 
-      const res = await fetch("/api/adresses", {
+      const res = await fetch("/api/addresses", {
         method: editing === "new" ? "POST" : "PATCH",
         headers,
         body: JSON.stringify(editing === "new" ? payload : { ...payload, id: editing }),
@@ -153,7 +153,7 @@ export default function AddressBook() {
     setNotice("");
     try {
       const headers = { ...(await authHeader()), "Content-Type": "application/json" };
-      const res = await fetch("/api/adresses", {
+      const res = await fetch("/api/addresses", {
         method: "PATCH",
         headers,
         body: JSON.stringify({ id: address.id, is_default: true }),
@@ -176,7 +176,7 @@ export default function AddressBook() {
     setNotice("");
     try {
       const headers = { ...(await authHeader()), "Content-Type": "application/json" };
-      const res = await fetch("/api/adresses", {
+      const res = await fetch("/api/addresses", {
         method: "DELETE",
         headers,
         body: JSON.stringify({ id: address.id }),

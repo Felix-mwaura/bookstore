@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { clientForToken, bearerToken } from "../../lib/server";
+import { readJsonBody, SMALL_BODY } from "../../lib/request-guard";
+import { dbErrorResponse } from "../../lib/api-error";
 
 // The wishlist routes were broken: they built a plain anon client and never
 // attached the caller's JWT, so every `.from("wishlists")` query ran as the
@@ -32,7 +34,13 @@ export async function GET(request) {
     .select("book_id")
     .eq("user_id", user.id);
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) {
+    return dbErrorResponse({
+      route: "GET /api/wishlist",
+      error: dbError,
+      fallback: "We could not load your wishlist. Please try again.",
+    });
+  }
   return NextResponse.json({ bookIds: (data || []).map((r) => r.book_id) });
 }
 
@@ -40,12 +48,11 @@ export async function POST(request) {
   const { client, user, error } = await requireUser(request);
   if (error) return error;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
+  const body = parsed.body;
 
   const bookId = validBookId(body?.bookId);
   if (!bookId) return NextResponse.json({ error: "A valid bookId is required" }, { status: 400 });
@@ -54,7 +61,13 @@ export async function POST(request) {
     .from("wishlists")
     .upsert({ user_id: user.id, book_id: bookId }, { onConflict: "user_id,book_id" });
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) {
+    return dbErrorResponse({
+      route: "POST /api/wishlist",
+      error: dbError,
+      fallback: "We could not save that to your wishlist. Please try again.",
+    });
+  }
   return NextResponse.json({ success: true });
 }
 
@@ -62,12 +75,11 @@ export async function DELETE(request) {
   const { client, user, error } = await requireUser(request);
   if (error) return error;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  const parsed = await readJsonBody(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: parsed.status });
   }
+  const body = parsed.body;
 
   const bookId = validBookId(body?.bookId);
   if (!bookId) return NextResponse.json({ error: "A valid bookId is required" }, { status: 400 });
@@ -78,6 +90,12 @@ export async function DELETE(request) {
     .eq("user_id", user.id)
     .eq("book_id", bookId);
 
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+  if (dbError) {
+    return dbErrorResponse({
+      route: "DELETE /api/wishlist",
+      error: dbError,
+      fallback: "We could not update your wishlist. Please try again.",
+    });
+  }
   return NextResponse.json({ success: true });
 }
