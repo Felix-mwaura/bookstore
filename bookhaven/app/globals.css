@@ -36,6 +36,40 @@
   --default-transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Motion tokens
+   One scale for the whole storefront, so the same gesture feels
+   the same in the header, a book card and the genre deck. The
+   values follow the rule that motion arriving should decelerate
+   and motion leaving should accelerate; nothing here is longer
+   than a fifth of a second for feedback, because a press that
+   takes longer than that reads as lag rather than response.
+
+   These are plain custom properties rather than @theme entries:
+   nothing needs a Tailwind utility called `duration-press`, and
+   keeping them out of @theme stops them being emitted twice.
+   ───────────────────────────────────────────────────────────── */
+:root {
+  /* Feedback: press, toggle, tab change. Fast enough to feel instant. */
+  --dur-press: 120ms;
+  /* Small state changes: hover colour, focus ring, dot. */
+  --dur-fast: 180ms;
+  /* Medium: a dropdown, a card arriving, a cross-fade. */
+  --dur-mid: 260ms;
+  /* Large: a cover lifting off the shelf, a deck stepping. */
+  --dur-slow: 420ms;
+
+  /* Decelerate — for anything arriving or coming to rest. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  /* A stronger decelerate for entrances that travel further. */
+  --ease-entrance: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Accelerate — for anything leaving. */
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* How far a revealed block travels. Small enough to read as a fade. */
+  --rv-rise: 12px;
+}
+
 body {
   background-color: var(--color-cream);
   color: var(--color-ink);
@@ -117,15 +151,19 @@ p {
   padding: 0.75rem 1.5rem;
   border-radius: var(--radius-control);
   font-weight: 600;
-  transition: background-color 180ms ease-out, transform 180ms ease-out;
+  transition: background-color var(--dur-fast) var(--ease-standard),
+              transform var(--dur-press) var(--ease-standard);
 }
 
 .btn-primary:hover {
   background-color: var(--color-sienna-hover);
 }
 
+/* Pressed: a pixel of travel, not a jump. Feedback has to land inside
+   ~120ms or the tap feels late, which is why it uses --dur-press rather
+   than the hover duration. */
 .btn-primary:active {
-  transform: scale(0.98);
+  transform: translateY(1px) scale(0.99);
 }
 
 .btn-secondary {
@@ -139,12 +177,18 @@ p {
   padding: 0.75rem 1.5rem;
   border-radius: var(--radius-control);
   font-weight: 600;
-  transition: border-color 180ms ease-out, background-color 180ms ease-out;
+  transition: border-color var(--dur-fast) var(--ease-standard),
+              background-color var(--dur-fast) var(--ease-standard),
+              transform var(--dur-press) var(--ease-standard);
 }
 
 .btn-secondary:hover {
   border-color: var(--color-navy);
   background-color: var(--color-subtle);
+}
+
+.btn-secondary:active {
+  transform: translateY(1px) scale(0.99);
 }
 
 /* Utilities */
@@ -177,19 +221,21 @@ p {
 }
 
 .animate-fade-in {
-  animation: fadeIn 0.3s ease-out forwards;
+  animation: fadeIn var(--dur-mid) var(--ease-standard) forwards;
 }
 
+/* A sheet arriving from the bottom edge, and the checkout's empty state. */
 .animate-slide-up {
-  animation: slideUp 0.25s ease-out forwards;
+  animation: slideUp var(--dur-mid) var(--ease-entrance) forwards;
 }
 
+/* Drawers: they travel a whole panel, so they get the slower curve. */
 .animate-slide-in-right {
-  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideInRight var(--dur-slow) var(--ease-entrance) forwards;
 }
 
 .animate-slide-in-left {
-  animation: slideInLeft 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideInLeft var(--dur-slow) var(--ease-entrance) forwards;
 }
 
 @keyframes dropdownIn {
@@ -223,16 +269,19 @@ p {
   to   { opacity: 1; transform: perspective(900px) translateY(0) rotateX(0deg); }
 }
 
+/* A confirmation, not a bounce: the tick that appears when a book lands in
+   the basket overshoots slightly because it confirms a completed action, and
+   nothing else in the store overshoots. */
 .animate-pop {
-  animation: pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: pop var(--dur-mid) cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .animate-badge-pop {
-  animation: badgePop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: badgePop var(--dur-mid) cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .animate-rise-3d {
-  animation: riseIn3d 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: riseIn3d var(--dur-slow) var(--ease-entrance) both;
 }
 
 /* Stage for anything that should have real depth. */
@@ -244,8 +293,8 @@ p {
 .book-3d {
   transform-style: preserve-3d;
   transform: rotateY(0) rotateX(0) translateZ(0);
-  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--dur-slow) var(--ease-entrance),
+              box-shadow var(--dur-slow) var(--ease-entrance);
 }
 
 /* The whole card follows the cover, so the tilt reads as one object.
@@ -257,8 +306,8 @@ p {
    dead. The cover's depth is produced by .scene's own perspective, so
    flattening the card costs nothing visually. */
 .card-3d {
-  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--dur-mid) var(--ease-entrance),
+              box-shadow var(--dur-mid) var(--ease-entrance);
   transform-style: flat;
 }
 
@@ -283,13 +332,13 @@ p {
 
 .hero-cover-3d {
   transform-style: preserve-3d;
-  transition: transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--dur-slow) var(--ease-entrance);
 }
 
 /* Admin: a card that lifts out of the page. */
 .tilt-card {
-  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 240ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--dur-mid) var(--ease-entrance),
+              box-shadow var(--dur-mid) var(--ease-entrance);
 }
 
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
@@ -307,7 +356,7 @@ p {
 
 /* Dashboard tiles arrive one after another instead of all at once. */
 .stat-grid > * {
-  animation: riseIn3d 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: riseIn3d var(--dur-slow) var(--ease-entrance) both;
 }
 
 .stat-grid > *:nth-child(1) { animation-delay: 0ms; }
@@ -323,7 +372,7 @@ p {
 .book-badge-3d {
   transform: perspective(600px) rotateY(-18deg) rotateX(4deg);
   transform-style: preserve-3d;
-  transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform var(--dur-slow) var(--ease-entrance);
 }
 
 .book-badge-3d:hover {
@@ -340,10 +389,15 @@ p {
   .stat-grid > *,
   .animate-pop,
   .animate-badge-pop,
-  .animate-rise-3d {
+  .animate-rise-3d,
+  /* Belt and braces: the script never arms anything when the reader has
+     asked for less motion, but if an element is already mid-reveal when the
+     setting changes it must land on its final state, not stay faded. */
+  [data-reveal] {
     animation: none !important;
     transition: none !important;
     transform: none !important;
+    opacity: 1 !important;
   }
 }
 
@@ -388,8 +442,10 @@ p {
   margin-left: calc(var(--fan-w) / -2);
   transform-origin: 50% 100%;
   transform: translateX(var(--shift, 0%)) rotate(var(--rot, 0deg));
-  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 420ms cubic-bezier(0.16, 1, 0.3, 1);
+  /* No stagger here on purpose: the three covers share one pivot, so a
+     delayed leaf would look detached from the others. */
+  transition: transform var(--dur-slow) var(--ease-entrance),
+              box-shadow var(--dur-slow) var(--ease-entrance);
 }
 
 .fan-leaf--l { --shift: -62%; --rot: -16deg; z-index: 1; }
@@ -477,6 +533,10 @@ p {
 
 .genre-stage[data-dragging="true"] .genre-card {
   transition: none;
+  /* Only while a finger is down: the one moment these are guaranteed to
+     move every frame. Dropped again on release so the GPU is not holding
+     five layers for the rest of the session. */
+  will-change: transform;
 }
 
 .genre-card {
@@ -497,7 +557,11 @@ p {
              scale(var(--s)) rotate(var(--r));
   z-index: var(--z);
   opacity: var(--o);
-  transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1), opacity 300ms linear;
+  /* The card travels a whole step, so it uses the slow curve; the opacity
+     cross-fade follows the same decelerate rather than `linear`, because a
+     linear fade reads as a mechanical dissolve next to a curved slide. */
+  transition: transform var(--dur-slow) var(--ease-entrance),
+              opacity var(--dur-mid) var(--ease-standard);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -552,7 +616,8 @@ p {
   text-align: left;
   opacity: 0;
   transform: translateY(6px);
-  transition: opacity 260ms ease-out, transform 260ms ease-out;
+  transition: opacity var(--dur-mid) var(--ease-standard),
+              transform var(--dur-mid) var(--ease-standard);
 }
 
 .genre-card-name {
@@ -629,7 +694,9 @@ p {
   color: var(--color-navy);
   box-shadow: 0 1px 2px rgba(27, 42, 74, 0.06);
   flex: 0 0 auto;
-  transition: border-color 180ms, background-color 180ms, transform 180ms;
+  transition: border-color var(--dur-fast) var(--ease-standard),
+              background-color var(--dur-fast) var(--ease-standard),
+              transform var(--dur-press) var(--ease-standard);
 }
 
 .genre-arrow:hover {
@@ -638,7 +705,7 @@ p {
 }
 
 .genre-arrow:active {
-  transform: scale(0.96);
+  transform: translateY(1px) scale(0.96);
 }
 
 .genre-dots {
@@ -673,7 +740,12 @@ p {
   height: 7px;
   border-radius: 999px;
   background-color: #C9BFA8;
-  transition: background-color 180ms, width 180ms;
+  /* The one place in the store that animates a layout property, on purpose:
+     the active dot grows into a pill. It is a 7px element inside a fixed
+     44px target, so the reflow is a handful of pixels in one line box, and
+     scaling a 7px circle horizontally would turn it into a lozenge. */
+  transition: background-color var(--dur-fast) var(--ease-standard),
+              width var(--dur-fast) var(--ease-standard);
 }
 
 .genre-dot:hover .genre-dot-mark {
@@ -701,6 +773,38 @@ p {
   .genre-card {
     transition: none;
   }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Reveal on scroll
+   Sections below the fold fade up 12px as they arrive, once. The
+   markup ships with no attribute, so the HTML a crawler or a
+   browser without JavaScript receives is already visible — this
+   stylesheet can only ever hide something the script has
+   deliberately armed.
+
+   Only elements that start below the viewport are armed (see
+   useReveal in HomeClient): above-the-fold content keeps its
+   final state so the largest paint is never delayed, and nobody
+   sees a flash of a half-faded hero on a slow connection.
+   ───────────────────────────────────────────────────────────── */
+[data-reveal="armed"] {
+  opacity: 0;
+  transform: translateY(var(--rv-rise));
+  transition: opacity var(--dur-mid) var(--ease-standard),
+              transform var(--dur-mid) var(--ease-standard);
+  transition-delay: var(--rv-delay, 0ms);
+  /* No `will-change` here on purpose: a homepage arms a dozen blocks at
+     once, and asking the compositor to keep twelve layers alive on a phone
+     costs more than the 420ms the transition runs for. */
+}
+
+[data-reveal="in"] {
+  opacity: 1;
+  transform: none;
+  transition: opacity var(--dur-slow) var(--ease-entrance),
+              transform var(--dur-slow) var(--ease-entrance);
+  transition-delay: var(--rv-delay, 0ms);
 }
 
 /* Scrollbar */

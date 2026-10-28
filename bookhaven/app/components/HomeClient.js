@@ -1,15 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { GenreCarousel } from "./GenreCarousel";
 import { HeroFan } from "./HeroFan";
 import ProductCard from "./ProductCard";
 import SectionHeading from "./SectionHeading";
 import { useStore } from "./StoreShell";
+import { armRevealOnScroll } from "../lib/reveal";
 import { STORE_CONTACT } from "../lib/site";
 import { categories } from "../lib/categories";
+
+/* ── reveal on scroll ─────────────────────────────────── */
+
+// The rules live in app/lib/reveal.js so they can be tested without a
+// browser; this only owns the lifetime of the observer.
+function useReveal() {
+  useEffect(() => armRevealOnScroll(), []);
+}
 
 /* ── hero ─────────────────────────────────────────────── */
 
@@ -91,8 +100,15 @@ function NewArrivals({ books }) {
         />
 
         <ul role="list" className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
-          {latest.map((book) => (
-            <li key={book.id} className="min-w-0">
+          {latest.map((book, index) => (
+            <li
+              key={book.id}
+              className="min-w-0"
+              data-reveal
+              // Cap the stagger at eight steps: past that the last cards in
+              // a long grid arrive so late the row looks broken.
+              style={{ "--rv-delay": `${Math.min(index, 7) * 45}ms` }}
+            >
               <ProductCard book={book} onAddToCart={store.addToCart} />
             </li>
           ))}
@@ -127,7 +143,12 @@ function HowItWorks() {
 
         <ol className="grid gap-6 sm:grid-cols-3 sm:gap-8">
           {steps.map((step, index) => (
-            <li key={step.title} className="border-t border-line pt-4">
+            <li
+              key={step.title}
+              className="border-t border-line pt-4"
+              data-reveal
+              style={{ "--rv-delay": `${index * 60}ms` }}
+            >
               <span className="font-playfair text-2xl font-bold text-sienna" aria-hidden="true">
                 {String(index + 1).padStart(2, "0")}
               </span>
@@ -155,7 +176,7 @@ function ShelfFacts({ stats }) {
     <section id="about" className="border-b border-line bg-cream">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
-          <div>
+          <div data-reveal>
             <SectionHeading eyebrow="About the shop" title="A bookshop for Kenyan readers" />
             <p className="mt-4 text-sm leading-relaxed text-muted sm:text-base">
               Prices are in Kenyan shillings and delivery is 20% of the book total — worked out on
@@ -172,8 +193,13 @@ function ShelfFacts({ stats }) {
           </div>
 
           <dl className="grid grid-cols-2 gap-x-6 gap-y-5">
-            {facts.map(({ value, label }) => (
-              <div key={label} className="border-t border-line pt-3">
+            {facts.map(({ value, label }, index) => (
+              <div
+                key={label}
+                className="border-t border-line pt-3"
+                data-reveal
+                style={{ "--rv-delay": `${index * 45}ms` }}
+              >
                 <dt className="text-xs text-muted sm:text-sm">{label}</dt>
                 <dd className="mt-1 text-2xl font-bold text-navy sm:text-3xl">{value}</dd>
               </div>
@@ -203,8 +229,13 @@ function TrustStrip({ mpesaEnabled }) {
     <section className="border-b border-line bg-cream">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <ul role="list" className="grid gap-3 sm:grid-cols-3 sm:gap-6">
-          {items.map((item) => (
-            <li key={item.title} className="flex items-start gap-2.5">
+          {items.map((item, index) => (
+            <li
+              key={item.title}
+              className="flex items-start gap-2.5"
+              data-reveal
+              style={{ "--rv-delay": `${index * 45}ms` }}
+            >
               <svg className="mt-0.5 h-5 w-5 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -327,7 +358,10 @@ function Contact() {
   return (
     <section id="contact" className="border-b border-line bg-cream">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+          data-reveal
+        >
           <h2 className="text-base font-semibold text-navy">Questions about an order?</h2>
           <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
             <a href={`mailto:${STORE_CONTACT.email}`} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
@@ -346,6 +380,7 @@ function Contact() {
 /* ── page ─────────────────────────────────────────────── */
 
 export default function HomeClient({ initialBooks = [], stats: catalogueStats, mpesaEnabled = false }) {
+  useReveal();
   const books = initialBooks;
 
   // Counts come from the server query over the whole shelf, not from the
