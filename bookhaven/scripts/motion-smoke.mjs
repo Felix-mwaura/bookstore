@@ -139,6 +139,8 @@ check(
   !/data-reveal=\{/.test(home),
   "the attribute must be static, never computed from state"
 );
+check("the page uses the tested module rather than its own copy", /armRevealOnScroll/.test(home));
+check("the module repeats the reduced-motion check itself", /prefers-reduced-motion: reduce/.test(revealSource));
 
 // ── behaviour, against a fake DOM ──────────────────────────────────────
 function fakeNode(top) {

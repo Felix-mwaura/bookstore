@@ -12,9 +12,20 @@
 const vercelHost =
   process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL || "";
 
+// This module is also imported by client components (they want STORE_CONTACT
+// and the price helpers), so it is evaluated in the browser too. Only
+// NEXT_PUBLIC_* variables are compiled into a browser bundle: in there,
+// VERCEL_URL and VERCEL_ENV are simply absent, which made the guard below
+// fire on every preview deployment and took the whole page down with it.
+// The browser's own origin is the honest answer for anything that asks.
+const isBrowser = typeof window !== "undefined";
+const browserOrigin =
+  isBrowser && window.location ? window.location.origin : "";
+
 export const SITE_URL = (
   process.env.NEXT_PUBLIC_SITE_URL ||
   (vercelHost ? `https://${vercelHost}` : "") ||
+  browserOrigin ||
   (process.env.NODE_ENV === "production" ? "" : "http://localhost:3000")
 ).replace(/\/+$/, "");
 
@@ -24,7 +35,14 @@ export const SITE_URL = (
 // to name its site.
 const isPreviewDeployment = process.env.VERCEL_ENV === "preview";
 
-if (!SITE_URL && process.env.NODE_ENV === "production" && !isPreviewDeployment) {
+// Server-only, on purpose. Canonicals, JSON-LD, the sitemap and robots.txt
+// are rendered on the server, so that is the only place a missing host turns
+// into wrong HTML that a crawler will index — and the only place this module
+// can actually see VERCEL_ENV. In a browser the same condition just means
+// "this deploy has no domain baked in", which is a build-time problem the
+// server has already refused to build with; crashing there only replaces a
+// page with a blank screen.
+if (!SITE_URL && !isBrowser && process.env.NODE_ENV === "production" && !isPreviewDeployment) {
   throw new Error(
     "NEXT_PUBLIC_SITE_URL is not set and no Vercel host was found — canonical URLs, JSON-LD and sitemap entries would be wrong."
   );

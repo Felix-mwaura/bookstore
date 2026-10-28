@@ -10,9 +10,13 @@
 // The rules now:
 //
 //   configured                   → use it.
-//   production, not configured   → throw at import. A deploy that cannot talk
-//                                  to a database must fail where somebody sees
-//                                  it, not serve an empty shop.
+//   production, not configured   → throw at import, on the server only. A
+//                                  deploy that cannot talk to a database must
+//                                  fail where somebody sees it, not serve an
+//                                  empty shop. In a browser bundle the same
+//                                  situation falls back to the placeholder:
+//                                  throwing there is a blank page instead of
+//                                  a diagnosable one.
 //   everything else, unconfigured→ a reserved, unresolvable placeholder
 //                                  (".invalid" can never be registered), so a
 //                                  preview or a fresh clone renders empty
@@ -27,7 +31,18 @@ const rawKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
 const isConfigured = Boolean(rawUrl && rawKey);
 const isVercelPreview = process.env.VERCEL_ENV === "preview";
-const mustBeConfigured = process.env.NODE_ENV === "production" && !isVercelPreview;
+
+// lib/supabase.js is imported by client components, so this module is
+// evaluated in the browser as well — and a browser bundle only ever contains
+// the NEXT_PUBLIC_* values that were set at build time. VERCEL_ENV is not one
+// of them, so `isVercelPreview` is always false there and the guard below
+// used to fire on every preview deployment, blanking the page before React
+// had a chance to render. A missing key in a browser is a build problem the
+// server has already refused; the browser's job is to fall back to the
+// placeholder below and let the page draw.
+const isBrowser = typeof window !== "undefined";
+const mustBeConfigured =
+  process.env.NODE_ENV === "production" && !isVercelPreview && !isBrowser;
 
 // RFC 2606 reserves .invalid; it cannot resolve, so these values cannot leak
 // traffic anywhere even if a request is made with them.

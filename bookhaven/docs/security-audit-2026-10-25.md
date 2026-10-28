@@ -212,6 +212,14 @@ The site URL follows the same split: `NEXT_PUBLIC_SITE_URL`, then `VERCEL_PROJEC
 
 Test: `scripts/security-config-smoke.mjs` — production throws, configured production loads, development and preview get the placeholder, a configured preview uses its own project, and the four files are scanned for literal production values.
 
+**Follow-up (28 Oct): the guard was firing in the browser.** Both modules are imported by client components — `site.js` carries `STORE_CONTACT` and the price helpers, `supabase-config.js` backs the browser Supabase client — so both were evaluated in the browser as well, and a browser bundle only ever contains the `NEXT_PUBLIC_*` values that were set at build time. `VERCEL_ENV` is not one of them, so `isPreviewDeployment` was always `false` there, `NODE_ENV === "production"` compiled to `true`, and the guard threw at import on every preview. In the compiled client chunk it read `if(!n&&!a)throw Error(...)` with `a = "preview" === process.env.VERCEL_ENV` — permanently false.
+
+The result was a blank page: `Uncaught Error: NEXT_PUBLIC_SITE_URL is not set and no Vercel host was found`. `supabase-config.js` had the identical shape (`if(a&&!n)throw Error(a)`), so it was queued up right behind it.
+
+Fixed by making the throw a **server-side** guard (`!isBrowser`), which is also the only place it can do its job: canonicals, JSON-LD, the sitemap and robots.txt are rendered on the server, and that is where a wrong host becomes indexed HTML. In the browser, `site.js` now falls back to `window.location.origin` (correct, and nothing client-side renders it) and `supabase-config.js` to the same reserved placeholder it already used for previews. Turbopack then folds `typeof window !== "undefined"` per bundle: the throw survives in the server chunk and vanishes from every client chunk.
+
+Test: `scripts/browser-modules-smoke.mjs` — each module is imported against a fake browser and against a bare server with each environment combination, asserting the browser never throws and the server still refuses to start; plus a sweep over every `lib` module a client component can reach, failing if any module-level `throw` is not behind a browser check.
+
 ### SEC-07 — COD stock hoarding · Medium · `75f04e5`
 
 COD is the only method that reserves stock without money. The route accepted up to 50 copies of a title per line and any number of open orders, so one account could hold the last copies off the shelf for free.
