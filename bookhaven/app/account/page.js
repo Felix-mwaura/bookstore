@@ -45,7 +45,7 @@ function Field({ id, label, hint, error, children }) {
 }
 
 const inputClass =
-  "w-full min-h-11 rounded-control border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none transition focus:border-navy focus-visible:ring-2 focus-visible:ring-navy/20 disabled:opacity-60";
+  "w-full min-h-11 rounded-control border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none transition focus:border-navy focus-visible:ring-2 focus-visible:ring-navy disabled:opacity-60";
 
 function LoadingPanel() {
   return (
@@ -299,8 +299,7 @@ export default function AccountPage() {
         )}
 
         <header className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-sienna">Your account</p>
-          <h1 className="mt-1 font-playfair text-2xl font-bold text-navy sm:text-3xl">
+          <h1 className="font-playfair text-2xl font-bold text-navy sm:text-3xl">
             {displayName ? `Hello, ${displayName}` : "Your account"}
           </h1>
           <p className="mt-1 text-sm text-muted">{user?.email}</p>

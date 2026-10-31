@@ -34,10 +34,10 @@ function StepBar({ step }) {
         return (
           <div key={label} className="flex items-center">
             <div className="flex flex-col items-center">
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm border-2 transition-colors ${done ? "bg-[#B5532F] border-[#B5532F] text-white" : active ? "bg-white border-[#B5532F] text-[#B5532F]" : "bg-white border-stone-300 text-muted"}`}>
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm border-2 transition-colors ${done ? "bg-sienna border-sienna text-white" : active ? "bg-white border-sienna text-sienna" : "bg-white border-stone-300 text-muted"}`}>
                 {done ? (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>) : idx}
               </div>
-              <span className={`text-[10px] sm:text-xs font-semibold mt-1.5 whitespace-nowrap ${active ? "text-[#B5532F]" : done ? "text-stone-500" : "text-muted"}`}>{label}</span>
+              <span className={`text-[10px] sm:text-xs font-semibold mt-1.5 whitespace-nowrap ${active ? "text-sienna" : done ? "text-stone-500" : "text-muted"}`}>{label}</span>
             </div>
             {i < steps.length - 1 && <div className={`w-8 sm:w-24 h-0.5 mx-1.5 sm:mx-3 mb-5 transition-colors ${done ? "bg-sienna" : "bg-line"}`} />}
           </div>
@@ -54,7 +54,7 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
   const grand = total + delivery;
   return (
     <div className="bg-white rounded-card border border-line p-5 sm:p-6 lg:sticky lg:top-24">
-      <h3 className="font-bold text-[#1B2A4A] text-lg mb-5">Order Summary</h3>
+      <h3 className="font-bold text-navy text-lg mb-5">Order Summary</h3>
       <div className="space-y-4 max-h-56 overflow-y-auto pr-1">
         {cart.map((item) => (
           <div key={item.id} className="flex gap-3 items-start">
@@ -62,7 +62,7 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
               <BookCover book={item} className="w-full h-full" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#1B2A4A] line-clamp-1">{item.title}</p>
+              <p className="text-sm font-semibold text-navy line-clamp-1">{item.title}</p>
               <p className="text-xs text-muted">{item.author}</p>
               <div className="flex justify-between items-center mt-1">
                 {onChangeQty ? (
@@ -76,7 +76,7 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
                 ) : (
                   <span className="text-xs text-muted">Qty: {item.quantity}</span>
                 )}
-                <span className="text-sm font-bold text-[#1B2A4A]">KSh {(item.price * item.quantity).toLocaleString()}</span>
+                <span className="text-sm font-bold text-navy">KSh {(item.price * item.quantity).toLocaleString()}</span>
               </div>
               {onRemove && (
                 <button type="button" onClick={() => onRemove(item.id)} className="text-[11px] text-muted hover:text-red-600 underline mt-1">
@@ -121,7 +121,7 @@ function Field({ label, name, type = "text", placeholder, span2, value, onChange
         aria-invalid={error ? "true" : undefined}
         aria-describedby={error ? errorId : undefined}
         onChange={(e) => onChange(name, e.target.value)}
-        className={`w-full min-h-11 bg-white border rounded-control px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-sienna/20 ${error ? "border-error bg-error/5" : "border-line focus:border-navy"}`}
+        className={`w-full min-h-11 bg-white border rounded-control px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-sienna ${error ? "border-error bg-error/5" : "border-line focus:border-navy"}`}
       />
       {error && <p id={errorId} className="text-error text-xs mt-1">{error}</p>}
     </div>
@@ -186,7 +186,7 @@ function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember
               // picked again after editing a field by hand.
               e.target.value = "";
             }}
-            className="min-h-11 w-full rounded-xl border border-[#E3DCCB] bg-white px-4 text-sm outline-none transition focus:border-[#B5532F]"
+            className="min-h-11 w-full rounded-xl border border-line bg-white px-4 text-sm outline-none transition focus:border-sienna focus:ring-2 focus:ring-sienna"
           >
             <option value="">Choose a saved address…</option>
             {saved.map((a) => (
@@ -207,7 +207,7 @@ function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember
         <div>
           <label htmlFor="checkout-city" className="block text-xs font-bold text-muted uppercase tracking-wider mb-1.5">City / town</label>
           <select id="checkout-city" value={data.city} onChange={(e) => { onChange("city", e.target.value); setErrors((p) => ({ ...p, city: "" })); }}
-            className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#B5532F] ${errors.city ? "border-red-400" : "border-[#E3DCCB]"}`}>
+            className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-sienna focus:ring-2 focus:ring-sienna ${errors.city ? "border-red-400" : "border-line"}`}>
             <option value="">Select city</option>
             {["Nairobi","Mombasa","Kisumu","Nakuru","Eldoret","Thika","Nyeri","Machakos","Meru","Garissa","Kakamega","Malindi","Kisii","Kericho","Naivasha"].map((c) => <option key={c}>{c}</option>)}
           </select>
@@ -216,7 +216,7 @@ function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember
         <div>
           <label htmlFor="checkout-notes" className="block text-xs font-bold text-muted uppercase tracking-wider mb-1.5">Notes <span className="text-stone-300 normal-case font-normal">(optional)</span></label>
           <input id="checkout-notes" type="text" value={data.notes} placeholder="Landmark, nearest stage..." onChange={(e) => onChange("notes", e.target.value)}
-            className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#B5532F]" />
+            className="w-full bg-stone-50 border border-line rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-sienna focus:ring-2 focus:ring-sienna" />
         </div>
       </div>
 
@@ -396,7 +396,7 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
   if (stage === "idle") return (
     <div className="space-y-5">
       <div className="flex items-start gap-3 rounded-control border border-line bg-subtle/60 p-4">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-control bg-[#2F7D4F]" aria-hidden="true">
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-control bg-success" aria-hidden="true">
           <span className="text-sm font-black text-white">M</span>
         </div>
         <div>
@@ -442,7 +442,7 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
           placeholder="0712 345 678"
           aria-invalid={phoneError ? "true" : undefined}
           aria-describedby={phoneError ? "mpesa-phone-error" : "mpesa-phone-help"}
-          className={`min-h-11 w-full rounded-control border bg-white px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-sienna/20 ${phoneError ? "border-error" : "border-line focus:border-navy"}`}
+          className={`min-h-11 w-full rounded-control border bg-white px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-sienna ${phoneError ? "border-error" : "border-line focus:border-navy"}`}
         />
         {phoneError
           ? <p id="mpesa-phone-error" className="mt-1 text-xs text-error">{phoneError}</p>
@@ -698,13 +698,13 @@ function CodFlow({ total, onSuccess, disabled = false }) {
         </ul>
       </div>
       <div className="bg-stone-50 rounded-xl p-4 text-sm">
-        <div className="flex justify-between font-bold text-[#1B2A4A]"><span>Pay on delivery</span><span>KSh {total.toLocaleString()}</span></div>
+        <div className="flex justify-between font-bold text-navy"><span>Pay on delivery</span><span>KSh {total.toLocaleString()}</span></div>
       </div>
       <label className="flex items-start gap-3 cursor-pointer group">
-        <div onClick={() => setAgreed(!agreed)} className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition ${agreed ? "bg-[#1B2A4A] border-[#1B2A4A]" : "border-stone-300 group-hover:border-stone-400"}`}>
+        <div onClick={() => setAgreed(!agreed)} className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition ${agreed ? "bg-navy border-navy" : "border-stone-300 group-hover:border-stone-400"}`}>
           {agreed && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
         </div>
-        <span className="text-sm text-stone-600 leading-relaxed">I understand I must pay <strong className="text-[#1B2A4A]">KSh {total.toLocaleString()}</strong> in cash to the delivery rider.</span>
+        <span className="text-sm text-stone-600 leading-relaxed">I understand I must pay <strong className="text-navy">KSh {total.toLocaleString()}</strong> in cash to the delivery rider.</span>
       </label>
       <button
         type="button"
@@ -730,7 +730,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, m
   const method = chosen ?? (mpesaEnabled ? "mpesa" : "cod");
   const grand = total + deliveryFeeFor(total);
   const methods = [
-    ...(mpesaEnabled ? [{ id: "mpesa", label: "M-Pesa", sub: "Pay from your phone", icon: "M", color: "bg-[#2F7D4F]" }] : []),
+    ...(mpesaEnabled ? [{ id: "mpesa", label: "M-Pesa", sub: "Pay from your phone", icon: "M", color: "bg-success" }] : []),
     { id: "cod", label: "Cash on delivery", sub: "Pay the rider", icon: "KSh", color: "bg-navy" },
   ];
 
@@ -739,7 +739,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, m
   if (!canPay) {
     return (
       <div className="space-y-5">
-        <h2 className="text-2xl font-bold text-[#1B2A4A] mb-1">Sign in to complete your order</h2>
+        <h2 className="text-2xl font-bold text-navy mb-1">Sign in to complete your order</h2>
         <p className="text-stone-500 text-sm">
           Orders are linked to your BookHaven account so you can track them and we can reach
           you about delivery.
@@ -747,7 +747,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, m
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
           Your basket is saved. Sign in or create an account and you will return straight to checkout.
         </div>
-        <Link href="/login?next=/checkout" className="block text-center bg-[#1B2A4A] hover:bg-[#B5532F] text-white py-4 rounded-xl font-bold transition">
+        <Link href="/login?next=/checkout" className="block text-center bg-navy hover:bg-sienna text-white py-4 rounded-xl font-bold transition">
           Sign in to continue
         </Link>
         <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted hover:text-stone-600 transition">
@@ -769,9 +769,9 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, m
       </p>
       <div className={`grid gap-3 mb-7 ${methods.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
         {methods.map((m) => (
-          <button key={m.id} onClick={() => setChosen(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-[#B5532F] bg-[#B5532F]/5" : "border-[#E3DCCB] hover:border-stone-300 bg-white"}`}>
+          <button key={m.id} onClick={() => setChosen(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-sienna bg-sienna/5" : "border-line hover:border-stone-300 bg-white"}`}>
             <div className={`w-9 h-9 ${m.color} rounded-lg flex items-center justify-center mx-auto mb-2`}><span className="text-white font-black text-sm">{m.icon}</span></div>
-            <p className={`text-xs font-bold leading-tight ${method === m.id ? "text-[#B5532F]" : "text-stone-700"}`}>{m.label}</p>
+            <p className={`text-xs font-bold leading-tight ${method === m.id ? "text-sienna" : "text-stone-700"}`}>{m.label}</p>
             <p className="text-[10px] text-muted mt-0.5">{m.sub}</p>
           </button>
         ))}
@@ -816,7 +816,7 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
         </div>
       </div>
 
-      <h1 className="text-2xl sm:text-3xl font-bold text-navy">{order ? "Order received" : "Your order could not be saved"}</h1>
+      <h1 className="font-playfair text-2xl font-bold text-navy sm:text-3xl">{order ? "Order received" : "Your order could not be saved"}</h1>
       <p className="text-stone-500 mt-2 mb-8">
         {order
           ? `Thank you ${details.firstName}. We have your order and will be in touch about delivery.`
@@ -838,7 +838,7 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
               ? <>Your M-Pesa payment went through but the order was not recorded. Save this reference and contact support — do <strong>not</strong> pay again.</>
               : <>Nothing has been charged. You can safely try again.</>}
           </p>
-          <button onClick={onRetry} disabled={saving} className="w-full bg-[#1B2A4A] hover:bg-[#B5532F] disabled:opacity-60 text-white py-3 rounded-xl font-bold text-sm transition">
+          <button onClick={onRetry} disabled={saving} className="w-full bg-navy hover:bg-sienna disabled:opacity-60 text-white py-3 rounded-xl font-bold text-sm transition">
             {saving ? "Saving…" : "Try saving the order again"}
           </button>
         </div>
@@ -854,7 +854,7 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
         ].map(({ label, value, mono }) => (
           <div key={label} className="flex justify-between text-sm gap-4">
             <span className="text-stone-500 flex-shrink-0">{label}</span>
-            <span className={`font-semibold text-[#1B2A4A] text-right ${mono ? "font-mono" : ""}`}>{value}</span>
+            <span className={`font-semibold text-navy text-right ${mono ? "font-mono" : ""}`}>{value}</span>
           </div>
         ))}
       </div>
@@ -875,8 +875,8 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Link href="/account" className="bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-8 py-3.5 rounded-xl font-bold transition-all active:scale-95">View my orders</Link>
-        <Link href="/books" className="border-2 border-[#E3DCCB] hover:border-stone-300 text-stone-600 px-8 py-3.5 rounded-xl font-bold transition-all">Continue shopping</Link>
+        <Link href="/account" className="bg-navy hover:bg-sienna text-white px-8 py-3.5 rounded-xl font-bold transition-all active:scale-95">View my orders</Link>
+        <Link href="/books" className="border-2 border-line hover:border-stone-300 text-stone-600 px-8 py-3.5 rounded-xl font-bold transition-all">Continue shopping</Link>
       </div>
     </div>
   );
@@ -1193,7 +1193,7 @@ export default function CheckoutPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-[#1B2A4A]">Sign in to finish your order</h1>
+          <h1 className="font-playfair text-xl font-bold text-navy">Sign in to finish your order</h1>
           <p className="text-sm text-stone-500 mt-2">
             Orders are tied to your account so you can track delivery and keep a record of every purchase.
           </p>
@@ -1205,13 +1205,13 @@ export default function CheckoutPage() {
           <div className="mt-6 space-y-2">
             <Link
               href="/login?next=%2Fcheckout"
-              className="block w-full bg-[#B5532F] hover:bg-[#96431F] text-white py-3 rounded-xl font-bold transition"
+              className="block w-full bg-sienna hover:bg-sienna-hover text-white py-3 rounded-xl font-bold transition"
             >
               Sign in
             </Link>
             <Link
               href="/login?tab=register&next=%2Fcheckout"
-              className="block w-full border-2 border-[#E3DCCB] hover:border-[#B5532F] text-stone-700 py-3 rounded-xl font-bold transition"
+              className="block w-full border-2 border-line hover:border-sienna text-stone-700 py-3 rounded-xl font-bold transition"
             >
               Create an account
             </Link>
@@ -1234,8 +1234,8 @@ export default function CheckoutPage() {
 
 
   return (
-    <div className="min-h-screen bg-[#FAF6EE]">
-      <header className="bg-white border-b border-[#E3DCCB] sticky top-0 z-40">
+    <div className="min-h-screen bg-cream">
+      <header className="bg-white border-b border-line sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           <Link href="/" className="font-playfair text-lg font-bold text-navy hover:text-sienna transition-colors">
             Book Haven
@@ -1247,10 +1247,10 @@ export default function CheckoutPage() {
       </header>
 
       {step < 3 && (
-        <div className="lg:hidden bg-white border-b border-[#E3DCCB] px-4 py-3 flex items-center justify-between">
+        <div className="lg:hidden bg-white border-b border-line px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold text-stone-600">Order total</span>
-            <span className="text-sm font-black text-[#1B2A4A]">KSh {(total + deliveryFeeFor(total)).toLocaleString()}</span>
+            <span className="text-sm font-black text-navy">KSh {(total + deliveryFeeFor(total)).toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-1.5">
             {cart.slice(0, 3).map((item, i) => (
@@ -1265,7 +1265,7 @@ export default function CheckoutPage() {
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
         <div className="mb-6 text-center">
-          <h1 className="text-xl sm:text-2xl font-bold text-navy">Checkout</h1>
+          <h1 className="font-playfair text-xl font-bold text-navy sm:text-2xl">Checkout</h1>
           <p className="mt-1 text-sm text-muted">Delivery and payment on one page.</p>
         </div>
         <StepBar step={step === 3 ? 3 : detailsValid ? 2 : 1} />

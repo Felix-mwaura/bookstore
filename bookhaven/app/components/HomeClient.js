@@ -32,24 +32,23 @@ function Hero({ books }) {
               search field's fixed pieces) wins and pushes the page wider
               than a 320px screen. */}
           <div className="min-w-0">
-            <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">
-              <span aria-hidden="true" className="h-px w-6 shrink-0 bg-sienna" />
-              Book Haven · Books in Kenyan shillings
-            </p>
-            <h1 className="mt-3 text-[1.75rem] font-bold leading-[1.1] tracking-[-0.01em] text-navy sm:text-[2.5rem] xl:text-[3.25rem]">
+            {/* The display face, like every other page title in the shop. The
+                homepage was the one place a reader met Inter at 52px, which is
+                the size the serif exists for. */}
+            <h1 className="font-playfair text-[2rem] font-bold leading-[1.08] tracking-[-0.02em] text-navy sm:text-[2.75rem] xl:text-[3.5rem]">
               Books worth keeping,
               <br />
               <span className="italic text-sienna">delivered</span> to your door.
             </h1>
             <p className="mt-4 max-w-lg text-base leading-relaxed text-muted sm:mt-5 sm:text-lg">
-              Paperbacks and hardcovers across fiction, finance, self-help and biography.
-              Stock shown is the real shelf quantity, and delivery is 20% of the book total,
-              worked out before you pay.
+              Prices in Kenyan shillings. Paperbacks and hardcovers across fiction, finance,
+              self-help and biography. Stock shown is the real shelf quantity, and delivery is
+              20% of the book total, worked out before you pay.
             </p>
 
             <form action="/books" method="get" role="search" className="mt-6 max-w-lg sm:mt-8">
               <label htmlFor="hero-search" className="sr-only">Search books by title or author</label>
-              <div className="flex items-stretch gap-2 rounded-card border border-line bg-white p-1.5 shadow-card focus-within:border-navy">
+              <div className="flex items-stretch gap-2 rounded-card border border-line bg-white p-1.5 shadow-card focus-within:border-sienna focus-within:ring-2 focus-within:ring-sienna">
                 <span className="flex items-center pl-2 text-muted" aria-hidden="true">
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -60,7 +59,7 @@ function Hero({ books }) {
                   name="q"
                   type="search"
                   placeholder="Title or author…"
-                  className="min-w-0 flex-1 bg-transparent py-2.5 text-[15px] outline-none placeholder:text-muted/80"
+                  className="min-w-0 flex-1 bg-transparent py-2.5 text-[15px] outline-none placeholder:text-muted"
                 />
                 <button type="submit" className="btn-primary shrink-0 px-4 py-2.5 text-sm">Search</button>
               </div>
@@ -92,7 +91,6 @@ function NewArrivals({ books }) {
     <section className="border-b border-line bg-cream">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <SectionHeading
-          eyebrow="Just in"
           title="New arrivals"
           description="The latest titles added to the shelf."
           action={{ href: "/books?sort=newest", label: "See all" }}
@@ -139,7 +137,7 @@ function HowItWorks() {
   return (
     <section className="border-b border-line bg-white">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
-        <SectionHeading eyebrow="Ordering" title="How ordering works" className="mb-6" />
+        <SectionHeading title="How ordering works" className="mb-6" />
 
         <ol className="grid gap-6 sm:grid-cols-3 sm:gap-8">
           {steps.map((step, index) => (
@@ -177,7 +175,7 @@ function ShelfFacts({ stats }) {
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
           <div data-reveal>
-            <SectionHeading eyebrow="About the shop" title="A bookshop for Kenyan readers" />
+            <SectionHeading title="A bookshop for Kenyan readers" />
             <p className="mt-4 text-sm leading-relaxed text-muted sm:text-base">
               Prices are in Kenyan shillings and delivery is 20% of the book total — worked out on
               screen before you confirm, so nothing is added at the door.
@@ -193,15 +191,10 @@ function ShelfFacts({ stats }) {
           </div>
 
           <dl className="grid grid-cols-2 gap-x-6 gap-y-5">
-            {facts.map(({ value, label }, index) => (
-              <div
-                key={label}
-                className="border-t border-line pt-3"
-                data-reveal
-                style={{ "--rv-delay": `${index * 45}ms` }}
-              >
+            {facts.map(({ value, label }) => (
+              <div key={label} className="border-t border-line pt-3">
                 <dt className="text-xs text-muted sm:text-sm">{label}</dt>
-                <dd className="mt-1 text-2xl font-bold text-navy sm:text-3xl">{value}</dd>
+                <dd className="mt-1 text-2xl font-bold tabular-nums text-navy sm:text-3xl">{value}</dd>
               </div>
             ))}
           </dl>
@@ -229,13 +222,8 @@ function TrustStrip({ mpesaEnabled }) {
     <section className="border-b border-line bg-cream">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
         <ul role="list" className="grid gap-3 sm:grid-cols-3 sm:gap-6">
-          {items.map((item, index) => (
-            <li
-              key={item.title}
-              className="flex items-start gap-2.5"
-              data-reveal
-              style={{ "--rv-delay": `${index * 45}ms` }}
-            >
+          {items.map((item) => (
+            <li key={item.title} className="flex items-start gap-2.5">
               <svg className="mt-0.5 h-5 w-5 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -301,14 +289,17 @@ function Newsletter() {
         <div className="grid gap-6 sm:grid-cols-2 sm:items-center sm:gap-10">
           <SectionHeading
             tone="dark"
-            eyebrow="Newsletter"
             title="New titles, occasionally"
             description="One email when there is something worth telling you. No fixed schedule, no spam, and you can ask us to remove you at any time."
           />
 
           {subscribed ? (
             <p className="text-sm font-semibold text-white" role="status">
-              <span className="mr-1.5 text-[#8FD3A8]" aria-hidden="true">✓</span>
+              <span className="mr-1.5 inline-flex align-[-3px] text-success-soft" aria-hidden="true">
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+              </span>
               You’re on the list. We’ll email you when new titles arrive.
             </p>
           ) : (
@@ -343,7 +334,7 @@ function Newsletter() {
                   {busy ? "Saving…" : "Subscribe"}
                 </button>
               </div>
-              {error && <p id="newsletter-error" role="alert" className="mt-2 text-xs text-[#F3A78C]">{error}</p>}
+              {error && <p id="newsletter-error" role="alert" className="mt-2 text-xs text-error-soft">{error}</p>}
             </form>
           )}
         </div>

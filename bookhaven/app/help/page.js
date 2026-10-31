@@ -22,7 +22,6 @@ export default function HelpPage() {
   return (
     <StoreLayout>
       <PolicyPage
-        eyebrow="Help"
         title="Delivery, payment and returns"
         intro="Short answers, in the same words we would use on the phone. If something here does not match what happened to your order, tell us — this page is meant to be true, not reassuring."
       >

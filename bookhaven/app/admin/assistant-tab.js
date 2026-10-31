@@ -401,7 +401,7 @@ export default function AssistantTab() {
                 ? "Ask about orders, stock, customers or sales…"
                 : "Add ANTHROPIC_API_KEY to this environment to enable chat."
             }
-            className="max-h-40 min-h-11 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-ink outline-none placeholder:text-muted/70 disabled:cursor-not-allowed"
+            className="max-h-40 min-h-11 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm text-ink outline-none placeholder:text-muted disabled:cursor-not-allowed"
             aria-describedby="assistant-hint"
           />
           <button

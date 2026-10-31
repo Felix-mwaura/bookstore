@@ -74,13 +74,9 @@ export default async function BooksPage({ searchParams }) {
         </nav>
 
         <div className="mb-6 border-b border-line pb-5">
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">
-            <span aria-hidden="true" className="h-px w-6 bg-sienna" />
-            {hasFilters ? "Filtered shelf" : "The whole shelf"}
-          </p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-navy sm:text-3xl">{heading}</h1>
+              <h1 className="font-playfair text-2xl font-bold text-navy sm:text-3xl">{heading}</h1>
               <p className="mt-1 text-sm text-muted">
                 {total === 0
                   ? "No titles match this selection."

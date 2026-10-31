@@ -171,7 +171,6 @@ export function GenreCarousel({ genres = [], counts = {} }) {
     <section id="genres" aria-labelledby="genres-title" className="border-b border-line bg-white">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
         <SectionHeading
-          eyebrow="Browse"
           title="Explore Books in Your Favorite Genre"
           description="Swipe the shelf, or tap a genre to see everything on it."
           action={{ href: "/books", label: "All books" }}

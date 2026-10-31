@@ -252,9 +252,21 @@ function intersect(win, nodes) {
 console.log("\nReduced motion wins");
 const reduced = reducedMotionBlocks(css);
 check("globals.css has a reduced-motion block", reduced.length >= 2);
+// Reduced motion stops movement but keeps the colour feedback that tells a
+// shopper something happened. The old rule — every transition at 0.001ms —
+// passed this check and removed that feedback, so the check now asks for the
+// sharper thing: nothing animates, and transitions are limited to properties
+// that do not move.
 check(
-  "the global block neutralises durations",
-  reduced.some((block) => /animation-duration:\s*0\.001ms\s*!important/.test(block) && /transition-duration:\s*0\.001ms\s*!important/.test(block))
+  "the global block stops animation",
+  reduced.some((block) => /animation-duration:\s*0\.001ms\s*!important/.test(block))
+);
+const keepTheFeedback = reduced.find((block) => /transition-property:/.test(block)) || "";
+check("transitions are limited to non-moving properties", /transition-property:[^;]*background-color/.test(keepTheFeedback));
+check("and never transform", !/transition-property:[^;]*transform/.test(keepTheFeedback));
+check(
+  "movement is dropped outright",
+  /transform:\s*none\s*!important/.test(reduced.join("\n"))
 );
 check(
   "the 3D set is switched off explicitly",

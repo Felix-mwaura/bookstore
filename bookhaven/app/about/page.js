@@ -19,7 +19,6 @@ export default function AboutPage() {
   return (
     <StoreLayout>
       <PolicyPage
-        eyebrow="About"
         title="A bookshop, online"
         intro="Book Haven sells paperbacks and hardcovers in Kenya, delivered to your door. The shop is small enough that you can reach a person, and it is built to be honest about prices, stock and reviews."
         updated={false}

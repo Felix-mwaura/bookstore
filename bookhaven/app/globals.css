@@ -11,6 +11,7 @@
   --color-cream: #FAF6EE;
   --color-surface: #FFFFFF;
   --color-subtle: #F2ECDF;
+  --color-sand: #F6EDDD;
   --color-navy: #1B2A4A;
   --color-navy-hover: #14203A;
   --color-sienna: #B5532F;
@@ -19,6 +20,18 @@
   --color-muted: #5B6270;
   --color-line: #E3DCCB;
   --color-success: #2F7D4F;
+  /* The same meaning, lightened for navy panels: #2F7D4F on navy is 2.6:1,
+     which is not a tick anybody can see from across a phone. */
+  --color-success-soft: #8FD3A8;
+  /* Sienna and error, lightened for text sitting on navy panels: the base
+     values are 2.9:1 and 2.4:1 there. Both clear AA at these tints. */
+  --color-sienna-soft: #E9B79F;
+  --color-error-soft: #F3A78C;
+  /* The "low stock" amber has to be readable as text, which the fill colour
+     --color-warning is not: 3.4:1 on cream. This is the same hue, darker. */
+  --color-warning-strong: #8A5A15;
+  /* Unfilled stars. Decorative by nature, so it is a hairline, not text. */
+  --color-star-empty: #CBBFA8;
   --color-warning: #B7791F;
   --color-error: #B3261E;
   --color-info: #2A5DA8;
@@ -90,11 +103,57 @@ p {
 }
 
 /* A visible focus ring on every interactive element, for keyboard users
-   and for people who use the site without a mouse. */
+   and for people who use the site without a mouse.
+
+   Two tones, because one cannot clear 3:1 everywhere: sienna on navy is
+   2.9:1, which fails WCAG 1.4.11 exactly where it is needed most — the
+   primary button, the dark cards, the admin sidebar. The cream halo sits
+   between the control and the ring, so the ring is always read against a
+   light surface (sienna on cream is 4.6:1) whatever is behind it. On cream
+   the halo is invisible, so light surfaces look unchanged. */
 :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
   outline: 2px solid var(--color-sienna);
   outline-offset: 2px;
-  border-radius: 4px;
+  box-shadow: 0 0 0 2px var(--color-cream);
+  /* No border-radius override: `outline` already follows whatever radius
+     the element has, and forcing 4px made pills and cards change shape the
+     moment they took keyboard focus. */
+}
+
+/* Anchors land under the sticky header otherwise. One value, used by the
+   browse links in the header and every in-page link in the footer. */
+html {
+  scroll-padding-top: 5rem;
+}
+
+/* ── Browser surfaces ────────────────────────────────────
+   The parts of the page a shop does not draw still carry its
+   design: the selection, the caret, the scrollbar, the
+   placeholder and the underline. Left at the browser's
+   defaults they are the one place the palette stops. */
+
+::selection {
+  background-color: var(--color-sienna);
+  color: var(--color-cream);
+}
+
+::placeholder {
+  /* Muted at full strength. This was muted/80, which is 3.98:1 on white —
+     under AA for the one piece of text a shopper reads before typing. */
+  color: var(--color-muted);
+  opacity: 1;
+}
+
+:where(input, textarea, select) {
+  caret-color: var(--color-sienna);
+  /* Checkboxes and radios in the admin, themed in one line. */
+  accent-color: var(--color-navy);
+}
+
+/* A link that is underlined should sit off its own baseline, not on it. */
+:where(main, footer) a {
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: from-font;
 }
 
 /* Small screens: keep tap targets comfortable. */
@@ -104,14 +163,40 @@ p {
   }
 }
 
+/* Reduced motion: stop movement, keep meaning.
+ *
+ * The blunt version of this rule — every transition 0.001ms — also removes
+ * the feedback that tells you an add-to-basket registered or a tab changed,
+ * and there is no accessibility gain in that. So: colour, background,
+ * border, outline and opacity still transition (they are not motion), every
+ * transform is dropped, and nothing animates. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
+    animation-delay: 0ms !important;
+    transition-property: color, background-color, border-color, outline-color, fill, stroke, opacity !important;
+    transition-duration: var(--dur-fast) !important;
+    transition-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Anything that moves, stops where it belongs. */
+  .book-3d,
+  .card-3d,
+  [data-reveal] {
+    transform: none !important;
+  }
+}
+
+/* More contrast, when the system asks for it: hairlines and secondary text
+   carry more weight, without changing the palette's character. */
+@media (prefers-contrast: more) {
+  :root {
+    --color-muted: #3A4150;
+    --color-line: #8C7F63;
   }
 }
 
@@ -200,19 +285,9 @@ p {
 }
 
 /* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(30px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideInRight {
-  from { opacity: 0; transform: translateX(100%); }
-  to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes slideInLeft {
@@ -220,27 +295,15 @@ p {
   to { opacity: 1; transform: translateX(0); }
 }
 
-.animate-fade-in {
-  animation: fadeIn var(--dur-mid) var(--ease-standard) forwards;
-}
-
 /* A sheet arriving from the bottom edge, and the checkout's empty state. */
 .animate-slide-up {
   animation: slideUp var(--dur-mid) var(--ease-entrance) forwards;
 }
 
-/* Drawers: they travel a whole panel, so they get the slower curve. */
-.animate-slide-in-right {
-  animation: slideInRight var(--dur-slow) var(--ease-entrance) forwards;
-}
-
+/* The admin's phone nav still arrives from the edge; the storefront's
+   drawers and menus animate their exits with Motion instead. */
 .animate-slide-in-left {
   animation: slideInLeft var(--dur-slow) var(--ease-entrance) forwards;
-}
-
-@keyframes dropdownIn {
-  from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-  to   { opacity: 1; transform: translateY(0)   scale(1);    }
 }
 
 /* ─────────────────────────────────────────────────────────────
@@ -252,32 +315,9 @@ p {
    for reduced motion. Nothing loops on its own.
    ───────────────────────────────────────────────────────────── */
 
-@keyframes pop {
-  0%   { transform: scale(0.6); opacity: 0; }
-  60%  { transform: scale(1.15); opacity: 1; }
-  100% { transform: scale(1); opacity: 1; }
-}
-
-@keyframes badgePop {
-  0%   { transform: scale(0.7); }
-  55%  { transform: scale(1.25); }
-  100% { transform: scale(1); }
-}
-
 @keyframes riseIn3d {
   from { opacity: 0; transform: perspective(900px) translateY(14px) rotateX(8deg); }
   to   { opacity: 1; transform: perspective(900px) translateY(0) rotateX(0deg); }
-}
-
-/* A confirmation, not a bounce: the tick that appears when a book lands in
-   the basket overshoots slightly because it confirms a completed action, and
-   nothing else in the store overshoots. */
-.animate-pop {
-  animation: pop var(--dur-mid) cubic-bezier(0.34, 1.56, 0.64, 1) both;
-}
-
-.animate-badge-pop {
-  animation: badgePop var(--dur-mid) cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
 .animate-rise-3d {
@@ -387,8 +427,6 @@ p {
   .tilt-card,
   .book-badge-3d,
   .stat-grid > *,
-  .animate-pop,
-  .animate-badge-pop,
   .animate-rise-3d,
   /* Belt and braces: the script never arms anything when the reader has
      asked for less motion, but if an element is already mid-reveal when the
@@ -807,7 +845,14 @@ p {
   transition-delay: var(--rv-delay, 0ms);
 }
 
-/* Scrollbar */
+/* Scrollbar: themed in both engines. The webkit rules below only exist for
+   Safari and older Chromium; `scrollbar-color` is what current Firefox and
+   Chromium use, and without it they fell back to the platform's grey. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #C9BFA8 var(--color-subtle);
+}
+
 ::-webkit-scrollbar {
   width: 8px;
 }

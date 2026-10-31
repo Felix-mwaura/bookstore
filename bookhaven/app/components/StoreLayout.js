@@ -13,7 +13,7 @@ export default function StoreLayout({ children }) {
   const store = useStore();
 
   return (
-    <div className="min-h-screen bg-[#FAF6EE] flex flex-col">
+    <div className="min-h-screen bg-cream flex flex-col">
       <StoreHeader
         cartCount={store.cartCount}
         wishlistCount={store.wishlist.length}
@@ -54,7 +54,11 @@ export default function StoreLayout({ children }) {
             aria-live="polite"
             className="animate-rise-3d flex max-w-full items-center gap-3 rounded-lg bg-navy px-5 py-3 text-white shadow-2xl"
           >
-            <span aria-hidden="true" className="text-green-400">✓</span>
+            <span aria-hidden="true" className="text-success-soft">
+              <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </span>
             <span className="truncate text-sm font-medium">{store.toast}</span>
           </div>
         </div>

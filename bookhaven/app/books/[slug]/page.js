@@ -187,7 +187,7 @@ export default async function BookPage({ params, searchParams }) {
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={`/category/${categorySlug(book.category)}`}
-                className="text-[11px] font-bold uppercase tracking-widest text-sienna hover:underline underline-offset-2"
+                className="text-xs font-semibold text-sienna underline-offset-2 hover:underline"
               >
                 {book.category}
               </Link>
@@ -203,7 +203,7 @@ export default async function BookPage({ params, searchParams }) {
               )}
             </div>
 
-            <h1 className="mt-2 text-2xl font-bold leading-tight text-navy sm:text-3xl lg:text-4xl">{book.title}</h1>
+            <h1 className="mt-2 font-playfair text-2xl font-bold leading-tight text-navy sm:text-3xl lg:text-4xl">{book.title}</h1>
             <p className="mt-1.5 text-base text-muted">by {book.author}</p>
 
             <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">

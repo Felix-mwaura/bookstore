@@ -14,7 +14,7 @@ import { StoreContext, useStore, useStoreState } from "../lib/store-state";
 // The header and the category list live in their own modules now. These
 // re-exports keep the existing page imports working unchanged.
 export { default as StoreHeader } from "./StoreHeader";
-export { categories, categoryIcons } from "../lib/categories";
+export { categories } from "../lib/categories";
 
 // ── Cart Drawer ─────────────────────────────────────────
 export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total }) {

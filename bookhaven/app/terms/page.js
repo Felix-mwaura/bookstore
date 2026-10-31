@@ -19,7 +19,6 @@ export default function TermsPage() {
   return (
     <StoreLayout>
       <PolicyPage
-        eyebrow="Terms"
         title="Terms of sale"
         intro="What you are agreeing to when you buy a book here. Plain language, and short enough to actually read."
       >

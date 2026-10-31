@@ -10,7 +10,7 @@ import Link from "next/link";
 
 const UPDATED = "23 October 2026";
 
-export function PolicyPage({ eyebrow, title, intro, children, updated = true }) {
+export function PolicyPage({ title, intro, children, updated = true }) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
       <nav aria-label="Breadcrumb" className="mb-5 text-xs text-muted">
@@ -22,8 +22,7 @@ export function PolicyPage({ eyebrow, title, intro, children, updated = true }) 
       </nav>
 
       <header className="border-b border-line pb-6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">{eyebrow}</p>
-        <h1 className="mt-2 font-playfair text-3xl font-bold text-navy sm:text-4xl">{title}</h1>
+        <h1 className="font-playfair text-3xl font-bold text-navy sm:text-4xl">{title}</h1>
         {intro && <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">{intro}</p>}
         {updated && <p className="mt-3 text-xs text-muted">Last updated {UPDATED}</p>}
       </header>

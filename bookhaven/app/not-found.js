@@ -10,8 +10,7 @@ export default function NotFound() {
       </header>
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md text-center">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sienna">404</p>
-          <h1 className="mt-2 text-2xl sm:text-3xl font-bold text-navy">We couldn’t find that page</h1>
+          <h1 className="font-playfair text-2xl font-bold text-navy sm:text-3xl">We couldn’t find that page</h1>
           <p className="mt-2 text-sm text-muted">
             The link may be old, or the book may have been taken off the shelf.
           </p>

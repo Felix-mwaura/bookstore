@@ -26,7 +26,7 @@ export function stockState(book) {
       key: "low",
       label: `Only ${quantity} left`,
       canBuy: true,
-      className: "bg-warning/12 text-[#8A5A15]",
+      className: "bg-warning/12 text-warning-strong",
     };
   }
   return {

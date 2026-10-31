@@ -15,7 +15,7 @@ const SearchIcon = ({ className = "w-5 h-5" }) => (
 );
 
 const HeartIcon = ({ filled }) => (
-  <svg className={`w-5 h-5 ${filled ? "text-[#B5532F] fill-[#B5532F]" : "text-navy"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+  <svg className={`w-5 h-5 ${filled ? "text-sienna fill-sienna" : "text-navy"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
   </svg>
 );
@@ -53,7 +53,7 @@ function AccountMenu({ onNavigate, user, onSignOut, signingOut }) {
         className="flex items-center gap-2 min-h-11 px-2 sm:px-3 rounded-lg hover:bg-subtle transition"
       >
         {user ? (
-          <span className="w-8 h-8 rounded-full bg-[#B5532F] text-white font-bold text-sm flex items-center justify-center">{user.initial}</span>
+          <span className="w-8 h-8 rounded-full bg-sienna text-white font-bold text-sm flex items-center justify-center">{user.initial}</span>
         ) : (
           <svg className="w-5 h-5 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -231,7 +231,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
   }, [menuOpen]);
 
   const searchForm = (idPrefix) => (
-    <form onSubmit={submitSearch} role="search" className="flex w-full items-stretch rounded-control border border-line bg-white overflow-hidden focus-within:border-[#B5532F]">
+    <form onSubmit={submitSearch} role="search" className="flex w-full items-stretch rounded-control border border-line bg-white overflow-hidden focus-within:border-sienna focus-within:ring-2 focus-within:ring-sienna">
       <label htmlFor={`${idPrefix}-category`} className="sr-only">Search category</label>
       <select
         id={`${idPrefix}-category`}
@@ -251,7 +251,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search books, authors, genres…"
-        className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:outline-none"
+        className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:outline-none"
       />
       <button type="submit" aria-label="Search" className="px-3.5 min-w-11 text-navy hover:bg-subtle transition flex items-center justify-center">
         <SearchIcon />
@@ -265,7 +265,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
         Delivery is 20% of the book total · Every order has a reference
       </div>
 
-      <header className="sticky top-0 z-40 bg-cream/95 backdrop-blur border-b border-line">
+      <header className="sticky top-0 z-40 border-b border-line bg-cream">
         <div className="max-w-7xl mx-auto px-3 sm:px-6">
           <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16">
             <button
@@ -315,7 +315,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
               >
                 <HeartIcon filled={wishlistCount > 0} />
                 {wishlistCount > 0 && (
-                  <span className="absolute top-1.5 right-1 bg-[#B5532F] text-white text-[10px] font-bold h-4 min-w-4 px-1 rounded-full flex items-center justify-center">
+                  <span className="absolute top-1.5 right-1 bg-sienna text-white text-[10px] font-bold h-4 min-w-4 px-1 rounded-full flex items-center justify-center">
                     {wishlistCount}
                   </span>
                 )}

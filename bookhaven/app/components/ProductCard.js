@@ -22,7 +22,7 @@ export function StockBadge({ book, className = "" }) {
 }
 
 const STOCK_DOT = { in: "bg-success", low: "bg-warning", out: "bg-error" };
-const STOCK_TEXT = { in: "text-muted", low: "text-[#8A5A15]", out: "text-error" };
+const STOCK_TEXT = { in: "text-muted", low: "text-warning-strong", out: "text-error" };
 
 /**
  * A catalogue card, built to be read in one glance.
@@ -152,12 +152,15 @@ export default function ProductCard({ book, onAddToCart, note }) {
             whileTap={state.canBuy ? { scale: 0.96 } : undefined}
             transition={{ type: "spring", stiffness: 600, damping: 26 }}
             aria-label={state.canBuy ? `Add ${book.title} to basket` : `${book.title} is out of stock`}
-            className={`relative z-20 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-white transition-colors disabled:cursor-not-allowed disabled:bg-stone-300 sm:min-w-0 sm:px-3 ${
+            className={`relative z-20 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-control text-white transition-colors disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted sm:min-w-0 sm:px-3 ${
               justAdded ? "bg-success" : "bg-navy hover:bg-sienna"
             }`}
           >
             {!state.canBuy ? (
-              <span className="px-2 text-[11px]">Sold out</span>
+              // Disabled controls are exempt from WCAG contrast, but a label
+              // nobody can read is still a label nobody can read: muted text
+              // on the subtle fill is 5.2:1.
+              <span className="px-2 text-[11px] font-semibold">Sold out</span>
             ) : justAdded ? (
               <span className="flex items-center gap-1.5 px-2 sm:px-0">
                 <motion.svg

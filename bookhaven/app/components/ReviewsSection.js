@@ -70,11 +70,7 @@ export default function ReviewsSection({
     <section id="reviews" aria-labelledby="reviews-heading" className="mt-14 border-t border-line pt-8 scroll-mt-24">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
         <div>
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">
-            <span aria-hidden="true" className="h-px w-6 bg-sienna" />
-            What readers say
-          </p>
-          <h2 id="reviews-heading" className="mt-2 text-2xl font-bold text-navy">
+          <h2 id="reviews-heading" className="text-2xl font-bold text-navy">
             Customer Reviews
           </h2>
         </div>

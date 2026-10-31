@@ -17,7 +17,6 @@ export default function PrivacyPage() {
   return (
     <StoreLayout>
       <PolicyPage
-        eyebrow="Privacy"
         title="What we keep, and why"
         intro="This page describes the data this shop actually stores. It is short because the shop does not do very much with it."
       >

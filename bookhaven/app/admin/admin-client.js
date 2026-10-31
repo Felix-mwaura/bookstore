@@ -168,7 +168,7 @@ function StatCard({ icon, label, value, delta, deltaUp, sub, accent, onClick }) 
         <p className={`text-[10px] font-bold uppercase tracking-wider ${accent ? "text-white/70" : "text-muted"}`}>
           {label}
         </p>
-        <StatIcon name={icon} className={`h-4 w-4 shrink-0 ${accent ? "text-[#E9B79F]" : "text-stone-300"}`} />
+        <StatIcon name={icon} className={`h-4 w-4 shrink-0 ${accent ? "text-sienna-soft" : "text-stone-300"}`} />
       </div>
 
       <p className={`mt-2 text-2xl font-black leading-none ${accent ? "text-white" : "text-navy"}`}>{value}</p>
@@ -629,7 +629,7 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
                 <p className="mt-0.5 text-xs text-ink">{o.first_name} {o.last_name}</p>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   <Badge status={o.status} />
-                  <span className={`text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-[#8A5A15]"}`}>
+                  <span className={`text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-warning-strong"}`}>
                     {payLabel[o.payment_status] || o.payment_status}
                   </span>
                   <span className="text-[10px] text-muted">
@@ -1064,7 +1064,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-bold text-navy">KSh {(o.total || 0).toLocaleString()}</p>
-                    <p className={`mt-1 text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-[#8A5A15]"}`}>
+                    <p className={`mt-1 text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-warning-strong"}`}>
                       {PAYMENT_LABEL[o.payment_status] || o.payment_status}
                     </p>
                   </div>

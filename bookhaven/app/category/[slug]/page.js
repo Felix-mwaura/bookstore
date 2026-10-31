@@ -91,13 +91,9 @@ export default async function CategoryPage({ params, searchParams }) {
         </nav>
 
         <div className="mb-6 border-b border-line pb-5">
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">
-            <span aria-hidden="true" className="h-px w-6 bg-sienna" />
-            Genre
-          </p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
             <div className="max-w-2xl min-w-0">
-              <h1 className="text-2xl font-bold text-navy sm:text-3xl">{category}</h1>
+              <h1 className="font-playfair text-3xl font-bold text-navy sm:text-4xl">{category}</h1>
               <p className="mt-1.5 text-sm leading-relaxed text-muted">
                 {descriptions[category] ?? `Everything we have on the ${category} shelf.`}
               </p>
@@ -141,7 +137,7 @@ export default async function CategoryPage({ params, searchParams }) {
         </div>
 
         <nav aria-label="Other genres" className="mt-12 border-t border-line pt-6">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">Other genres</h2>
+          <h2 className="mb-3 text-lg font-bold text-navy">Other genres</h2>
           <ul role="list" className="flex flex-wrap gap-2">
             {genres.filter((other) => other.slug !== genre.slug).map((other) => (
               <li key={other.slug}>
