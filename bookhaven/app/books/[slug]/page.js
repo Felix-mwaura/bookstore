@@ -8,6 +8,7 @@ import ProductCard from "../../components/ProductCard";
 import ReviewsSection from "../../components/ReviewsSection";
 import { StarRating } from "../../components/StarRating";
 import StoreLayout from "../../components/StoreLayout";
+import ScrollProgress from "../../components/ScrollProgress";
 import { jsonLdProps } from "../../lib/json-ld";
 import { getBookById, getRelatedBooks, bookPath, bookSlug, parseBookSlug } from "../../lib/catalogue";
 import { getServerUser, supabaseServer } from "../../lib/supabase-server";
@@ -23,7 +24,12 @@ import { SITE_NAME, SITE_URL, deliveryFeeFor, formatKsh, absoluteUrl } from "../
 // ISR-cached product page served from a previous deployment kept showing a
 // stale heading and, worse, could show a stale price. Thirteen product pages
 // are cheap to render; being wrong about the price is not.
-export const dynamic = "force-dynamic";
+//
+// This page reads the session cookie (to know whether the reader may review
+// the book), which already makes it dynamic. `force-dynamic` was belt *and*
+// braces — and it also forced Next to flush the response before the render
+// could call `notFound()`, so a missing book answered 200 with a 404 page.
+export const dynamic = "auto";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -153,6 +159,7 @@ export default async function BookPage({ params, searchParams }) {
       <script {...jsonLdProps(breadcrumbJsonLd)} />
 
       <div className="shell max-w-[76rem] py-6 pb-28 sm:py-10 lg:pb-14">
+        <ScrollProgress />
         <nav aria-label="Breadcrumb" className="mb-6 text-xs text-muted">
           <ol className="flex flex-wrap items-center gap-2">
             <li><Link href="/" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
