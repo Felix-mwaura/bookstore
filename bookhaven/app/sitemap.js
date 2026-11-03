@@ -9,10 +9,12 @@ export const revalidate = 3600;
 export default async function sitemap() {
   const now = new Date();
 
+  // /login is deliberately absent: it is disallowed in robots.txt and served
+  // with X-Robots-Tag: noindex (next.config.ts), so listing it here only made
+  // Search Console report the shop's own sitemap as submitting an excluded URL.
   const staticRoutes = [
     { url: `${SITE_URL}/`, lastModified: now, changeFrequency: "daily", priority: 1 },
     { url: `${SITE_URL}/books`, lastModified: now, changeFrequency: "daily", priority: 0.9 },
-    { url: `${SITE_URL}/login`, lastModified: now, changeFrequency: "yearly", priority: 0.2 },
     { url: `${SITE_URL}/help`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
     { url: `${SITE_URL}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.4 },
     { url: `${SITE_URL}/privacy`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },

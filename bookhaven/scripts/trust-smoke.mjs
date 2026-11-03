@@ -222,6 +222,31 @@ if (!base) {
   }
   check("a password reset is never described as dependent on an order email", /password-reset link is sent by the account system/.test(privacy.text));
 
+  // A genre that exists only in the database must actually filter. This is
+  // the regression that shipped: /books validated ?category= against the
+  // hard-coded list in lib/categories.js, so the Education genre — offered by
+  // the sidebar and the header picker — was silently dropped and the filter
+  // showed the whole shelf under the heading "All books".
+  const sitemapEarly = await body("/sitemap.xml");
+  const listedGenres = [...sitemapEarly.text.matchAll(/<loc>[^<]*\/category\/([^<]+)<\/loc>/g)].map((m) => m[1]);
+  const dbOnlyGenre = listedGenres.find((slug) => !["self-help", "finance", "productivity", "psychology", "history", "philosophy", "fiction", "biography"].includes(slug));
+  if (!dbOnlyGenre) {
+    check("a genre exists outside the built-in taxonomy to test the filter", false, "none in this database");
+  } else {
+    const filtered = await body(`/books?category=${encodeURIComponent(dbOnlyGenre)}`);
+    const all = await body("/books");
+    const countCards = (html) => (html.match(/href="\/books\/[a-z0-9-]+"/g) || []).length;
+    check(
+      `${dbOnlyGenre} narrows the catalogue rather than being ignored`,
+      countCards(filtered.text) > 0 && countCards(filtered.text) < countCards(all.text),
+      `${countCards(filtered.text)} vs ${countCards(all.text)} cards`
+    );
+    check(
+      `?category=${dbOnlyGenre} is a filtered view, not the unfiltered shelf`,
+      !/All books · Book Haven/.test(filtered.text)
+    );
+  }
+
   const sitemap = await body("/sitemap.xml");
   check("the sitemap answers 200", sitemap.status === 200, String(sitemap.status));
   const locs = [...sitemap.text.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => match[1]);
@@ -230,6 +255,10 @@ if (!base) {
   );
   check("the sitemap lists at least one category", sitemapCategories.size > 0, String(sitemapCategories.size));
   check("the sitemap has no duplicate URL", new Set(locs).size === locs.length, `${locs.length} locs`);
+  // Advertising a URL that is disallowed in robots.txt and served noindex is
+  // reported by Search Console as the shop submitting an excluded page.
+  check("the sitemap does not advertise /login", !locs.some((loc) => /\/login\/?$/.test(loc)));
+  check("the sitemap does not advertise /checkout or /account", !locs.some((loc) => /\/(checkout|account)\/?$/.test(loc)));
 
   // Every category the shop links to must be in the sitemap. This is the
   // exact shape of the old bug: the homepage served a genre the sitemap's

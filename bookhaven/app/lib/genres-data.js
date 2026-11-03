@@ -102,6 +102,27 @@ async function readGenres() {
  */
 export const getGenres = cache(readGenres);
 
+/**
+ * The genre a `?category=` value refers to, or null.
+ *
+ * `/books` used to validate this against the hard-coded list in
+ * ./categories, so a genre created in the admin (Education) was accepted by
+ * the sidebar and the header picker but silently dropped by the page it
+ * linked to — the filter showed the entire shelf and said "All books".
+ * Both the name and the URL slug are accepted, case-insensitively, so the
+ * sidebar links (names) and hand-typed or legacy URLs (slugs) both work.
+ */
+export function resolveGenre(genres, value) {
+  const wanted = String(value || "").trim().toLowerCase();
+  if (!wanted) return null;
+  return (
+    genres.find(
+      (genre) =>
+        genre.name.toLowerCase() === wanted || String(genre.slug).toLowerCase() === wanted
+    ) || null
+  );
+}
+
 /** The genre a URL slug refers to, or null. */
 export function findGenre(genres, slug) {
   const wanted = String(slug || "").trim().toLowerCase();

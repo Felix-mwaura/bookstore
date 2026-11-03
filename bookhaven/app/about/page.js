@@ -55,7 +55,10 @@ export default function AboutPage() {
           <p>
             The{" "}
             <Link href="/help" className="font-medium text-sienna underline-offset-2 hover:underline">help page</Link>{" "}
-            covers delivery, payment, tracking and reviews. For anything else, contact us directly.
+            covers delivery, payment, tracking and reviews.{" "}
+            {STORE_CONTACT.reachable
+              ? "For anything else, write to us using the details at the bottom of this page."
+              : "For anything else, contact details are not published yet — if you have an order in progress, keep the reference from your confirmation."}
           </p>
         </Section>
 

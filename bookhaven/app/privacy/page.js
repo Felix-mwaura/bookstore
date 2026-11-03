@@ -107,8 +107,9 @@ export default function PrivacyPage() {
             Two things survive, and you should know about them before asking. M-Pesa payment records are kept
             for accounting, but they are detached from your account when it is deleted — the amount, receipt
             number and phone number the payment was made from remain, as they must for a shop to account for
-            money received. Order emails already sent are in your inbox, outside our control. If you want a
-            copy of your order history, ask for it before the account is removed.
+            money received.{" "}
+            {ORDER_EMAILS_ENABLED ? "Any email already sent to you is in your inbox, outside our control. " : ""}
+            If you want a copy of your order history, ask for it before the account is removed.
           </p>
         </Section>
 

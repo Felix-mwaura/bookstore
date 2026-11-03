@@ -8,7 +8,7 @@ import BookGrid, { BookGridSkeleton, CatalogueEmpty } from "../components/BookGr
 import Pagination from "../components/Pagination";
 import { ActiveFilterChips, CatalogueSidebar, MobileFilterButton, SortSelect } from "../components/CatalogueControls";
 import { getCategoryCounts, isSort, priceBand, queryCatalogue } from "../lib/catalogue";
-import { categories } from "../lib/categories";
+import { getGenres, resolveGenre } from "../lib/genres-data";
 import { SITE_NAME } from "../lib/site";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +48,11 @@ const BASE_METADATA = {
 // back at the canonical catalogue instead of competing with it.
 export async function generateMetadata({ searchParams }) {
   const sp = await searchParams;
-  const category = categories.includes(one(sp.category)) ? one(sp.category) : "";
+  // Resolved against the same genre list the sidebar and the header picker
+  // render (see lib/genres-data.js), not the built-in taxonomy: a genre an
+  // admin adds must filter, not silently show the whole shelf.
+  const genre = resolveGenre(await getGenres(), one(sp.category));
+  const category = genre ? genre.name : "";
   const q = one(sp.q).slice(0, 80);
 
   if (!category && !q) return BASE_METADATA;
@@ -63,7 +67,8 @@ export async function generateMetadata({ searchParams }) {
 export default async function BooksPage({ searchParams }) {
   const sp = await searchParams;
   const requestedCategory = one(sp.category);
-  const category = categories.includes(requestedCategory) ? requestedCategory : "";
+  const genre = resolveGenre(await getGenres(), requestedCategory);
+  const category = genre ? genre.name : "";
   const sort = isSort(one(sp.sort)) ? one(sp.sort) : "newest";
   const price = priceBand(one(sp.price)) ? one(sp.price) : "";
   const availability = one(sp.availability) === "in-stock" ? "in-stock" : "";
