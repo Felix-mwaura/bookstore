@@ -4,6 +4,11 @@
 implementation*), phase 1 — the read-only baseline — plus the small set of P0
 changes that the brief explicitly authorises ("suppress unverified contacts").
 
+**Updated 3 November 2026, after the owner answered the five questions in
+§5.3.** The answers are recorded in §5.4 and every affected row below was
+amended rather than deleted — the register is meant to show what changed and
+why, not to look like nothing was ever wrong.
+
 **What this document is not:** a production sign-off. Several of the brief's
 acceptance criteria depend on facts this environment cannot see — a live
 Supabase schema, the Daraja sandbox, a browser, a search console. Those are
@@ -27,11 +32,16 @@ What stops a launch is a category of problem the code cannot fix by itself:
 | Blocker | Why it blocks | Who can clear it |
 |---|---|---|
 | **No confirmed contact details** | The shop publishes no way to reach a person. Code now says so honestly (§4), but a customer with a problem has nowhere to go. | Owner |
-| **Product records that look like test data** | "Lord Of Mysteries" at KSh 20, "Harry potter", "My dress up darling", "Chainsaw man" by "Unknown" are on a shelf customers can buy from. | Owner (approval to edit/retire) |
-| **M-Pesa never verified end-to-end** | The code path is written and defended, but no successful STK push → callback → paid order has been observed here, and the brief says it hasn't been observed at all. | Owner, with Daraja sandbox credentials |
-| **Delivery coverage advertised but unconfirmed** | "We deliver anywhere in Kenya" was a promise the shop, not the code, has to keep. Now off by default (§4). | Owner |
-| **No published refund / returns commitment** | /help is deliberately honest about this, which is admirable, but a shop taking money needs a stated position. | Owner + a Kenyan consumer-law read |
-| **Testimonials/ratings** | Ratings come from real published reviews only (verified by construction, §2). One production spot-check still needed. | Owner (2 minutes) |
+| **Order emails cannot reach customers** | There is no verified sending domain, so the provider only accepts the account owner's own address. The copy no longer claims otherwise (H6), but a customer gets no confirmation and no refund notice by email. | Owner (buy a domain, verify it, set `NEXT_PUBLIC_ORDER_EMAILS=on`) |
+| **Product records that look like test data** | "Lord Of Mysteries" at KSh 20, "Harry potter", "My dress up darling", "Chainsaw man" by "Unknown" are on a shelf customers can buy from. A rating on one of them is test data too. | Owner (approval to edit/retire; see §5.1) |
+| **No stated refund window** | Refunds are manual and the shop's position is now on /terms and /help (M7). The *time* a refund takes is deliberately unstated. | Owner + a Kenyan consumer-law read |
+| **Rate limits are not enforced in production** | `20261025130000_rate_limit_store.sql` has not been applied, so counters live in per-instance memory and reset on every cold start (M6). | Owner (path and two ways to apply are in §5.5) |
+
+**Cleared since the first draft:** M-Pesa is live and has taken real money into
+the correct account (owner, 3 Nov). The delivery-coverage claim now comes only
+from the owner (C4). The rating was confirmed to be test data and is being
+removed through the admin UI (H5); the rating a card shows is computed from
+published reviews only, which was already true in code.
 
 Everything below is either a finding with a file and a line, or a task with a
 name attached.
@@ -72,7 +82,7 @@ column means the fix needs a business fact or an authorisation from you.
 |---|---|---|---|---|
 | C1 | Site published four **unverified contact details** as fact: `hello@bookhaven.co.ke`, `+254 712 345 678`, "The Junction Mall, Nairobi", "Mon–Sat: 9am–7pm" | `app/lib/site.js` (old `PLACEHOLDER_*` defaults), consumed by `StoreShell`, `HomeClient`, `PolicyPage`, `error.js` | A customer travels to an address that may not exist, or emails a mailbox nobody reads and concludes the shop ignored them | **Fixed in this pass** (§4). Publishing real values is an owner action |
 | C2 | Apparent **test records on sale**: Lord Of Mysteries (KSh 20), "Harry potter", "My dress up darling", "Chainsaw man" (author "Unknown") | production `books` rows; not reachable from this environment | Buying one produces an order nobody can fulfil; a KSh 20 price on a real title is a pricing error waiting to happen | **Report only** (§5.1). Needs your approval to correct |
-| C3 | **M-Pesa advertised, never verified end-to-end** | `app/api/mpesa/*`, checkout copy | If the Daraja path is misconfigured in production, customers see "pay" and nothing arrives — or worse, money moves and no order appears | **Blocked** — needs sandbox run with your credentials |
+| C3 | **M-Pesa advertised without independent verification** | `app/api/mpesa/*`, checkout copy | A misconfigured Daraja path would mean customers see "pay" and nothing arrives | **Closed 3 Nov** — the owner confirms it is live and has taken real money into the correct account. The code-side guarantees (server-computed amount, `delivery_rate()` gate, callback token, idempotent confirmation) are unchanged and still tested |
 | C4 | **"We deliver anywhere in Kenya" / "delivered nationwide"** published on its own authority | old `HomeClient` hero, `StoreShell` footer, `help` | A nationwide promise the shop may not be able to keep, on a page that also says it does not publish windows it cannot keep | **Fixed in this pass** — the sentence is now an owner-supplied fact |
 
 ### High
@@ -83,9 +93,9 @@ column means the fix needs a business fact or an authorisation from you.
 | H2 | **Checkout, account, admin, login served without `noindex`** | `next.config.ts` headers; `robots.txt` only | A disallowed URL can still be indexed, and a URL pasted into a browser never reads robots.txt; a basket or account page can surface in results | **Fixed** — `X-Robots-Tag: noindex, nofollow` on `/admin`, `/account`, `/checkout`, `/orders/*`, `/login` |
 | H3 | **Newsletter collected addresses with no way off the list**: no unsubscribe path, no campaign sender in the codebase (the edge function only sends transactional mail), and a privacy promise ("unsubscribing is a link in every one of those emails") that nothing implements | `app/components/HomeClient.js`, `app/privacy/page.js`, `supabase/functions/send-email` | Consent you cannot withdraw; a false statement in a privacy notice | **Fixed as an honest gate** — the form waits for a published contact channel; the privacy page now describes what exists |
 | H4 | **`app/error.js` hard-coded the placeholder email** instead of reading config | `app/error.js:43–44` | A broken page told the customer to write to an address nobody had confirmed | **Fixed** |
-| H5 | **Rating display depends on `book_rating_summary`** (published reviews only) — correct by construction, but unverified against production data | `app/lib/reviews.js`, migration `20261023162927` | If any review was seeded rather than written, the 4.0 on Lord Of Mysteries is a fabricated rating on a page Google may quote | **Spot-check needed** (§6) |
+| H5 | **A rating on Lord Of Mysteries came from test data** — the 4.0 was produced by a review that no customer wrote | `app/lib/reviews.js` reads `book_rating_summary`, which counts published reviews; the row itself lives in production `book_reviews` | A fabricated rating is exactly what the brief forbids, and Google may quote it through `aggregateRating` | **Confirmed test data, 3 Nov.** Removal is one click in `/admin` → Reviews → **Hide** (§5.4). No code bug: the moment the row is hidden the card shows "no rating yet" and the JSON-LD drops `aggregateRating` |
 
-### Medium
+| H6 | **Order emails cannot reach a customer**: the `send-email` function exists, but with no verified sending domain the provider only accepts the account owner's own address | `supabase/functions/send-email/index.ts`, `app/lib/email-dispatch.js`, `/terms`, `/privacy`, checkout confirmation | A customer is told their order is confirmed and hears nothing; a refund notice sent by email never arrives; password-reset mail is a separate Supabase path and is unaffected | **Copy fixed, capability open.** `ORDER_EMAILS_ENABLED` (new) drives every claim: unset, /terms says "We do not send email copies yet", /privacy says the same, and the checkout confirmation says the page is the record. The admin Emails tab now names the domain requirement and flags failed rows |
 
 | # | Issue | Where | Impact | Status |
 |---|---|---|---|---|
@@ -94,7 +104,9 @@ column means the fix needs a business fact or an authorisation from you.
 | M3 | Sitemap caps at `getStorefrontBooks(500)` | `app/sitemap.js` | Books 501+ would be missing from the sitemap | Open — no effect at 16–40 titles, real at scale |
 | M4 | Terms promise "you will see an order reference at checkout and receive it by email"; the email depends on the `send-email` edge function being deployed with a verified sending domain | `app/terms/page.js` | A promise in a contract that may not be kept | **Owner** — confirm the edge function is live, or soften the sentence |
 | M5 | No **stated refund window or returns commitment** | `app/help/page.js` is deliberately honest about this | A shop taking money needs a position; the honest-but-empty state is better than a fake promise, and still not enough to launch on | **Owner + legal** |
-| M6 | `orders`/`mpesa` **rate limits are only durable when the rate-limit table migration is applied**; otherwise they fall back to per-instance memory | `app/lib/rate-limit.js` + `supabase/migrations/20261025130000_rate_limit_store.sql` | A burst can slip past on a multi-instance deploy | **Owner** — the migration is applied by you, not by me |
+| M6 | **Rate limits are not enforced in production**: the store is unconfigured, so `checkRateLimit()` allows every request and logs why | `app/lib/rate-limit.js`, `supabase/migrations/20261025130000_rate_limit_store.sql` | The newsletter and admin-assistant limits reset on every cold start; a burst can slip past on a multi-instance deploy | **Open — owner applies one file** (§5.5 has the path, both ways to apply it and the two queries that prove it landed). The app is safe either way: it degrades to per-instance memory, never to "no limit and no log" |
+
+| M7 | **No published refund position** | `/terms`, `/help` | A shop that takes money has to say how it gives it back | **Documented 3 Nov** from the owner's statement: refunds are paid back by hand by the shop, no number of days is published (the last step is the provider's), keep the order reference. The refund *window* is still the owner's decision |
 
 ### Low
 
@@ -177,13 +189,15 @@ can still be listed, and a pasted URL never reads robots.txt.
 
 ### 4.6 The check that keeps it true (`scripts/trust-smoke.mjs`)
 
-New script, wired into `npm test` (38 new assertions). It fails if any
+New script, wired into `npm test` (43 assertions). It fails if any
 placeholder value returns to `app/` as code, if an unconfigured shop reports
 anything other than nulls, if a configured shop *fails* to publish (so the
 feature cannot silently disappear for everyone), if the rendered pages leak a
 placeholder, if the homepage promises nationwide delivery in the repo's own
-words, if a private page is served without `noindex`, or if a category the
-homepage links to is missing from the sitemap — which is the exact shape of
+words, if a private page is served without `noindex`, if `/terms` or `/privacy`
+promises an email while `ORDER_EMAILS_ENABLED` is off (and fails if they *stop*
+promising it once the flag is on, so the switch cannot rot), or if a category
+the homepage links to is missing from the sitemap — which is the exact shape of
 the bug in H1.
 
 ---
@@ -239,22 +253,62 @@ do it in one reviewed migration with a rollback note.
 These are `NEXT_PUBLIC_*`, so they are baked into the browser bundle and must
 never hold anything private — only details you would print on a poster.
 
-### 5.3 Confirmations I need from you
+### 5.3 Confirmations received on 3 November
 
-1. **M-Pesa** — is `send-email`'s sibling path (the Daraja short code) live in
-   production, and has a real KSh transaction ever completed? If not, I will
-   reword checkout so M-Pesa is described as unavailable rather than offered.
-2. **Emails** — is the `send-email` edge function deployed with a verified
-   sending domain? The terms page promises an order email; if the answer is
-   no, that sentence has to change.
-3. **Refunds and returns** — what is the shop willing to commit to (window,
-   who pays return carriage, refund method)? Until then /help stays honest but
-   silent, which is not a launch state.
-4. **Ratings** — open the shop, find the 4.0 on Lord Of Mysteries, and open
-   `/admin` → reviews. If any published review did not come from a real
-   customer, tell me and I will unpublish it through the admin UI (not SQL).
-5. **Rate-limit table** — has `20261025130000_rate_limit_store.sql` been
-   applied in production? Without it, limits are per-instance memory.
+| # | Question | Answer | Consequence |
+|---|---|---|---|
+| 1 | Is M-Pesa live and has a real transaction completed? | **Yes — real money, correct account.** | C3 closed. Checkout keeps advertising M-Pesa where `mpesaEnabled` is true; nothing in the copy changes. |
+| 2 | Is there a verified sending domain for order emails? | **No — no domain bought yet.** | H6. Every customer-facing claim now follows `ORDER_EMAILS_ENABLED`, which is off until the domain exists. |
+| 3 | What is the refund position? | **Manual refunds by the shop; refunded customers are emailed.** | M7. Written into /terms and /help as a manual refund with no published number of days. **The "emailed" half will not work until item 2 is fixed** — until then the refund notice has to be a call or a message to the number on the order. |
+| 4 | Is the 4.0 on Lord Of Mysteries genuine? | **No — test data.** | H5. Hide it in `/admin` → Reviews; the aggregate and the JSON-LD recalculate themselves. |
+| 5 | Has the rate-limit migration been applied? | **No — could not find the file.** | M6. `bookhaven/supabase/migrations/20261025130000_rate_limit_store.sql`; §5.5 has both ways to apply it. |
+
+### 5.4 Removing the test rating (no SQL needed)
+
+1. `/admin` → **Reviews**.
+2. Filter to *Published*, find the review on **Lord Of Mysteries**.
+3. Press **Hide**.
+
+That flips `is_published` to false. `book_rating_summary` counts only
+published rows, so the card loses its 4.0 immediately, the book page shows "no
+rating yet", and `aggregateRating` disappears from that page's structured data.
+Nothing is deleted, so the decision is reversible if it turns out to have been
+a real review.
+
+To see what is there first, read-only:
+
+```sql
+select r.id, b.title, r.rating, r.reviewer_name, r.is_published, r.created_at,
+       r.verified_purchase
+from public.book_reviews r
+join public.books b on b.id = r.book_id
+where b.title ilike '%lord of mysteries%'
+order by r.created_at desc;
+```
+
+If more than one row exists, hide every one that no customer wrote.
+
+### 5.5 Applying the rate-limit migration
+
+The file is at **`bookhaven/supabase/migrations/20261025130000_rate_limit_store.sql`**
+(inside the Next.js app folder, not at the repo root).
+
+- **SQL editor**: open the file, copy all of it, paste into the Supabase SQL
+  editor, run. It is idempotent (`create table if not exists`, `create or
+  replace function`), so running it twice is harmless.
+- **CLI**: `cd bookhaven && supabase db push`.
+
+Then confirm:
+
+```sql
+select to_regclass('public.rate_limits');             -- rate_limits, not null
+select public.check_rate_limit('smoke-test', 5, 600); -- allowed: true, retry_after: 0
+```
+
+The same instructions are in `README.md` under *Migrations you still have to
+apply yourself*, so the next person finds them without asking. Until it runs,
+the routes log `Rate-limit store is configured but missing: apply
+supabase/migrations/20261025130000_rate_limit_store.sql` and allow the request.
 
 ---
 
@@ -268,7 +322,7 @@ never hold anything private — only details you would print on a poster.
 | M-Pesa sandbox | Needs Daraja credentials | Authorised sandbox run; `scripts/mpesa-smoke.mjs` + `mpesa-callback-smoke.mjs` cover the code paths only |
 | Production schema vs migrations | No database access | `supabase migration list` against production |
 | The four suspect product rows | No database access | Query in §5.1 |
-| Emails actually arriving | Needs a deployed edge function + inbox | Send one test order, check the inbox and the spam folder |
+| Emails actually arriving | There is no sending domain, so this is known to fail for customers; the admin Emails tab is where it will show | After verifying a domain: send one test order, check inbox and spam, then set `NEXT_PUBLIC_ORDER_EMAILS=on` |
 | Search-console coverage, canonical behaviour at scale | Needs production + time | Submit the sitemap, watch Coverage |
 
 Five lint warnings remain (`cover`, `initialBooksCount`, `setVerified`, two
@@ -299,14 +353,16 @@ body-size caps, validation, a honeypot and a rate limit.
 
 ## 8. Next steps, in order
 
-1. Your answers to §5.3 (five questions) — they decide whether checkout copy
-   changes.
-2. Product-data decision (§5.1) — one reviewed migration.
-3. Phase 2–3 of the brief: visual, responsive and accessibility review of
+1. Product-data decision (§5.1) — one reviewed migration, after the query.
+2. Hide the test review (§5.4) — one click, two minutes.
+3. Apply the rate-limit migration (§5.5) — one file.
+4. Publish a contact channel (§5.2) — unblocks the newsletter form, the
+   "email the shop" path and the footer.
+5. Phase 2–3 of the brief: visual, responsive and accessibility review of
    every page, including admin and every empty/error/loading state. This is
    the largest remaining block and needs a browser to be honest; I can do
    source-level review and contrast maths here, not screenshots.
-4. Phase 5–7: RLS and least-privilege re-verification against production,
+6. Phase 5–7: RLS and least-privilege re-verification against production,
    cache isolation, structured data spot-check, then the performance pass.
 
 Historical audits (`production-audit-2026-10-23.md`,

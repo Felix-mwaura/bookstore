@@ -135,6 +135,37 @@ figure with the same integer arithmetic
 checkout and M-Pesa can refuse to run while the two disagree. There is no COD
 surcharge.
 
+### Migrations you still have to apply yourself
+
+Most of `supabase/migrations/` is already applied. One file is deliberately
+left out, because it changes how the app throttles requests and that is the
+owner's call:
+
+```
+supabase/migrations/20261025130000_rate_limit_store.sql
+```
+
+Until it runs, `app/lib/rate-limit.js` falls back to per-instance memory (or to
+Upstash, if `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are set),
+which on Vercel means the newsletter and admin-assistant limits reset on every
+cold start. Nothing breaks; nothing is really limited either.
+
+Two ways to apply it, both of which leave the database in the same state:
+
+1. **SQL editor** — open the file, copy all of it, paste, run.
+2. **CLI** — `cd bookhaven && supabase db push` (it applies anything pending).
+
+Then confirm it landed:
+
+```sql
+select to_regclass('public.rate_limits');        -- rate_limits, not null
+select public.check_rate_limit('smoke-test', 5, 600); -- allowed: true, retry_after: 0
+```
+
+The routes log `Rate-limit store is configured but missing: apply
+supabase/migrations/20261025130000_rate_limit_store.sql` while it is absent, so
+the Vercel logs tell you the same thing.
+
 ## Security model
 
 - Authorization is `profiles.role = 'admin'`, checked server-side by
