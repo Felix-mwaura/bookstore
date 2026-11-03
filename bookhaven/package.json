@@ -32,7 +32,8 @@
     "motion:smoke": "node scripts/motion-smoke.mjs",
     "security:browser": "node scripts/browser-modules-smoke.mjs",
     "genres": "node scripts/genres-smoke.mjs",
-    "craft": "node scripts/craft-smoke.mjs"
+    "craft": "node scripts/craft-smoke.mjs",
+    "ui:audit": "node scripts/ui-audit.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",
