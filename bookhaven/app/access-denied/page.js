@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 export default function AccessDeniedPage() {
+  const router = useRouter();
   const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
     const t = setInterval(() => {
       setCountdown(c => {
-        if (c <= 1) { clearInterval(t); window.location.href = "/"; }
+        if (c <= 1) { clearInterval(t); router.replace("/"); }
         return c - 1;
       });
     }, 1000);
     return () => clearInterval(t);
-  }, []);
+  }, [router]);
 
   return (
     <div className="flex min-h-[100dvh] items-center justify-center bg-cream px-5 py-16">
