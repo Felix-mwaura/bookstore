@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import StoreLayout from "../../components/StoreLayout";
 import PageHeader from "../../components/PageHeader";
@@ -47,6 +47,23 @@ export async function generateMetadata({ params }) {
 
 const one = (value) => (Array.isArray(value) ? value[0] : value) || "";
 
+/**
+ * A page number past the end is a dead end: the heading still describes the
+ * shelf while the grid below it is empty. Send the reader to the last page
+ * that exists, keeping every filter they had chosen.
+ */
+function lastPageHref(basePath, sp, pages) {
+  const params = new URLSearchParams();
+  for (const key of ["q", "category", "sort", "price", "availability"]) {
+    const value = Array.isArray(sp[key]) ? sp[key][0] : sp[key];
+    if (value) params.set(key, value);
+  }
+  if (pages > 1) params.set("page", String(pages));
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+
 export default async function CategoryPage({ params, searchParams }) {
   const { slug } = await params;
   // Genres are data now (see app/lib/genres-data.js). The old slug lookup
@@ -76,6 +93,8 @@ export default async function CategoryPage({ params, searchParams }) {
   ]);
 
   const { books, total, pages } = result;
+  if (books.length === 0 && page > pages) redirect(lastPageHref(basePath, sp, pages));
+
   const hasFilters = Boolean(q || price || availability);
 
   return (

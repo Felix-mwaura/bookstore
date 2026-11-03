@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import StoreLayout from "../components/StoreLayout";
@@ -13,6 +14,23 @@ import { SITE_NAME } from "../lib/site";
 export const dynamic = "force-dynamic";
 
 const one = (value) => (Array.isArray(value) ? value[0] : value) || "";
+
+/**
+ * A page number past the end is a dead end: the heading still describes the
+ * shelf while the grid below it is empty. Send the reader to the last page
+ * that exists, keeping every filter they had chosen.
+ */
+function lastPageHref(basePath, sp, pages) {
+  const params = new URLSearchParams();
+  for (const key of ["q", "category", "sort", "price", "availability"]) {
+    const value = Array.isArray(sp[key]) ? sp[key][0] : sp[key];
+    if (value) params.set(key, value);
+  }
+  if (pages > 1) params.set("page", String(pages));
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
 
 const BASE_METADATA = {
   title: `All books · ${SITE_NAME}`,
@@ -60,6 +78,8 @@ export default async function BooksPage({ searchParams }) {
   ]);
 
   const { books, total, pages } = result;
+  if (books.length === 0 && page > pages) redirect(lastPageHref("/books", sp, pages));
+
   const hasFilters = Boolean(q || category || price || availability);
   const heading = q ? `Results for “${q}”` : category || "All books";
 
