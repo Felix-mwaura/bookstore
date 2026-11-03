@@ -101,7 +101,7 @@ export default function ReviewsSection({
           <div className="mt-6 grid gap-4 sm:grid-cols-[minmax(0,240px)_minmax(0,1fr)] sm:gap-6">
             <div className="rounded-card border border-line bg-white p-5">
               <p className="text-4xl font-bold leading-none text-navy">{shown}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-wider text-muted">out of 5</p>
+              <p className="mt-1 text-micro font-semibold uppercase text-muted">out of 5</p>
               <div className="mt-2">
                 <StarRating
                   value={average}
@@ -165,7 +165,7 @@ export default function ReviewsSection({
             </div>
 
             <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Sort reviews">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted">Sort</span>
+              <span className="text-micro font-semibold uppercase text-muted">Sort</span>
               {REVIEW_SORTS.map((option) => (
                 <Link
                   key={option.value}
@@ -210,7 +210,7 @@ export default function ReviewsSection({
                   id={`review-${review.id}`}
                   className={`rounded-card border bg-white p-5 ${
                     viewerReviewId && review.id === viewerReviewId
-                      ? "border-navy/40 ring-1 ring-navy/15"
+                      ? "border-navy ring-1 ring-navy"
                       : "border-line"
                   }`}
                 >

@@ -4,7 +4,7 @@ import Link from "next/link";
 import ProductCard from "./ProductCard";
 import { useStore } from "./StoreShell";
 
-const GRID = "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-5";
+const GRID = "grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4 lg:gap-x-6 xl:grid-cols-5";
 
 /**
  * The catalogue grid. Books arrive already filtered from the server; this

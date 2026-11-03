@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import StoreLayout from "../components/StoreLayout";
+import PageHeader from "../components/PageHeader";
 import BookGrid, { BookGridSkeleton, CatalogueEmpty } from "../components/BookGrid";
 import Pagination from "../components/Pagination";
 import { ActiveFilterChips, CatalogueSidebar, MobileFilterButton, SortSelect } from "../components/CatalogueControls";
@@ -64,35 +65,27 @@ export default async function BooksPage({ searchParams }) {
 
   return (
     <StoreLayout>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-10">
-        <nav aria-label="Breadcrumb" className="text-xs text-muted mb-4">
-          <ol className="flex items-center gap-2">
-            <li><Link href="/" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
-            <li aria-hidden="true">/</li>
-            <li className="text-ink font-medium" aria-current="page">{category || "All books"}</li>
-          </ol>
-        </nav>
-
-        <div className="mb-6 border-b border-line pb-5">
-          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-            <div className="min-w-0">
-              <h1 className="font-playfair text-2xl font-bold text-navy sm:text-3xl">{heading}</h1>
-              <p className="mt-1 text-sm text-muted">
-                {total === 0
-                  ? "No titles match this selection."
-                  : hasFilters
-                    ? `${total} ${total === 1 ? "title matches" : "titles match"} your filters`
-                    : `${total} ${total === 1 ? "title" : "titles"} on the shelf`}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
+      <div className="shell py-8 sm:py-12">
+        <PageHeader
+          className="mb-8 sm:mb-10"
+          breadcrumb={[{ label: "Home", href: "/" }, { label: category || "All books" }]}
+          title={heading}
+          description={
+            total === 0
+              ? "No titles match this selection."
+              : hasFilters
+                ? `${total} ${total === 1 ? "title matches" : "titles match"} your filters`
+                : `${total} ${total === 1 ? "title" : "titles"} on the shelf, priced in Kenyan shillings with delivery across the country.`
+          }
+          actions={
+            <>
               <MobileFilterButton basePath="/books" params={params} counts={counts} resultCount={total} />
               <SortSelect basePath="/books" params={params} />
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
-        <div className="grid lg:grid-cols-[220px_minmax(0,1fr)] gap-8">
+        <div className="grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
           <aside aria-label="Catalogue filters">
             <CatalogueSidebar basePath="/books" params={params} counts={counts} />
           </aside>

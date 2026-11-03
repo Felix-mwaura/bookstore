@@ -1,4 +1,4 @@
-import Link from "next/link";
+import PageHeader from "./PageHeader";
 
 // Shared shell for the pages a shop has to have: help, privacy, terms, about.
 //
@@ -12,22 +12,18 @@ const UPDATED = "23 October 2026";
 
 export function PolicyPage({ title, intro, children, updated = true }) {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-      <nav aria-label="Breadcrumb" className="mb-5 text-xs text-muted">
-        <ol className="flex items-center gap-2">
-          <li><Link href="/" className="-my-1.5 inline-block py-1.5 underline-offset-2 hover:text-navy hover:underline">Home</Link></li>
-          <li aria-hidden="true">/</li>
-          <li className="font-medium text-ink" aria-current="page">{title}</li>
-        </ol>
-      </nav>
+    <div className="shell-doc py-8 sm:py-12">
+      <PageHeader
+        className="mb-10"
+        breadcrumb={[{ label: "Home", href: "/" }, { label: title }]}
+        title={title}
+        description={intro}
+        meta={updated ? `Last updated ${UPDATED}` : undefined}
+      />
 
-      <header className="border-b border-line pb-6">
-        <h1 className="font-playfair text-3xl font-bold text-navy sm:text-4xl">{title}</h1>
-        {intro && <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">{intro}</p>}
-        {updated && <p className="mt-3 text-xs text-muted">Last updated {UPDATED}</p>}
-      </header>
-
-      <div className="mt-8 space-y-8">{children}</div>
+      {/* Prose gets the measure of a book page, not a marketing column:
+          these are documents people read to the end. */}
+      <div className="max-w-[42rem] space-y-10">{children}</div>
     </div>
   );
 }
@@ -35,7 +31,7 @@ export function PolicyPage({ title, intro, children, updated = true }) {
 export function Section({ id, title, children }) {
   return (
     <section id={id} aria-labelledby={id ? `${id}-heading` : undefined} className="scroll-mt-24">
-      <h2 id={id ? `${id}-heading` : undefined} className="text-lg font-bold text-navy">
+      <h2 id={id ? `${id}-heading` : undefined} className="font-playfair text-xl font-bold text-navy">
         {title}
       </h2>
       <div className="mt-2 space-y-3 text-sm leading-relaxed text-ink">{children}</div>

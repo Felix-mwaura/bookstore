@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import StoreLayout from "../../components/StoreLayout";
+import PageHeader from "../../components/PageHeader";
 import BookGrid, { CatalogueEmpty } from "../../components/BookGrid";
 import Pagination from "../../components/Pagination";
 import { ActiveFilterChips, CatalogueSidebar, MobileFilterButton, SortSelect } from "../../components/CatalogueControls";
@@ -79,36 +80,26 @@ export default async function CategoryPage({ params, searchParams }) {
 
   return (
     <StoreLayout>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-10">
-        <nav aria-label="Breadcrumb" className="text-xs text-muted mb-4">
-          <ol className="flex items-center gap-2 flex-wrap">
-            <li><Link href="/" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
-            <li aria-hidden="true">/</li>
-            <li><Link href="/books" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Books</Link></li>
-            <li aria-hidden="true">/</li>
-            <li className="text-ink font-medium" aria-current="page">{category}</li>
-          </ol>
-        </nav>
-
-        <div className="mb-6 border-b border-line pb-5">
-          <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-            <div className="max-w-2xl min-w-0">
-              <h1 className="font-playfair text-3xl font-bold text-navy sm:text-4xl">{category}</h1>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                {descriptions[category] ?? `Everything we have on the ${category} shelf.`}
-              </p>
-              <p className="mt-1 text-xs text-muted">
-                {total} {total === 1 ? "title" : "titles"} in this genre
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
+      <div className="shell py-8 sm:py-12">
+        <PageHeader
+          className="mb-8 sm:mb-10"
+          breadcrumb={[
+            { label: "Home", href: "/" },
+            { label: "Books", href: "/books" },
+            { label: category },
+          ]}
+          title={category}
+          description={descriptions[category] ?? `Everything we have on the ${category} shelf.`}
+          meta={`${total} ${total === 1 ? "title" : "titles"} in this genre`}
+          actions={
+            <>
               <MobileFilterButton basePath={basePath} params={queryParams} counts={counts} resultCount={total} />
               <SortSelect basePath={basePath} params={queryParams} />
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
-        <div className="grid lg:grid-cols-[220px_minmax(0,1fr)] gap-8">
+        <div className="grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
           <aside aria-label="Catalogue filters">
             <CatalogueSidebar basePath={basePath} params={sidebarParams} counts={counts} />
           </aside>

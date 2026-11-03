@@ -13,7 +13,7 @@ export default function StoreLayout({ children }) {
   const store = useStore();
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col">
+    <div className="flex min-h-screen flex-col bg-cream">
       <StoreHeader
         cartCount={store.cartCount}
         wishlistCount={store.wishlist.length}

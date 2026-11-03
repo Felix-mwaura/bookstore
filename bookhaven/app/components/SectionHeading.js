@@ -30,14 +30,14 @@ export function SectionHeading({
       <div className="min-w-0">
         <h2
           id={id}
-          className={`text-xl font-bold sm:text-2xl ${dark ? "text-white" : "text-navy"}`}
+          className={`text-heading font-bold ${dark ? "text-white" : "text-navy"}`}
         >
           {title}
         </h2>
         {description && (
           <p
-            className={`mt-1.5 max-w-2xl text-sm leading-relaxed ${
-              dark ? "text-white/75" : "text-muted"
+            className={`mt-2 max-w-2xl text-small leading-relaxed sm:text-base ${
+              dark ? "text-white/80" : "text-muted"
             }`}
           >
             {description}

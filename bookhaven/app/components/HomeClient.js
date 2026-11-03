@@ -25,9 +25,9 @@ function useReveal() {
 function Hero({ books }) {
   return (
     <section className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:py-20">
+      <div className="shell py-14 sm:py-20 lg:py-24">
         {/* Two columns only from 1280px. At tablet widths the fan left the headline a 350px column and broke it over four lines; stacked, the copy keeps its measure and the fan sits under it. */}
-        <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-16">
+        <div className="grid items-center gap-12 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-20">
           {/* min-w-0: without it the grid item's min-content width (the
               search field's fixed pieces) wins and pushes the page wider
               than a 320px screen. */}
@@ -35,25 +35,20 @@ function Hero({ books }) {
             {/* The display face, like every other page title in the shop. The
                 homepage was the one place a reader met Inter at 52px, which is
                 the size the serif exists for. */}
-            <h1 className="font-playfair text-[2rem] font-bold leading-[1.08] tracking-[-0.02em] text-navy sm:text-[2.75rem] xl:text-[3.5rem]">
+            <h1 className="font-playfair text-display font-bold text-navy">
               Books worth keeping,
               <br />
               <span className="italic text-sienna">delivered</span> to your door.
             </h1>
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-muted sm:mt-5 sm:text-lg">
+            <p className="lead mt-6 max-w-xl">
               Prices in Kenyan shillings. Paperbacks and hardcovers across fiction, finance,
               self-help and biography. Stock shown is the real shelf quantity, and delivery is
               20% of the book total, worked out before you pay.
             </p>
 
-            <form action="/books" method="get" role="search" className="mt-6 max-w-lg sm:mt-8">
+            <form action="/books" method="get" role="search" className="mt-8 max-w-xl">
               <label htmlFor="hero-search" className="sr-only">Search books by title or author</label>
-              <div className="flex items-stretch gap-2 rounded-card border border-line bg-white p-1.5 shadow-card focus-within:border-sienna focus-within:ring-2 focus-within:ring-sienna">
-                <span className="flex items-center pl-2 text-muted" aria-hidden="true">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </span>
+              <div className="flex items-center gap-2 rounded-full border border-line bg-surface p-1.5 pl-5 shadow-card transition-colors focus-within:border-sienna focus-within:ring-2 focus-within:ring-sienna">
                 <input
                   id="hero-search"
                   name="q"
@@ -61,13 +56,23 @@ function Hero({ books }) {
                   placeholder="Title or author…"
                   className="min-w-0 flex-1 bg-transparent py-2.5 text-[15px] outline-none placeholder:text-muted"
                 />
-                <button type="submit" className="btn-primary shrink-0 px-4 py-2.5 text-sm">Search</button>
+                <button
+                  type="submit"
+                  aria-label="Search the catalogue"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy text-white transition-colors hover:bg-sienna"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
               </div>
             </form>
 
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/books" className="btn-primary text-sm">Shop all books</Link>
-              <Link href="#genres" className="btn-secondary text-sm">Browse genres</Link>
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+              <Link href="/books" className="btn-primary">Shop all books</Link>
+              <Link href="#genres" className="text-small font-semibold text-navy underline-offset-4 hover:underline">
+                Browse by genre
+              </Link>
             </div>
           </div>
 
@@ -89,7 +94,7 @@ function NewArrivals({ books }) {
 
   return (
     <section className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="shell band">
         <SectionHeading
           title="New arrivals"
           description="The latest titles added to the shelf."
@@ -136,7 +141,7 @@ function HowItWorks() {
 
   return (
     <section className="border-b border-line bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="shell band">
         <SectionHeading title="How ordering works" className="mb-6" />
 
         <ol className="grid gap-6 sm:grid-cols-3 sm:gap-8">
@@ -172,7 +177,7 @@ function ShelfFacts({ stats }) {
 
   return (
     <section id="about" className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="shell band">
         <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
           <div data-reveal>
             <SectionHeading title="A bookshop for Kenyan readers" />
@@ -220,7 +225,7 @@ function TrustStrip({ mpesaEnabled }) {
 
   return (
     <section className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="shell band-tight">
         <ul role="list" className="grid gap-3 sm:grid-cols-3 sm:gap-6">
           {items.map((item) => (
             <li key={item.title} className="flex items-start gap-2.5">
@@ -285,7 +290,7 @@ function Newsletter() {
 
   return (
     <section className="bg-navy text-white">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="shell band">
         <div className="grid gap-6 sm:grid-cols-2 sm:items-center sm:gap-10">
           <SectionHeading
             tone="dark"
@@ -348,7 +353,7 @@ function Newsletter() {
 function Contact() {
   return (
     <section id="contact" className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+      <div className="shell band-tight">
         <div
           className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
           data-reveal

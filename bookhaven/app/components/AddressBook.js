@@ -196,7 +196,7 @@ export default function AddressBook() {
   // pulled out here so React never sees it as an unknown DOM prop.
   const field = (key, label, { span2 = false, ...inputProps } = {}) => (
     <div className={span2 ? "sm:col-span-2" : ""}>
-      <label htmlFor={`addr-${key}`} className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">
+      <label htmlFor={`addr-${key}`} className="mb-1.5 block text-micro font-semibold uppercase text-muted">
         {label}
       </label>
       <input
@@ -319,7 +319,7 @@ export default function AddressBook() {
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <div>
-              <label htmlFor="addr-label" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">
+              <label htmlFor="addr-label" className="mb-1.5 block text-micro font-semibold uppercase text-muted">
                 Label
               </label>
               <select
@@ -335,7 +335,7 @@ export default function AddressBook() {
             {field("phone", "Phone number", { type: "tel", inputMode: "tel", autoComplete: "tel", placeholder: "0712 345 678" })}
             {field("address", "Street address", { span2: true, autoComplete: "street-address", placeholder: "Estate, street, building…" })}
             <div>
-              <label htmlFor="addr-city" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">
+              <label htmlFor="addr-city" className="mb-1.5 block text-micro font-semibold uppercase text-muted">
                 City / town
               </label>
               <select

@@ -36,7 +36,7 @@ export function CatalogueSidebar({ basePath, params, counts }) {
     <div className="hidden lg:block">
       <div className="sticky top-24 space-y-6">
         <div>
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Genre</h2>
+          <h2 className="mb-3 text-micro font-semibold uppercase text-muted">Genre</h2>
           <nav aria-label="Filter by genre" className="space-y-0.5">
             <FilterLink
               href={buildCatalogueHref(basePath, params, { category: "", page: 1 })}
@@ -58,7 +58,7 @@ export function CatalogueSidebar({ basePath, params, counts }) {
         </div>
 
         <div>
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Price</h2>
+          <h2 className="mb-3 text-micro font-semibold uppercase text-muted">Price</h2>
           <nav aria-label="Filter by price" className="space-y-0.5">
             <FilterLink
               href={buildCatalogueHref(basePath, params, { price: "", page: 1 })}
@@ -79,7 +79,7 @@ export function CatalogueSidebar({ basePath, params, counts }) {
         </div>
 
         <div>
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Availability</h2>
+          <h2 className="mb-3 text-micro font-semibold uppercase text-muted">Availability</h2>
           <nav aria-label="Filter by availability" className="space-y-0.5">
             <FilterLink
               href={buildCatalogueHref(basePath, params, { availability: "", page: 1 })}
@@ -115,7 +115,7 @@ export function SortSelect({ basePath, params }) {
           router.push(buildCatalogueHref(basePath, params, patch), { scroll: false });
         }}
         aria-label="Sort books"
-        className="min-h-11 rounded-control border border-line bg-white px-3 pr-8 text-sm text-ink"
+        className="field field-inline text-small font-medium"
       >
         {SORT_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
@@ -241,7 +241,7 @@ export function MobileFilterButton({ basePath, params, counts, resultCount }) {
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
               <fieldset>
-                <legend className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Genre</legend>
+                <legend className="mb-3 text-micro font-semibold uppercase text-muted">Genre</legend>
                 <div className="flex flex-wrap gap-2">
                   {genres.map((genre) => (
                     <button
@@ -263,7 +263,7 @@ export function MobileFilterButton({ basePath, params, counts, resultCount }) {
               </fieldset>
 
               <fieldset>
-                <legend className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Price</legend>
+                <legend className="mb-3 text-micro font-semibold uppercase text-muted">Price</legend>
                 <div className="flex flex-wrap gap-2">
                   {PRICE_BANDS.map((band) => (
                     <button
@@ -284,7 +284,7 @@ export function MobileFilterButton({ basePath, params, counts, resultCount }) {
               </fieldset>
 
               <fieldset>
-                <legend className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Availability</legend>
+                <legend className="mb-3 text-micro font-semibold uppercase text-muted">Availability</legend>
                 <button
                   type="button"
                   onClick={() => toggle("availability", "in-stock")}

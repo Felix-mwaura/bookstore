@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import { useGenres } from "./GenreProvider";
 
@@ -156,8 +156,32 @@ function useSessionUser() {
   return { user, ready };
 }
 
+// The five places a shopper actually goes, in the order they go there.
+const NAV_LINKS = [
+  { label: "All books", href: "/books", match: "/books" },
+  { label: "New arrivals", href: "/books?sort=newest" },
+  { label: "Fiction", href: "/category/fiction" },
+  { label: "Finance", href: "/category/finance" },
+  { label: "Self-help", href: "/category/self-help" },
+];
+
 export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartClick, onWishlistClick }) {
   const router = useRouter();
+  const pathname = usePathname() || "/";
+
+  // Elevation only once the page has moved: a sticky bar that starts with a
+  // shadow looks like it is floating over nothing. The listener is passive
+  // and only writes state on the transition, not on every scroll frame.
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      const next = window.scrollY > 8;
+      setStuck((current) => (current === next ? current : next));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
   // The genres the shop currently sells, from the database via the root
   // layout, with the built-in list as the value before that resolves.
   const genres = useGenres();
@@ -231,13 +255,17 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
   }, [menuOpen]);
 
   const searchForm = (idPrefix) => (
-    <form onSubmit={submitSearch} role="search" className="flex w-full items-stretch rounded-control border border-line bg-white overflow-hidden focus-within:border-sienna focus-within:ring-2 focus-within:ring-sienna">
+    <form
+      onSubmit={submitSearch}
+      role="search"
+      className="flex w-full items-center gap-1 rounded-full border border-line bg-surface p-1 transition-colors focus-within:border-sienna focus-within:ring-2 focus-within:ring-sienna"
+    >
       <label htmlFor={`${idPrefix}-category`} className="sr-only">Search category</label>
       <select
         id={`${idPrefix}-category`}
         value={category}
         onChange={(e) => setCategory(e.target.value)}
-        className="hidden sm:block bg-transparent pl-3 pr-1 py-2.5 text-sm text-muted border-r border-line focus:outline-none max-w-[9.5rem]"
+        className="hidden max-w-[10rem] rounded-full bg-transparent py-2 pl-4 pr-1 text-small text-muted focus:outline-none sm:block"
       >
         {["All", ...genres.map((g) => g.name)].map((c) => (
           <option key={c} value={c}>{c === "All" ? "All categories" : c}</option>
@@ -251,29 +279,38 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search books, authors, genres…"
-        className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-ink placeholder:text-muted focus:outline-none"
+        className="min-w-0 flex-1 bg-transparent px-3 py-2 text-small text-ink placeholder:text-muted focus:outline-none"
       />
-      <button type="submit" aria-label="Search" className="px-3.5 min-w-11 text-navy hover:bg-subtle transition flex items-center justify-center">
-        <SearchIcon />
+      <button
+        type="submit"
+        aria-label="Search"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-white transition-colors hover:bg-sienna"
+      >
+        <SearchIcon className="h-4 w-4" />
       </button>
     </form>
   );
 
   return (
     <>
-      <div className="bg-navy text-cream/90 text-center py-1.5 text-xs sm:text-[13px] px-4">
-        Delivery is 20% of the book total · Every order has a reference
+      <div className="bg-navy-deep px-4 py-2 text-center text-micro font-medium uppercase tracking-[0.08em] text-cream/85">
+        <span>Delivery is 20% of the book total</span>
+        <span aria-hidden="true" className="mx-2 text-cream/40">·</span>
+        <span className="text-cream/70">Every order has a reference</span>
       </div>
 
-      <header className="sticky top-0 z-40 border-b border-line bg-cream">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6">
-          <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16">
+      <header
+        data-stuck={stuck ? "true" : undefined}
+        className="site-header sticky top-0 z-40 border-b border-line bg-cream"
+      >
+        <div className="shell">
+          <div className="flex h-16 items-center gap-2 sm:gap-4 sm:h-20">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="Open menu"
               aria-expanded={menuOpen}
-              className="lg:hidden -ml-1 w-11 h-11 flex items-center justify-center rounded-lg hover:bg-subtle transition"
+              className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-subtle lg:hidden"
             >
               <svg className="w-5 h-5 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -281,7 +318,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
             </button>
 
             <Link href="/" className="-my-2 flex flex-shrink-0 items-center gap-2 py-2" aria-label="Book Haven home">
-              <span className="font-playfair text-lg sm:text-xl font-bold text-navy leading-none">Book Haven</span>
+              <span className="font-playfair text-xl font-bold leading-none tracking-[-0.01em] text-navy sm:text-2xl">Book Haven</span>
             </Link>
 
             <div className="hidden md:block flex-1 max-w-2xl mx-auto">
@@ -294,7 +331,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
                 onClick={() => setSearchOpen((v) => !v)}
                 aria-label="Search"
                 aria-expanded={searchOpen}
-                className="md:hidden w-11 h-11 flex items-center justify-center rounded-lg hover:bg-subtle transition"
+                className="flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-subtle md:hidden"
               >
                 <SearchIcon />
               </button>
@@ -311,7 +348,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
                 type="button"
                 onClick={onWishlistClick}
                 aria-label={`Wishlist, ${wishlistCount} ${wishlistCount === 1 ? "book" : "books"}`}
-                className="hidden sm:flex relative w-11 h-11 items-center justify-center rounded-lg hover:bg-subtle transition"
+                className="relative hidden h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-subtle sm:flex"
               >
                 <HeartIcon filled={wishlistCount > 0} />
                 {wishlistCount > 0 && (
@@ -325,7 +362,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
                 type="button"
                 onClick={onCartClick}
                 aria-label={`Basket, ${cartCount} ${cartCount === 1 ? "item" : "items"}`}
-                className="relative w-11 h-11 flex items-center justify-center rounded-lg hover:bg-subtle transition"
+                className="relative flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-subtle"
               >
                 <CartIcon />
                 <AnimatePresence initial={false}>
@@ -355,6 +392,38 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
               </button>
             </div>
           </div>
+
+          {/* Navigation desktop: the header used to offer a shopper no way
+              to move through the shop except the footer or the home page.
+              One slim row of the things people actually browse. */}
+          <nav aria-label="Browse" className="hidden border-t border-line/70 lg:block">
+            <ul className="flex h-11 items-center gap-7 text-small">
+              {NAV_LINKS.map((item) => {
+                const active = pathname === item.href || (item.match && pathname.startsWith(item.match));
+                return (
+                  <li key={item.href}>
+                    <Link
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`inline-flex h-11 items-center underline-offset-[6px] transition-colors hover:text-navy hover:underline ${
+                        active ? "text-navy underline decoration-sienna decoration-2" : "text-muted"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                );
+              })}
+              <li className="ml-auto">
+                <Link
+                  href="/help"
+                  className="inline-flex h-11 items-center text-muted underline-offset-[6px] transition-colors hover:text-navy hover:underline"
+                >
+                  Delivery &amp; help
+                </Link>
+              </li>
+            </ul>
+          </nav>
 
           <AnimatePresence initial={false}>
             {searchOpen && (
@@ -412,7 +481,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
             </div>
 
             <nav className="flex-1 overflow-y-auto py-3" aria-label="Shop">
-              <p className="px-5 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted">Browse</p>
+              <p className="px-5 pb-2 pt-3 text-micro font-semibold uppercase text-muted">Browse</p>
               <Link href="/books" onClick={() => setMenuOpen(false)}
                 className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">
                 All books
@@ -426,7 +495,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
               ))}
 
               <div className="mt-3 pt-3 border-t border-line">
-                <p className="px-5 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted">
+                <p className="px-5 pb-2 pt-3 text-micro font-semibold uppercase text-muted">
                   Account
                 </p>
 

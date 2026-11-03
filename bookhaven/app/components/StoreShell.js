@@ -56,7 +56,7 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
         <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-line">
           <div>
             <h2 id="basket-title" className="text-lg font-bold text-navy">Your basket</h2>
-            <p className="text-xs text-muted mt-0.5">
+            <p className="mt-0.5 text-small text-muted">
               {itemCount === 0 ? "No items yet" : `${itemCount} ${itemCount === 1 ? "item" : "items"}`}
             </p>
           </div>
@@ -64,7 +64,7 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
             type="button"
             onClick={close}
             aria-label="Close basket"
-            className="w-11 h-11 -mr-2 flex items-center justify-center rounded-lg hover:bg-subtle"
+            className="-mr-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-subtle"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -79,13 +79,13 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
               <h3 className="mt-4 text-base font-semibold text-navy">Your basket is empty</h3>
-              <p className="mt-1 text-sm text-muted">Add a book and it will wait here for you.</p>
+              <p className="mt-1 text-small text-muted">Add a book and it will wait here for you.</p>
               <div className="mt-5 flex flex-col items-center gap-2">
-                <Link href="/books" onClick={close} className="btn-primary text-sm">Browse books</Link>
+                <Link href="/books" onClick={close} className="btn-primary">Browse books</Link>
                 <Link
                   href="/books?sort=newest"
                   onClick={close}
-                  className="text-xs font-semibold text-sienna underline-offset-2 hover:underline"
+                  className="text-small font-semibold text-sienna underline-offset-2 hover:underline"
                 >
                   See new arrivals
                 </Link>
@@ -100,16 +100,16 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
                   </Link>
 
                   <div className="min-w-0 flex-1">
-                    <Link href={bookPath(item)} onClick={close} className="block text-sm font-semibold text-navy line-clamp-2 hover:text-sienna">
+                    <Link href={bookPath(item)} onClick={close} className="block text-small font-semibold leading-snug text-navy line-clamp-2 hover:text-sienna">
                       {item.title}
                     </Link>
-                    <p className="mt-0.5 truncate text-xs text-muted">
+                    <p className="mt-0.5 truncate text-small text-muted">
                       {item.author}
                       {item.quantity > 1 ? ` · ${formatKsh(item.price)} each` : ""}
                     </p>
 
                     <div className="mt-2 flex items-center justify-between gap-2">
-                      <div className="flex items-center rounded-control border border-line bg-white">
+                      <div className="flex items-center rounded-control border border-line bg-surface">
                         <button
                           type="button"
                           onClick={() => onUpdateQty(item.id, -1)}
@@ -118,7 +118,7 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
                         >
                           <span aria-hidden="true">−</span>
                         </button>
-                        <span className="w-8 text-center text-sm font-semibold tabular-nums">{item.quantity}</span>
+                        <span className="w-8 text-center text-small font-semibold tabular-nums">{item.quantity}</span>
                         <button
                           type="button"
                           onClick={() => onUpdateQty(item.id, 1)}
@@ -129,13 +129,13 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
                         </button>
                       </div>
 
-                      <p className="text-sm font-bold text-navy">{formatKsh(item.price * item.quantity)}</p>
+                      <p className="text-small font-bold tabular-nums text-navy">{formatKsh(item.price * item.quantity)}</p>
                     </div>
 
                     <button
                       type="button"
                       onClick={() => onRemove(item.id)}
-                      className="mt-1.5 text-xs text-muted underline underline-offset-2 hover:text-error"
+                      className="mt-2 text-small text-muted underline underline-offset-2 hover:text-error"
                     >
                       Remove
                     </button>
@@ -148,12 +148,12 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
 
         {cart.length > 0 && (
           <div className="border-t border-line p-4">
-            <div className="rounded-card border border-line bg-white p-4">
-              <div className="flex justify-between text-sm">
+            <div className="rounded-card border border-line bg-surface p-4">
+              <div className="flex justify-between text-small">
                 <span className="text-muted">Subtotal</span>
                 <span className="font-semibold text-navy">{formatKsh(total)}</span>
               </div>
-              <div className="mt-1.5 flex justify-between text-sm">
+              <div className="mt-1.5 flex justify-between text-small">
                 <span className="text-muted">Delivery ({DELIVERY_PERCENT}%)</span>
                 <span className="font-semibold text-navy">{formatKsh(deliveryFeeFor(total))}</span>
               </div>
@@ -164,10 +164,10 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
               </div>
             </div>
 
-            <Link href="/checkout" onClick={close} className="btn-primary mt-3 w-full text-sm">
+            <Link href="/checkout" onClick={close} className="btn-primary mt-3 w-full">
               Checkout
             </Link>
-            <p className="mt-2 text-center text-xs text-muted">Delivery is {DELIVERY_PERCENT}% of the book total.</p>
+            <p className="mt-2 text-center text-micro text-muted">Delivery is {DELIVERY_PERCENT}% of the book total.</p>
           </div>
         )}
       </motion.div>
@@ -180,68 +180,103 @@ export function CartDrawer({ cart, isOpen, onClose, onUpdateQty, onRemove, total
 // ── Shared Footer ───────────────────────────────────────
 export function StoreFooter() {
   const year = new Date().getFullYear();
+  const link = "text-cream/75 transition-colors hover:text-white";
+
+  const columns = [
+    {
+      title: "Shop",
+      links: [
+        ["All books", "/books"],
+        ["New arrivals", "/books?sort=newest"],
+        ["Fiction", "/category/fiction"],
+        ["Finance", "/category/finance"],
+        ["Self-help", "/category/self-help"],
+      ],
+    },
+    {
+      title: "Your account",
+      links: [
+        ["Orders & tracking", "/account"],
+        ["Saved books", "/account"],
+        ["Sign in", "/login"],
+        ["Create an account", "/login?tab=register"],
+      ],
+    },
+    {
+      title: "Help",
+      links: [
+        ["Delivery", "/help#delivery"],
+        ["Returns", "/help#returns"],
+        ["Payment & M-Pesa", "/help#payment"],
+        ["About Book Haven", "/about"],
+        ["Privacy", "/privacy"],
+        ["Terms of sale", "/terms"],
+      ],
+    },
+  ];
 
   return (
-    <footer className="bg-navy text-cream/80 mt-auto">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
-          <div className="col-span-2 min-w-0 md:col-span-1">
+    <footer className="mt-auto bg-navy-deep text-cream">
+      <div className="shell border-t border-white/10 py-14 sm:py-16">
+        {/* Six columns at desktop: the brand takes two, each of the four
+            link groups takes one, and no group wraps onto a second row. */}
+        <div className="grid grid-cols-2 gap-x-8 gap-y-10 md:grid-cols-6">
+          <div className="col-span-2 min-w-0">
             <Link href="/" className="inline-flex items-center">
-              <span className="font-playfair text-lg font-bold text-white">Book Haven</span>
+              <span className="font-playfair text-2xl font-bold text-white">Book Haven</span>
             </Link>
-            <p className="mt-3 text-sm leading-relaxed text-cream/70">
-              Books in Kenyan shillings, delivered nationwide. Delivery is {DELIVERY_PERCENT}%
-              of the book total, shown before you pay.
+            <p className="mt-4 max-w-sm text-small leading-relaxed text-cream/70">
+              Books in Kenyan shillings, delivered nationwide. Delivery is {DELIVERY_PERCENT}% of
+              the book total, shown before you pay.
+            </p>
+            <p className="mt-4 text-micro uppercase tracking-[0.08em] text-cream/60">
+              Nairobi · Pay on delivery · M-Pesa
             </p>
           </div>
 
-          <div>
-            <h2 className="text-sm font-bold text-white mb-3">Shop</h2>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/books" className="-my-1 inline-block py-1 hover:text-white transition">All books</Link></li>
-              <li><Link href="/category/fiction" className="-my-1 inline-block py-1 hover:text-white transition">Fiction</Link></li>
-              <li><Link href="/category/finance" className="-my-1 inline-block py-1 hover:text-white transition">Finance</Link></li>
-              <li><Link href="/category/self-help" className="-my-1 inline-block py-1 hover:text-white transition">Self-Help</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-bold text-white mb-3">Your account</h2>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/account" className="-my-1 inline-block py-1 hover:text-white transition">Orders &amp; tracking</Link></li>
-              <li><Link href="/login" className="-my-1 inline-block py-1 hover:text-white transition">Sign in</Link></li>
-              <li><Link href="/login?tab=register" className="-my-1 inline-block py-1 hover:text-white transition">Create an account</Link></li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className="text-sm font-bold text-white mb-3">Help</h2>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/help#delivery" className="-my-1 inline-block py-1 hover:text-white transition">Delivery</Link></li>
-              <li><Link href="/help#returns" className="-my-1 inline-block py-1 hover:text-white transition">Returns</Link></li>
-              <li><Link href="/help#payment" className="-my-1 inline-block py-1 hover:text-white transition">Payment &amp; M-Pesa</Link></li>
-              <li><Link href="/about" className="-my-1 inline-block py-1 hover:text-white transition">About Book Haven</Link></li>
-              <li><Link href="/privacy" className="-my-1 inline-block py-1 hover:text-white transition">Privacy</Link></li>
-              <li><Link href="/terms" className="-my-1 inline-block py-1 hover:text-white transition">Terms of sale</Link></li>
-            </ul>
-          </div>
+          {columns.map((column) => (
+            <nav key={column.title} aria-label={column.title}>
+              <h2 className="text-micro font-semibold uppercase tracking-[0.1em] text-cream/60">
+                {column.title}
+              </h2>
+              <ul className="mt-4 space-y-2.5 text-small">
+                {column.links.map(([label, href]) => (
+                  <li key={`${column.title}-${label}`}>
+                    <Link href={href} className={`-my-1 inline-block py-1 ${link}`}>
+                      {label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          ))}
 
           <div className="min-w-0">
-            <h2 className="text-sm font-bold text-white mb-3">Contact</h2>
+            <h2 className="text-micro font-semibold uppercase tracking-[0.1em] text-cream/60">
+              Contact
+            </h2>
             {/* break-words: an email address is one unbreakable word, and
                 half of one at 768px is wider than its column. */}
-            <ul className="space-y-2 text-sm">
-              <li><a href={`mailto:${STORE_CONTACT.email}`} className="-my-1 inline-block max-w-full break-words py-1 hover:text-white transition">{STORE_CONTACT.email}</a></li>
-              <li><a href={STORE_CONTACT.phoneHref} className="-my-1 inline-block py-1 hover:text-white transition">{STORE_CONTACT.phone}</a></li>
-              <li>{STORE_CONTACT.location}</li>
+            <ul className="mt-4 space-y-2.5 text-small">
+              <li>
+                <a href={`mailto:${STORE_CONTACT.email}`} className={`-my-1 inline-block max-w-full break-words py-1 ${link}`}>
+                  {STORE_CONTACT.email}
+                </a>
+              </li>
+              <li>
+                <a href={STORE_CONTACT.phoneHref} className={`-my-1 inline-block py-1 ${link}`}>
+                  {STORE_CONTACT.phone}
+                </a>
+              </li>
+              <li className="text-cream/70">{STORE_CONTACT.location}</li>
               <li className="text-cream/60">{STORE_CONTACT.hours}</li>
             </ul>
           </div>
         </div>
 
-        <div className="border-t border-white/15 mt-8 pt-6 flex flex-col sm:flex-row justify-between items-center gap-2">
-          <p className="text-xs text-cream/60">© {year} Book Haven Kenya</p>
-          <p className="text-xs text-cream/60">Prices in KES · Pay on delivery</p>
+        <div className="mt-12 flex flex-col items-start justify-between gap-2 border-t border-white/10 pt-6 sm:flex-row sm:items-center">
+          <p className="text-small text-cream/60">© {year} Book Haven Kenya</p>
+          <p className="text-small text-cream/60">Prices in KES · Pay on delivery</p>
         </div>
       </div>
     </footer>

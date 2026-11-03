@@ -252,7 +252,7 @@ export default function ReviewForm({ bookId, bookSlug, bookTitle, initialReview 
       <div className="rounded-card border border-navy/20 bg-white p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-bold uppercase tracking-wider text-sienna">Your review</p>
+            <p className="text-micro font-semibold uppercase text-sienna">Your review</p>
             <div className="mt-1.5 flex items-center gap-2">
               <StarPickerReadOnly value={review.rating} />
               <span className="text-xs font-semibold text-ink">{review.rating} / 5</span>

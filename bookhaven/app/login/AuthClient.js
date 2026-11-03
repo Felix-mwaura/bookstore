@@ -74,10 +74,9 @@ function Field({
           aria-invalid={error ? "true" : undefined}
           aria-describedby={describedBy}
           onChange={(event) => onChange(name, event.target.value)}
-          className={`min-h-12 w-full rounded-xl border bg-white py-3 text-[15px] text-ink outline-none transition
-            placeholder:text-muted focus:ring-2 focus:ring-navy
-            ${icon ? "pl-11" : "pl-3.5"} ${isPassword ? "pr-12" : "pr-3.5"}
-            ${error ? "border-error focus:border-error" : "border-line focus:border-navy"}`}
+          className={`field min-h-12 ${icon ? "pl-11" : ""} ${isPassword ? "pr-12" : ""} ${
+            error ? "field-error" : ""
+          }`}
         />
         {isPassword && (
           <button

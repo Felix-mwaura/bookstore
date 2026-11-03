@@ -14,11 +14,16 @@
   --color-sand: #F6EDDD;
   --color-navy: #1B2A4A;
   --color-navy-hover: #14203A;
+  /* A deeper navy for the two places that should sit behind the page rather
+     than on it: the utility bar above the header and the footer. */
+  --color-navy-deep: #101A2E;
   --color-sienna: #B5532F;
   --color-sienna-hover: #96431F;
   --color-ink: #1F2430;
   --color-muted: #5B6270;
   --color-line: #E3DCCB;
+  /* A rule that is meant to be seen, where --color-line is a hairline. */
+  --color-line-strong: #D2C5A9;
   --color-success: #2F7D4F;
   /* The same meaning, lightened for navy panels: #2F7D4F on navy is 2.6:1,
      which is not a tick anybody can see from across a phone. */
@@ -33,17 +38,56 @@
   /* Unfilled stars. Decorative by nature, so it is a hairline, not text. */
   --color-star-empty: #CBBFA8;
   --color-warning: #B7791F;
+  --color-warning-hover: #8E5D12;
   --color-error: #B3261E;
+  --color-error-hover: #8F1D17;
   --color-info: #2A5DA8;
 
   --font-inter: 'Inter', system-ui, sans-serif;
   --font-playfair: 'Playfair Display', Georgia, serif;
 
-  --radius-control: 8px;
-  --radius-card: 12px;
+  /* Type scale — one ladder for every page, fluid where it earns it.
+     Before this the site carried 9px, 10px, 11px, 13px, 14px, 15px and
+     16px in the same card; sizes chosen one component at a time never
+     line up. These are the only sizes a screen should need:
 
-  --shadow-card: 0 1px 2px rgba(27, 42, 74, 0.04), 0 4px 16px rgba(27, 42, 74, 0.06);
-  --shadow-pop: 0 8px 32px rgba(27, 42, 74, 0.14);
+       display  the homepage statement
+       title    a page's own h1
+       heading  a section h2
+       lead     the one sentence under a title
+       body     prose (the browser default, 16px)
+       small    metadata, table cells, secondary copy
+       micro    uppercase labels — never below 11px, per the HIG
+
+     clamp() replaces most breakpoints: the display is 2.5rem on a 320px
+     phone and 4.5rem on a wide screen, continuously. */
+  --text-display: clamp(2.5rem, 1.45rem + 4vw, 4.5rem);
+  --text-display--line-height: 1.02;
+  --text-display--letter-spacing: -0.03em;
+  --text-title: clamp(1.9rem, 1.5rem + 1.6vw, 3rem);
+  --text-title--line-height: 1.06;
+  --text-title--letter-spacing: -0.02em;
+  --text-heading: clamp(1.3rem, 1.15rem + 0.7vw, 1.75rem);
+  --text-heading--line-height: 1.2;
+  --text-heading--letter-spacing: -0.012em;
+  --text-lead: clamp(1.0625rem, 1rem + 0.3vw, 1.1875rem);
+  --text-lead--line-height: 1.65;
+  --text-small: 0.875rem;
+  --text-small--line-height: 1.6;
+  --text-micro: 0.6875rem;
+  --text-micro--line-height: 1.4;
+  --text-micro--letter-spacing: 0.08em;
+
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-panel: 20px;
+
+  /* Elevation is tinted with the ink rather than pure black, and the wide
+     blur carries a negative spread: the shadow reads as the page lifting
+     under the card, not as a grey box stamped behind it. */
+  --shadow-card: 0 1px 2px rgba(16, 26, 46, 0.04), 0 8px 24px -12px rgba(16, 26, 46, 0.14);
+  --shadow-lift: 0 2px 4px rgba(16, 26, 46, 0.05), 0 20px 44px -18px rgba(16, 26, 46, 0.24);
+  --shadow-pop: 0 24px 60px -18px rgba(16, 26, 46, 0.3), 0 2px 8px rgba(16, 26, 46, 0.06);
 
   --default-transition-duration: 180ms;
   --default-transition-timing-function: cubic-bezier(0, 0, 0.2, 1);
@@ -158,8 +202,21 @@ html {
 
 /* Small screens: keep tap targets comfortable. */
 @media (max-width: 640px) {
-  button, [role="button"], a.btn-primary, a.btn-secondary {
+  button, [role="button"], a.btn-primary, a.btn-secondary, a.btn-quiet {
     min-height: 44px;
+  }
+}
+
+/* iOS Safari zooms the page in when a field it focuses has text under 16px,
+   and then never zooms back out — the layout is left scrolled sideways for
+   the rest of the visit. The fields are 15px on desktop because that is the
+   right size beside a 16px paragraph; on phones they get the 16px that keeps
+   the viewport still. */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 1rem;
   }
 }
 
@@ -200,6 +257,153 @@ html {
   }
 }
 
+@layer components {
+
+/* ─────────────────────────────────────────────────────────────
+   Layout and surfaces
+   Two classes carry the whole page frame, so every band has the
+   same gutter and every band breathes by the same amount. Before
+   this, sections hand-rolled `max-w-7xl px-4 sm:px-6 py-10
+   sm:py-14`, which drifted page by page.
+   ───────────────────────────────────────────────────────────── */
+
+.shell {
+  width: 100%;
+  max-width: 84rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .shell { padding-inline: 2rem; }
+}
+
+@media (min-width: 1024px) {
+  .shell { padding-inline: 2.5rem; }
+}
+
+/* A document shell: help, privacy, terms. Same gutter, a column narrow
+   enough to read a paragraph without losing the line. */
+.shell-doc {
+  width: 100%;
+  max-width: 58rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .shell-doc { padding-inline: 2rem; }
+}
+
+@media (min-width: 1024px) {
+  .shell-doc { padding-inline: 2.5rem; }
+}
+
+/* A full band on a page: the rhythm the eye reads as "sections". */
+.band {
+  padding-block: 3.25rem;
+}
+
+@media (min-width: 640px) {
+  .band { padding-block: 4.5rem; }
+}
+
+@media (min-width: 1024px) {
+  .band { padding-block: 6rem; }
+}
+
+/* A band that belongs to the one above it — a strip, not a section. */
+.band-tight {
+  padding-block: 2.25rem;
+}
+
+@media (min-width: 640px) {
+  .band-tight { padding-block: 3rem; }
+}
+
+/* The paper card: one border, one radius, one shadow. */
+.surface {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Form fields
+   A field is a control with one height, one radius and one focus
+   treatment. They used to be assembled per form, so the same input
+   was 40px tall in the header and 44px in checkout.
+   ───────────────────────────────────────────────────────────── */
+
+.field {
+  width: 100%;
+  min-height: 2.875rem;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface);
+  padding: 0.6875rem 0.875rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+  transition: border-color var(--dur-fast) var(--ease-standard),
+              box-shadow var(--dur-fast) var(--ease-standard);
+}
+
+.field::placeholder { color: var(--color-muted); }
+
+.field:hover { border-color: var(--color-line-strong); }
+
+/* The ring is two opaque tones rather than an alpha glow: a 20% sienna
+   halo does not clear 3:1, and a field is a control like any other. */
+.field:focus,
+.field:focus-visible {
+  outline: none;
+  border-color: var(--color-sienna);
+  box-shadow: 0 0 0 1px var(--color-sienna);
+}
+
+/* The sticky header gains its shadow only once content has moved under it.
+   At rest it is a rule on paper; in motion it is a surface with an edge. */
+.site-header {
+  transition: box-shadow var(--dur-mid) var(--ease-standard);
+}
+
+.site-header[data-stuck="true"] {
+  box-shadow: 0 1px 2px rgba(16, 26, 46, 0.04), 0 16px 32px -24px rgba(16, 26, 46, 0.45);
+}
+
+/* A field that failed validation. Border and tint, so the error reads even
+   before the message below it is parsed. */
+.field-error {
+  border-color: var(--color-error);
+  background-color: #FDF3F2;
+}
+
+/* A field that sits inline in a toolbar rather than filling its container. */
+.field-inline {
+  width: auto;
+  min-height: 2.75rem;
+  padding-block: 0;
+  padding-right: 2.25rem;
+}
+
+.field:disabled {
+  background-color: var(--color-subtle);
+  color: var(--color-muted);
+  cursor: not-allowed;
+}
+
+/* Large-format text: the one paragraph under a title. */
+.lead {
+  font-size: var(--text-lead);
+  line-height: var(--text-lead--line-height);
+  color: var(--color-muted);
+  max-width: 44rem;
+}
+
+}
+
 /* Book styling */
 .book-cover {
   aspect-ratio: 2 / 3;
@@ -225,46 +429,53 @@ html {
   box-shadow: -2px 0 4px rgba(27, 42, 74, 0.1), 8px 16px 40px rgba(27, 42, 74, 0.18);
 }
 
-/* Buttons */
-.btn-primary {
+@layer components {
+
+/* ─────────────────────────────────────────────────────────────
+   Buttons
+   One height (46px, above the 44px touch floor), one radius, one
+   weight. The primary is the only saturated control on a screen;
+   the secondary is paper with a hairline; the quiet variant is for
+   a third action that should not compete with either.
+   ───────────────────────────────────────────────────────────── */
+
+.btn-primary,
+.btn-secondary,
+.btn-quiet {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  background-color: var(--color-sienna);
-  color: white;
+  min-height: 2.875rem;
   padding: 0.75rem 1.5rem;
   border-radius: var(--radius-control);
+  font-size: 0.9375rem;
   font-weight: 600;
+  letter-spacing: 0.005em;
+  line-height: 1.2;
+  white-space: nowrap;
   transition: background-color var(--dur-fast) var(--ease-standard),
+              border-color var(--dur-fast) var(--ease-standard),
+              color var(--dur-fast) var(--ease-standard),
+              box-shadow var(--dur-fast) var(--ease-standard),
               transform var(--dur-press) var(--ease-standard);
+}
+
+.btn-primary {
+  background-color: var(--color-sienna);
+  color: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(16, 26, 46, 0.12), 0 8px 18px -10px rgba(181, 83, 47, 0.55);
 }
 
 .btn-primary:hover {
   background-color: var(--color-sienna-hover);
-}
-
-/* Pressed: a pixel of travel, not a jump. Feedback has to land inside
-   ~120ms or the tap feels late, which is why it uses --dur-press rather
-   than the hover duration. */
-.btn-primary:active {
-  transform: translateY(1px) scale(0.99);
+  box-shadow: 0 2px 4px rgba(16, 26, 46, 0.14), 0 14px 28px -12px rgba(181, 83, 47, 0.6);
 }
 
 .btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background-color: white;
+  background-color: var(--color-surface);
   border: 1px solid var(--color-line);
   color: var(--color-navy);
-  padding: 0.75rem 1.5rem;
-  border-radius: var(--radius-control);
-  font-weight: 600;
-  transition: border-color var(--dur-fast) var(--ease-standard),
-              background-color var(--dur-fast) var(--ease-standard),
-              transform var(--dur-press) var(--ease-standard);
 }
 
 .btn-secondary:hover {
@@ -272,8 +483,33 @@ html {
   background-color: var(--color-subtle);
 }
 
-.btn-secondary:active {
+.btn-quiet {
+  background-color: transparent;
+  color: var(--color-navy);
+  padding-inline: 0.75rem;
+}
+
+.btn-quiet:hover {
+  background-color: var(--color-subtle);
+}
+
+/* Pressed: a pixel of travel, not a jump. Feedback has to land inside
+   ~120ms or the tap feels late, which is why it uses --dur-press rather
+   than the hover duration. */
+.btn-primary:active,
+.btn-secondary:active,
+.btn-quiet:active {
   transform: translateY(1px) scale(0.99);
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 }
 
 /* Utilities */
