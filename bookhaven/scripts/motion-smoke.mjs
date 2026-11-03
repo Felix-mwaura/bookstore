@@ -279,11 +279,17 @@ check(
 check("the scene respects it too", /prefers-reduced-motion: reduce/.test(kittenCss));
 
 console.log("\nFeedback is small and quick");
-const pressRules = [...cssCode.matchAll(/:active\s*\{[^}]*transform:\s*([^;]+);/g)].map((m) => m[1].trim());
+// The three buttons share one `:active` rule these days, so count the
+// selectors in it rather than the blocks: one rule, three pressed controls.
+const pressBlocks = [...cssCode.matchAll(/([^{}]*:active[^{}]*)\{([^}]*)\}/g)]
+  .map((m) => ({ selectors: m[1].split(",").map((sel) => sel.trim()).filter((sel) => sel.includes(":active")), body: m[2] }))
+  .filter((block) => /transform:/.test(block.body));
+const pressRules = pressBlocks.flatMap((block) => block.selectors.map((sel) => ({ sel, body: block.body })));
 check("every pressed control moves", pressRules.length >= 3, `${pressRules.length} found`);
-for (const rule of pressRules) {
-  const y = Number((rule.match(/translateY\(-?([\d.]+)px\)/) || [])[1] || 0);
-  check(`"${rule}" travels under 2px`, y <= 2, `translateY(${y}px)`);
+for (const { sel, body } of pressRules) {
+  const travel = (body.match(/transform:[^;]+/) || [""])[0];
+  const y = Number((travel.match(/translateY\(-?([\d.]+)px\)/) || [])[1] || 0);
+  check(`${sel} travels under 2px`, y <= 2, travel || "no transform");
 }
 const hovers = [...cssCode.matchAll(/translateY\((-[\d.]+)px\)/g)].map((m) => Math.abs(Number(m[1])));
 check("no hover lifts anything more than 8px", hovers.every((y) => y <= 8), hovers.join(", "));

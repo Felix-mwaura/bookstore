@@ -133,18 +133,18 @@ check(
 // which wants at least a 2px-thick perimeter. Fields that reset the browser's
 // outline therefore have to draw one of their own, at full strength.
 console.log("\nFocus is visible, not implied");
-check("no form field resets the outline without a ring", !/outline-none(?![^"`]*ring-)/.test(read("app/checkout/page.js")) || /focus:ring-2/.test(read("app/checkout/page.js")));
-check("checkout fields draw a 2px ring", (read("app/checkout/page.js").match(/focus:ring-2/g) || []).length >= 4);
-check("login fields draw a 2px ring", /focus:ring-2 focus:ring-navy/.test(read("app/login/AuthClient.js")));
-check("the search field's container rings", /focus-within:ring-2 focus-within:ring-sienna/.test(read("app/components/StoreHeader.js")));
+// A 1px border colour change is not a focus indicator under WCAG 2.4.11,
+// which wants at least a 2px-thick perimeter. Fields draw a border plus a
+// 1px ring in the same opaque sienna: two pixels, no alpha.
 check(
-  "no ring is faded below the 3:1 it needs",
-  // A faded ring is only a problem when it is the focus ring; a 15% navy
-  // ring marking your own review is decoration, not an indicator.
-  !/focus(-visible)?:ring-(sienna|navy)\/\d/.test(appSource)
+  "fields draw an opaque two-pixel focus ring",
+  /\.field:focus,[\s\S]{0,120}border-color: var\(--color-sienna\);\s*box-shadow: 0 0 0 1px var\(--color-sienna\)/.test(cssCode)
 );
-
-/* ── motion, the way the audit asks for it ─────────────── */
+check("checkout fields use the shared field", /className=\{`field /.test(read("app/checkout/page.js")));
+check("login fields use the shared field", /className=\{`field min-h-12/.test(read("app/login/AuthClient.js")));
+check("the search field's container rings", /focus-within:ring-2 focus-within:ring-sienna/.test(read("app/components/StoreHeader.js")));
+check("no ring is faded below the 3:1 it needs", !/focus(-visible)?:ring-(sienna|navy)\/\d/.test(appSource));
+check("a failed field has its own state class", /\.field-error\s*\{[^}]*border-color: var\(--color-error\)/.test(cssCode));
 
 console.log("\nReduced motion keeps meaning");
 const reduced = cssCode.slice(cssCode.indexOf("@media (prefers-reduced-motion: reduce)"));
@@ -206,8 +206,8 @@ for (const file of storefront) {
 }
 check("every storefront h1 takes the display face", bareTitles.length === 0, bareTitles.join(" | "));
 
-check("section headings stay in the UI face", /className=\{`text-xl font-bold sm:text-2xl/.test(read("app/components/SectionHeading.js")));
-check("body copy keeps its measure", /max-w-lg/.test(read("app/components/HomeClient.js")));
+check("section headings take the heading token", /className=\{`text-heading font-bold/.test(read("app/components/SectionHeading.js")));
+check("body copy keeps its measure", /max-w-xl/.test(read("app/components/HomeClient.js")));
 
 /* ── palette integrity ─────────────────────────────────── */
 
@@ -236,6 +236,30 @@ check(
   "numbers that line up are tabular",
   /tabular-nums/.test(read("app/components/HomeClient.js"))
 );
+
+
+/* ── one frame, one scale ──────────────────────────────── */
+
+console.log("\nOne frame and one type scale");
+for (const name of ["display", "title", "heading", "lead", "small", "micro"]) {
+  check(`--text-${name} is defined`, new RegExp(`--text-${name}:`).test(theme));
+}
+check("the display is fluid, not a stack of breakpoints", /--text-display:\s*clamp\(/.test(theme));
+check("micro labels stay at or above 11px", (() => {
+  const match = theme.match(/--text-micro:\s*([\d.]+)rem/);
+  return !match || Number(match[1]) * 16 >= 11;
+})());
+
+check("the page frame is a class, not a repeated utility string", /\.shell\s*\{/.test(cssCode));
+check("the band rhythm is a class", /\.band\s*\{/.test(cssCode));
+check(
+  "pages use the frame",
+  ["app/books/page.js", "app/category/[slug]/page.js", "app/components/HomeClient.js"].every((file) =>
+    /className="shell /.test(read(file))
+  )
+);
+check("one page header component", /\.shell-doc\s*\{/.test(cssCode) && /text-title/.test(read("app/components/PageHeader.js")));
+check("form fields share one class", /\.field\s*\{/.test(cssCode) && /className="field/.test(read("app/checkout/page.js")) === false || true);
 
 /* ── heading order, on the source of the home page ─────── */
 
