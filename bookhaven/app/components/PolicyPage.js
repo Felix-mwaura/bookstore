@@ -1,4 +1,5 @@
 import PageHeader from "./PageHeader";
+import ScrollProgress from "./ScrollProgress";
 
 // Shared shell for the pages a shop has to have: help, privacy, terms, about.
 //
@@ -13,6 +14,7 @@ const UPDATED = "23 October 2026";
 export function PolicyPage({ title, intro, children, updated = true }) {
   return (
     <div className="shell-doc py-8 sm:py-12">
+      <ScrollProgress />
       <PageHeader
         className="mb-10"
         breadcrumb={[{ label: "Home", href: "/" }, { label: title }]}

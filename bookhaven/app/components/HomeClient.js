@@ -8,6 +8,7 @@ import { useGenres } from "./GenreProvider";
 import { HeroFan } from "./HeroFan";
 import ProductCard from "./ProductCard";
 import SectionHeading from "./SectionHeading";
+import NumberTicker from "./NumberTicker";
 import { useStore } from "./StoreShell";
 import { armRevealOnScroll } from "../lib/reveal";
 import { STORE_CONTACT } from "../lib/site";
@@ -168,11 +169,12 @@ function HowItWorks() {
 /* ── catalogue facts ──────────────────────────────────── */
 
 function ShelfFacts({ stats }) {
-  const facts = [
-    { value: stats.titles.toLocaleString("en-KE"), label: "titles on the shelf" },
-    { value: stats.categories.toLocaleString("en-KE"), label: "genres to browse" },
-    { value: stats.inStock.toLocaleString("en-KE"), label: "ready to ship" },
-    { value: "20%", label: "delivery on every order" },
+  // Three figures that are counted live from the catalogue, and one that is a
+  // policy ("20%" is a constant, so counting it up would be theatre).
+  const counted = [
+    { value: stats.titles, label: "titles on the shelf" },
+    { value: stats.categories, label: "genres to browse" },
+    { value: stats.inStock, label: "ready to ship" },
   ];
 
   return (
@@ -195,13 +197,21 @@ function ShelfFacts({ stats }) {
             </div>
           </div>
 
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-5">
-            {facts.map(({ value, label }) => (
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-6">
+            {counted.map(({ value, label }) => (
               <div key={label} className="border-t border-line pt-3">
-                <dt className="text-xs text-muted sm:text-sm">{label}</dt>
-                <dd className="mt-1 text-2xl font-bold tabular-nums text-navy sm:text-3xl">{value}</dd>
+                <dt className="text-small text-muted">{label}</dt>
+                <NumberTicker
+                  value={value}
+                  label={label}
+                  className="mt-1 font-playfair text-3xl font-bold tabular-nums text-navy sm:text-4xl"
+                />
               </div>
             ))}
+            <div className="border-t border-line pt-3">
+              <dt className="text-small text-muted">delivery on every order</dt>
+              <dd className="mt-1 font-playfair text-3xl font-bold tabular-nums text-navy sm:text-4xl">20%</dd>
+            </div>
           </dl>
         </div>
       </div>
