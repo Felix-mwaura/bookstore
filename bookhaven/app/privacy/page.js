@@ -67,9 +67,15 @@ export default function PrivacyPage() {
 
         <Section id="email" title="Email">
           <p>
-            We email you an order confirmation and updates when an order is dispatched, delivered or cancelled,
-            and a password-reset link if you ask for one. If you subscribe to the newsletter, you get the
-            newsletter; unsubscribing is a link in every one of those emails.
+            If the shop&apos;s mail service is configured, you get an email when an order is placed and when its
+            status changes, plus a password-reset link if you ask for one. Those messages go only to the address
+            on the order or the account.
+          </p>
+          <p className="text-muted">
+            The announcement list is not open yet. The form that collects addresses stays closed until the shop
+            has a published way to contact it, because being able to leave a list is part of being on it. When it
+            opens, every message will say how to stop receiving them, and your address will never be shared or
+            sold.
           </p>
         </Section>
 

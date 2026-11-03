@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 
 import { BookCover } from "./BookCover";
 import { bookPath } from "../lib/book-url";
-import { DELIVERY_PERCENT, deliveryFeeFor, formatKsh } from "../lib/site";
+import { DELIVERY_COVERAGE, DELIVERY_PERCENT, deliveryFeeFor, formatKsh } from "../lib/site";
 import { useDialog } from "../lib/useDialog";
 import { STORE_CONTACT } from "../lib/site";
 import { StoreContext, useStore, useStoreState } from "../lib/store-state";
@@ -226,11 +226,11 @@ export function StoreFooter() {
               <span className="font-playfair text-2xl font-bold text-white">Book Haven</span>
             </Link>
             <p className="mt-4 max-w-sm text-small leading-relaxed text-cream/70">
-              Books in Kenyan shillings, delivered nationwide. Delivery is {DELIVERY_PERCENT}% of
-              the book total, shown before you pay.
+              Books in Kenyan shillings. Delivery is {DELIVERY_PERCENT}% of the book total, shown
+              before you pay. {DELIVERY_COVERAGE || "Every order appears in your account with its current stage."}
             </p>
             <p className="mt-4 text-micro uppercase tracking-[0.08em] text-cream/60">
-              Nairobi · Pay on delivery · M-Pesa
+              Pay on delivery · M-Pesa
             </p>
           </div>
 
@@ -255,21 +255,35 @@ export function StoreFooter() {
             <h2 className="text-micro font-semibold uppercase tracking-[0.1em] text-cream/60">
               Contact
             </h2>
-            {/* break-words: an email address is one unbreakable word, and
+            {/* Only confirmed details are published. The four values this
+                used to show were placeholders nobody had checked, and an
+                address someone travels to is worse than no address.
+                break-words: an email address is one unbreakable word, and
                 half of one at 768px is wider than its column. */}
             <ul className="mt-4 space-y-2.5 text-small">
-              <li>
-                <a href={`mailto:${STORE_CONTACT.email}`} className={`-my-1 inline-block max-w-full break-words py-1 ${link}`}>
-                  {STORE_CONTACT.email}
-                </a>
-              </li>
-              <li>
-                <a href={STORE_CONTACT.phoneHref} className={`-my-1 inline-block py-1 ${link}`}>
-                  {STORE_CONTACT.phone}
-                </a>
-              </li>
-              <li className="text-cream/70">{STORE_CONTACT.location}</li>
-              <li className="text-cream/60">{STORE_CONTACT.hours}</li>
+              {STORE_CONTACT.email && (
+                <li>
+                  <a href={`mailto:${STORE_CONTACT.email}`} className={`-my-1 inline-block max-w-full break-words py-1 ${link}`}>
+                    {STORE_CONTACT.email}
+                  </a>
+                </li>
+              )}
+              {STORE_CONTACT.phone && STORE_CONTACT.phoneHref && (
+                <li>
+                  <a href={STORE_CONTACT.phoneHref} className={`-my-1 inline-block py-1 ${link}`}>
+                    {STORE_CONTACT.phone}
+                  </a>
+                </li>
+              )}
+              {STORE_CONTACT.location && <li className="text-cream/70">{STORE_CONTACT.location}</li>}
+              {STORE_CONTACT.hours && <li className="text-cream/60">{STORE_CONTACT.hours}</li>}
+              {!STORE_CONTACT.reachable && (
+                <li className="max-w-[24ch] text-cream/70">
+                  Contact details are not published yet.{" "}
+                  <Link href="/help#contact" className={link}>Delivery and returns</Link>{" "}
+                  explains how an order is handled.
+                </li>
+              )}
             </ul>
           </div>
         </div>

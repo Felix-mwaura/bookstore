@@ -7,6 +7,7 @@ import { supabase } from "../lib/supabase";
 import { useDialog } from "../lib/useDialog";
 import { categories as BUILT_IN_GENRES } from "../lib/categories";
 import { genreArtwork } from "../lib/genres";
+import { DELIVERY_PERCENT } from "../lib/site";
 import AssistantTab from "./assistant-tab";
 
 // ─────────────────────────────────────────────────────────
@@ -4127,7 +4128,7 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
               <p className="text-sm font-bold text-error">Checkout is paused — no order can be saved</p>
               <p className="mt-1 text-xs leading-relaxed text-error">
                 The database and the app disagree about delivery pricing, so every order is being
-                refused rather than charged a fee the customer never saw (the app charges 20% of the
+                refused rather than charged a fee the customer never saw (the app charges {DELIVERY_PERCENT}% of the
                 book total).{" "}
                 {checkout.mpesa?.reason === "pricing-migration" ? (
                   <>Run <code className="font-mono">supabase/migrations/20261021110000_delivery_rate.sql</code> in

@@ -1,14 +1,10 @@
 import { SITE_URL } from "./lib/site";
 import { getStorefrontBooks, bookPath } from "./lib/catalogue";
+import { getGenres } from "./lib/genres-data";
 
 // Regenerated hourly. A database hiccup must not break the sitemap — a
 // partial sitemap is far better than a 500 for every crawler.
 export const revalidate = 3600;
-
-const CATEGORIES = [
-  "self-help", "finance", "productivity", "psychology",
-  "history", "philosophy", "fiction", "biography",
-];
 
 export default async function sitemap() {
   const now = new Date();
@@ -23,8 +19,14 @@ export default async function sitemap() {
     { url: `${SITE_URL}/terms`, lastModified: now, changeFrequency: "yearly", priority: 0.3 },
   ];
 
-  const categoryRoutes = CATEGORIES.map((slug) => ({
-    url: `${SITE_URL}/category/${slug}`,
+  // Genres come from the same source the nav and the filter use — the
+  // `genres` table, with the built-in taxonomy as its documented fallback.
+  // This list used to be eight hard-coded slugs, so a genre an admin created
+  // was invisible to crawlers and a genre they removed was advertised as a
+  // 404. getGenres() never throws, so this cannot break the sitemap either.
+  const genres = await getGenres();
+  const categoryRoutes = genres.map((genre) => ({
+    url: `${SITE_URL}/category/${genre.slug}`,
     lastModified: now,
     changeFrequency: "weekly",
     priority: 0.7,

@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import { useGenres } from "./GenreProvider";
+import { DELIVERY_PERCENT } from "../lib/site";
 
 /* ── icons ────────────────────────────────────────────── */
 const SearchIcon = ({ className = "w-5 h-5" }) => (
@@ -294,7 +295,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
   return (
     <>
       <div className="bg-navy-deep px-4 py-2 text-center text-micro font-medium uppercase tracking-[0.08em] text-cream/85">
-        <span>Delivery is 20% of the book total</span>
+        <span>Delivery is {DELIVERY_PERCENT}% of the book total</span>
         <span aria-hidden="true" className="mx-2 text-cream/40">·</span>
         <span className="text-cream/70">Every order has a reference</span>
       </div>

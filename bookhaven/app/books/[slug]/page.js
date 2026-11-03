@@ -16,7 +16,7 @@ import { categorySlug } from "../../lib/categories";
 import { stockState } from "../../lib/stock";
 import { getBookRating, getBookReviews, getViewerReviewId } from "../../lib/reviews";
 import { REVIEWS_PER_PAGE, isReviewSort, parsePage, parseStars } from "../../lib/review-limits";
-import { SITE_NAME, SITE_URL, deliveryFeeFor, formatKsh, absoluteUrl } from "../../lib/site";
+import { DELIVERY_PERCENT, SITE_NAME, SITE_URL, deliveryFeeFor, formatKsh, absoluteUrl } from "../../lib/site";
 
 // Rendered per request rather than cached.
 //
@@ -249,7 +249,7 @@ export default async function BookPage({ params, searchParams }) {
               </div>
 
               <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
-                Delivery is 20% of the book total — {formatKsh(deliveryFeeFor(book.price))} on this
+                Delivery is {DELIVERY_PERCENT}% of the book total — {formatKsh(deliveryFeeFor(book.price))} on this
                 title. It is added on the checkout page, before you pay, so the amount owed is on
                 screen before you confirm.
               </p>

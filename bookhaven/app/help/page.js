@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import StoreLayout from "../components/StoreLayout";
 import { Bullets, ContactBlock, PolicyPage, Section } from "../components/PolicyPage";
-import { DELIVERY_PERCENT, SITE_NAME, STORE_CONTACT, formatKsh, deliveryFeeFor } from "../lib/site";
+import { DELIVERY_COVERAGE, DELIVERY_PERCENT, SITE_NAME, STORE_CONTACT, formatKsh, deliveryFeeFor } from "../lib/site";
 
 export const metadata = {
   title: `Help, delivery and returns · ${SITE_NAME}`,
@@ -23,7 +23,7 @@ export default function HelpPage() {
     <StoreLayout>
       <PolicyPage
         title="Delivery, payment and returns"
-        intro="Short answers, in the same words we would use on the phone. If something here does not match what happened to your order, tell us — this page is meant to be true, not reassuring."
+        intro="Short answers, in the same words we would use in person. If something here does not match what happened to your order, tell us — this page is meant to be true, not reassuring."
       >
         <Section id="delivery" title="Delivery">
           <p>
@@ -31,13 +31,14 @@ export default function HelpPage() {
             and shown before you pay. A {formatKsh(example)} order is {formatKsh(deliveryFeeFor(example))} to deliver.
           </p>
           <p>
-            We deliver anywhere in Kenya. Orders are packed from Nairobi and handed to a rider or courier once
-            payment is confirmed (or, for cash on delivery, once the order is placed).
+            {DELIVERY_COVERAGE
+              ? DELIVERY_COVERAGE
+              : "Orders are packed and handed to a rider or courier once payment is confirmed (or, for cash on delivery, once the order is placed)."}
           </p>
           <p className="text-muted">
             The exact day depends on where you are and on the courier — we do not publish a delivery window
-            we cannot keep. Your order page shows its current stage, and the rider calls the number you gave
-            before arriving.
+            we cannot keep. Your order page shows its current stage, and the rider calls the number you
+            gave before arriving.
           </p>
         </Section>
 
@@ -66,7 +67,8 @@ export default function HelpPage() {
           </p>
           <p>
             An order can be cancelled while it has not been dispatched. If you need to change an address after
-            ordering, call us with the order reference rather than placing a second order.
+            ordering, {STORE_CONTACT.phone ? "call us" : "get in touch"} with the order reference rather than
+            placing a second order.
           </p>
         </Section>
 

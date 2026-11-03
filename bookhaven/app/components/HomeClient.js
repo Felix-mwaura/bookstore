@@ -11,7 +11,7 @@ import SectionHeading from "./SectionHeading";
 import NumberTicker from "./NumberTicker";
 import { useStore } from "./StoreShell";
 import { armRevealOnScroll } from "../lib/reveal";
-import { STORE_CONTACT } from "../lib/site";
+import { DELIVERY_COVERAGE, DELIVERY_PERCENT, STORE_CONTACT } from "../lib/site";
 
 /* ── reveal on scroll ─────────────────────────────────── */
 
@@ -44,7 +44,7 @@ function Hero({ books }) {
             <p className="lead mt-6 max-w-xl">
               Prices in Kenyan shillings. Paperbacks and hardcovers across fiction, finance,
               self-help and biography. Stock shown is the real shelf quantity, and delivery is
-              20% of the book total, worked out before you pay.
+              {DELIVERY_PERCENT}% of the book total, worked out before you pay.
             </p>
 
             <form action="/books" method="get" role="search" className="mt-8 max-w-xl">
@@ -184,15 +184,20 @@ function ShelfFacts({ stats }) {
           <div data-reveal>
             <SectionHeading title="A bookshop for Kenyan readers" />
             <p className="mt-4 text-sm leading-relaxed text-muted sm:text-base">
-              Prices are in Kenyan shillings and delivery is 20% of the book total — worked out on
-              screen before you confirm, so nothing is added at the door.
+              Prices are in Kenyan shillings and delivery is {DELIVERY_PERCENT}% of the book total —
+              worked out on screen before you confirm, so nothing is added at the door.
             </p>
             <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
-              We deliver countrywide and every order can be followed from your account.
-              If something is not on the shelf, write to us and we will tell you honestly whether we can get it.
+              {DELIVERY_COVERAGE ? `${DELIVERY_COVERAGE} ` : ""}
+              Every order appears in your account with its current stage. If something is not on
+              the shelf, tell us and we will say honestly whether we can get it.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <a href={`mailto:${STORE_CONTACT.email}`} className="btn-secondary text-sm">Email the shop</a>
+              {STORE_CONTACT.email ? (
+                <a href={`mailto:${STORE_CONTACT.email}`} className="btn-secondary text-sm">Email the shop</a>
+              ) : (
+                <Link href="/help#delivery" className="btn-secondary text-sm">Delivery &amp; returns</Link>
+              )}
               <Link href="/books" className="btn-primary text-sm">Browse the shelf</Link>
             </div>
           </div>
@@ -210,7 +215,7 @@ function ShelfFacts({ stats }) {
             ))}
             <div className="border-t border-line pt-3">
               <dt className="text-small text-muted">delivery on every order</dt>
-              <dd className="mt-1 font-playfair text-3xl font-bold tabular-nums text-navy sm:text-4xl">20%</dd>
+              <dd className="mt-1 font-playfair text-3xl font-bold tabular-nums text-navy sm:text-4xl">{DELIVERY_PERCENT}%</dd>
             </div>
           </dl>
         </div>
@@ -226,7 +231,7 @@ function TrustStrip({ mpesaEnabled }) {
   // payment: the homepage is rendered on the server, which is the one place
   // that knows whether the Daraja credentials are present.
   const items = [
-    { title: "20% delivery", body: "On every order, shown before you pay." },
+    { title: `${DELIVERY_PERCENT}% delivery`, body: "On every order, shown before you pay." },
     { title: "Order tracking", body: "Every order has a reference." },
     mpesaEnabled
       ? { title: "Pay with M-Pesa", body: "Or in cash on delivery." }
@@ -257,6 +262,11 @@ function TrustStrip({ mpesaEnabled }) {
 /* ── newsletter ───────────────────────────────────────── */
 
 function Newsletter() {
+  // The list is only open when there is a way to leave it. Sign-ups mean
+  // storing someone's address, and being able to remove it is not a nicety —
+  // so the form waits for the shop's contact details (see lib/site.js) and
+  // renders an honest "not open yet" state until then. Nothing collects
+  // addresses that the owner could not later take off the list.
   const [email, setEmail] = useState("");
   // Honeypot. The route answers a filled trap with success, so a script that
   // posts every field it finds learns nothing. Kept out of the tab order and
@@ -308,7 +318,18 @@ function Newsletter() {
             description="One email when there is something worth telling you. No fixed schedule, no spam, and you can ask us to remove you at any time."
           />
 
-          {subscribed ? (
+          {!STORE_CONTACT.reachable ? (
+            <div className="text-sm leading-relaxed text-cream/80">
+              <p>
+                The announcement list is not open yet. When it opens, it will be a single email when
+                there is something worth telling you — and every email will say how to stop
+                receiving them.
+              </p>
+              <Link href="/books" className="mt-4 inline-block font-semibold text-white underline underline-offset-4 hover:text-cream">
+                See what is on the shelf
+              </Link>
+            </div>
+          ) : subscribed ? (
             <p className="text-sm font-semibold text-white" role="status">
               <span className="mr-1.5 inline-flex align-[-3px] text-success-soft" aria-hidden="true">
                 <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -369,14 +390,31 @@ function Contact() {
           data-reveal
         >
           <h2 className="text-base font-semibold text-navy">Questions about an order?</h2>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <a href={`mailto:${STORE_CONTACT.email}`} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
-              {STORE_CONTACT.email}
-            </a>
-            <a href={STORE_CONTACT.phoneHref} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
-              {STORE_CONTACT.phone}
-            </a>
-          </div>
+          {/* Only channels the shop has actually confirmed. Until then, the
+              honest answer points at the page that explains the process, not
+              at an address nobody reads. */}
+          {STORE_CONTACT.reachable ? (
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              {STORE_CONTACT.email && (
+                <a href={`mailto:${STORE_CONTACT.email}`} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
+                  {STORE_CONTACT.email}
+                </a>
+              )}
+              {STORE_CONTACT.phone && STORE_CONTACT.phoneHref && (
+                <a href={STORE_CONTACT.phoneHref} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
+                  {STORE_CONTACT.phone}
+                </a>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted">
+              Our phone number and inbox are not published yet.{" "}
+              <Link href="/help" className="text-sienna underline-offset-2 hover:underline">
+                Delivery and returns
+              </Link>{" "}
+              explains what happens after an order.
+            </p>
+          )}
         </div>
       </div>
     </section>

@@ -42,7 +42,21 @@ const nextConfig: NextConfig = {
       : [],
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    // Pages nobody should find in a search result: a checkout with someone's
+    // basket in it, an account page, the order lookup, the admin dashboard and
+    // the sign-in form. robots.txt already asks crawlers to stay out, but a
+    // disallowed URL can still be listed (and a URL leaked from a browser bar
+    // does not consult robots.txt at all). X-Robots-Tag works without the
+    // crawler being allowed to fetch the page, so the two rules agree instead
+    // of contradicting each other.
+    const privatePaths = ["/admin/:path*", "/account/:path*", "/checkout/:path*", "/orders/:path*", "/login"];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      ...privatePaths.map((source) => ({
+        source,
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      })),
+    ];
   },
 };
 

@@ -52,9 +52,9 @@ export function Bullets({ children }) {
  * number and a shop address that nobody has confirmed. They are shown in the
  * footer because that predates this work, but repeating them across four new
  * public pages would turn a known placeholder into what looks like a real
- * address a customer might travel to. So when the details are still
- * placeholders this says so plainly instead, and stops saying it the moment
- * the store env vars are set.
+ * address a customer might travel to. So when nobody has confirmed them this
+ * says so plainly instead, and stops saying it the moment the store env vars
+ * are set.
  */
 export function ContactBlock({ contact }) {
   if (contact.usingPlaceholders) {
@@ -78,8 +78,24 @@ export function ContactBlock({ contact }) {
     <div className="rounded-card border border-line bg-white p-5">
       <p className="text-sm font-semibold text-navy">Talk to a person</p>
       <p className="mt-1 text-sm text-muted">
-        Email <a className="font-medium text-sienna underline-offset-2 hover:underline" href={`mailto:${contact.email}`}>{contact.email}</a>
-        {" "}or call <a className="font-medium text-sienna underline-offset-2 hover:underline" href={contact.phoneHref}>{contact.phone}</a>.
+        {contact.email && (
+          <>
+            Email{" "}
+            <a className="font-medium text-sienna underline-offset-2 hover:underline" href={`mailto:${contact.email}`}>
+              {contact.email}
+            </a>
+          </>
+        )}
+        {contact.email && contact.phone && " or "}
+        {contact.phone && contact.phoneHref && (
+          <>
+            {!contact.email && "Call "}
+            <a className="font-medium text-sienna underline-offset-2 hover:underline" href={contact.phoneHref}>
+              {contact.phone}
+            </a>
+          </>
+        )}
+        .
       </p>
       {contact.location && <p className="mt-1 text-sm text-muted">{contact.location}</p>}
       {contact.hours && <p className="text-sm text-muted">{contact.hours}</p>}

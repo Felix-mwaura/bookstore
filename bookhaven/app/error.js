@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { STORE_CONTACT } from "./lib/site";
 
 /**
  * Storefront error boundary. Without one, a render failure dropped people on
@@ -38,12 +39,18 @@ export default function StoreError({ error, reset }) {
             <Link href="/books" className="btn-quiet">Browse books</Link>
           </div>
 
-          <p className="mt-6 text-xs text-muted">
-            If it keeps happening, write to us at{" "}
-            <a href="mailto:hello@bookhaven.co.ke" className="underline underline-offset-2 hover:text-sienna">
-              hello@bookhaven.co.ke
-            </a>{" "}
-            and tell us which page you were on.
+          <p className="mt-6 text-xs leading-relaxed text-muted">
+            {STORE_CONTACT.email ? (
+              <>
+                If it keeps happening, write to us at{" "}
+                <a href={`mailto:${STORE_CONTACT.email}`} className="underline underline-offset-2 hover:text-sienna">
+                  {STORE_CONTACT.email}
+                </a>{" "}
+                and tell us which page you were on.
+              </>
+            ) : (
+              <>If it keeps happening, note which page you were on and try again later.</>
+            )}
           </p>
         </div>
       </main>
