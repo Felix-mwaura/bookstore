@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BookCover } from "../components/BookCover";
 import { supabase } from "../lib/supabase";
 import { orderReference } from "../lib/orders";
-import { DELIVERY_PERCENT, deliveryFeeFor } from "../lib/site";
+import { DELIVERY_PERCENT, ORDER_EMAILS_ENABLED, deliveryFeeFor } from "../lib/site";
 
 function formatPhone(raw) {
   const d = String(raw || "").replace(/\D/g, "");
@@ -875,9 +875,11 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
         {cart.length > 4 && <div className="w-12 bg-subtle rounded-r-sm flex items-center justify-center text-small font-bold text-muted" style={{ aspectRatio: "2/3" }}>+{cart.length - 4}</div>}
       </div>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-card p-4 text-small text-blue-700 max-w-sm mx-auto mb-8">
+      <div className="mx-auto mb-8 max-w-sm rounded-card border border-line bg-subtle/60 p-4 text-small text-muted">
         {order
-          ? "No receipt email is sent yet. This page and your account page are the record of this order."
+          ? ORDER_EMAILS_ENABLED
+            ? "A copy of this order is on its way to your email. This page and your account page are the record of it."
+            : "No receipt email is sent yet. This page and your account page are the record of this order."
           : "Keep the reference above. If money left your account, contact us before trying again."}
       </div>
 

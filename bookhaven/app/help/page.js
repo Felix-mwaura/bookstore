@@ -84,6 +84,19 @@ export default function HelpPage() {
           </p>
         </Section>
 
+        <Section id="refunds" title="Refunds">
+          <p>
+            Refunds are paid back by hand, by the shop, rather than automatically by the payment system. If one
+            is due, the shop tells you when it has been sent, and the order page in your account stays the
+            record of what you paid.
+          </p>
+          <p className="text-muted">
+            We do not publish a number of days for the money to land, because that last step belongs to the
+            payment provider and not to us. A refund that has been promised is sent — if it has not arrived, get
+            in touch with the order reference rather than paying twice.
+          </p>
+        </Section>
+
         <Section id="reviews" title="Reviews">
           <p>
             Only signed-in customers can post a review, one per book per account. Reviews are shown with your

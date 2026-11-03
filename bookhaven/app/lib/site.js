@@ -76,6 +76,22 @@ export const DELIVERY_PERCENT = 20;
 export const DELIVERY_COVERAGE =
   (process.env.NEXT_PUBLIC_DELIVERY_COVERAGE || "").trim() || null;
 
+// ── Order emails ─────────────────────────────────────────────────────────
+//
+// Whether a customer can be told about their order by email. The queue and
+// the `send-email` function exist, but until a sending domain is verified the
+// provider only accepts the account owner's own address, so a customer never
+// receives anything. Claiming otherwise in the terms is a promise the shop
+// cannot keep.
+//
+//     NEXT_PUBLIC_ORDER_EMAILS=on
+//
+// Unset (the default) the copy points at the two places that are always true:
+// the confirmation screen and the order page in the customer's account.
+export const ORDER_EMAILS_ENABLED = /^(1|true|on|yes)$/i.test(
+  (process.env.NEXT_PUBLIC_ORDER_EMAILS || "").trim()
+);
+
 /** Delivery charged on a book subtotal of `subtotal` shillings. */
 export function deliveryFeeFor(subtotal) {
   const amount = Math.max(0, Math.round(Number(subtotal) || 0));

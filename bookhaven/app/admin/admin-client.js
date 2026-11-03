@@ -3571,7 +3571,7 @@ function ReviewsTab({ showToast, canMutate }) {
       ) : (
         <ul role="list" className="space-y-3">
           {data.reviews.map((review) => (
-            <li key={review.id} className={`bg-white border rounded-control p-4 ${review.is_published ? "border-line" : "border-warning/40 bg-warning/5/40"}`}>
+            <li key={review.id} className={`bg-white border rounded-control p-4 ${review.is_published ? "border-line" : "border-warning/40 bg-warning/5"}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -3738,6 +3738,11 @@ function NotificationsTab({ showToast }) {
           <p className="text-muted text-xs mt-0.5">
             Queued in the same transaction as the order, so nothing is lost if the mail provider is down.
           </p>
+          <p className="text-muted text-xs mt-1">
+            Delivery needs a verified sending domain in the send-email function. Until then the provider only
+            accepts the account owner&apos;s address and every customer message fails here with the provider&apos;s
+            reason in the Detail column.
+          </p>
         </div>
         <button
           onClick={dispatch}
@@ -3758,6 +3763,18 @@ function NotificationsTab({ showToast }) {
         </div>
       ) : (
         <>
+          {(data?.summary?.failed || 0) > 0 && (
+            <div className="mb-5 rounded-card border border-warning/30 bg-warning/5 px-4 py-3">
+              <p className="text-sm font-bold text-navy">
+                {data.summary.failed} message{data.summary.failed === 1 ? "" : "s"} failed to send
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-muted">
+                Read the Detail column before retrying: an unverified sending domain, a wrong API key and a
+                rejected recipient all look the same from here until you read the provider&apos;s words.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {["queued", "sent", "failed", "skipped"].map((k) => (
               <div key={k} className="bg-white border border-line rounded-card p-4">
@@ -3798,7 +3815,9 @@ function NotificationsTab({ showToast }) {
                   {(data?.emails || []).length === 0 && (
                     <tr>
                       <td colSpan={6} className="px-4 py-12 text-center">
-                        <div className="text-3xl mb-2">✉️</div>
+                        <svg className="mx-auto mb-2 h-7 w-7 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l9 6 9-6M3 8v8a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2z" />
+                        </svg>
                         <p className="text-muted text-sm">No emails queued yet</p>
                       </td>
                     </tr>

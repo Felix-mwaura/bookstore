@@ -1,6 +1,6 @@
 import { Bullets, ContactBlock, PolicyPage, Section } from "../components/PolicyPage";
 import StoreLayout from "../components/StoreLayout";
-import { SITE_NAME, STORE_CONTACT } from "../lib/site";
+import { ORDER_EMAILS_ENABLED, SITE_NAME, STORE_CONTACT } from "../lib/site";
 
 export const metadata = {
   title: `Privacy · ${SITE_NAME}`,
@@ -66,10 +66,20 @@ export default function PrivacyPage() {
         </Section>
 
         <Section id="email" title="Email">
+          {ORDER_EMAILS_ENABLED ? (
+            <p>
+              You get an email when an order is placed and when its status changes.
+            </p>
+          ) : (
+            <p>
+              The shop does not send email copies of an order yet: the confirmation screen and the order in your
+              account are the record, and nothing about an order depends on an inbox.
+            </p>
+          )}
           <p>
-            If the shop&apos;s mail service is configured, you get an email when an order is placed and when its
-            status changes, plus a password-reset link if you ask for one. Those messages go only to the address
-            on the order or the account.
+            A password-reset link is sent by the account system when you ask for one. Every one of these messages
+            goes only to the address on the order or the account; the shop does not email anyone else about your
+            order.
           </p>
           <p className="text-muted">
             The announcement list is not open yet. The form that collects addresses stays closed until the shop
