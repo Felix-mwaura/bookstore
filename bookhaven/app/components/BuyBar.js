@@ -116,7 +116,7 @@ export default function BuyBar({ book }) {
           type="button"
           onClick={() => add(false)}
           disabled={outOfStock}
-          className="btn-primary flex-1 min-w-[10rem] text-sm disabled:bg-stone-300 disabled:cursor-not-allowed"
+          className="btn-primary min-w-[10rem] flex-1 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -168,7 +168,7 @@ export default function BuyBar({ book }) {
             type="button"
             onClick={() => add(false)}
             disabled={outOfStock}
-            className="btn-primary ml-auto flex-1 max-w-[16rem] text-sm disabled:bg-stone-300 disabled:cursor-not-allowed"
+            className="btn-primary ml-auto max-w-[16rem] flex-1 disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
           >
             {outOfStock ? "Out of stock" : "Add to basket"}
           </button>

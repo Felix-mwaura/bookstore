@@ -16,7 +16,7 @@ const SUGGESTIONS = [
 
 function Token({ children }) {
   return (
-    <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-[0.85em] text-ink">{children}</code>
+    <code className="rounded-sm bg-subtle px-1 py-0.5 text-[0.85em] text-ink">{children}</code>
   );
 }
 
@@ -351,7 +351,7 @@ export default function AssistantTab() {
                       <p className="mt-2 flex flex-wrap items-center gap-1.5 border-t border-line pt-2 text-[11px] text-muted">
                         <span>Read:</span>
                         {message.tools.map((tool) => (
-                          <span key={tool} className="rounded bg-stone-100 px-1.5 py-0.5 font-mono text-[10px] text-ink">
+                          <span key={tool} className="rounded-sm bg-subtle px-1.5 py-0.5 text-micro text-ink">
                             {tool}
                           </span>
                         ))}
@@ -383,7 +383,7 @@ export default function AssistantTab() {
       )}
 
       {/* Composer */}
-      <div className="sticky bottom-0 mt-3 bg-stone-50 pb-1 pt-2">
+      <div className="sticky bottom-0 mt-3 bg-cream pb-1 pt-2">
         <label htmlFor="assistant-input" className="sr-only">
           Ask the store assistant
         </label>

@@ -19,23 +19,23 @@ export default function StoreError({ error, reset }) {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-cream">
-      <header className="px-4 py-4 sm:px-6">
-        <Link href="/" className="font-playfair text-lg font-bold text-navy">Book Haven</Link>
+      <header className="shell py-5">
+        <Link href="/" className="font-playfair text-xl font-bold tracking-[-0.01em] text-navy">Book Haven</Link>
       </header>
 
-      <main className="flex flex-1 items-center justify-center px-4 py-12">
-        <div className="w-full max-w-md text-center">
-          <h1 className="font-playfair text-2xl font-bold text-navy sm:text-3xl">This page didn’t load</h1>
-          <p className="mt-2 text-sm leading-relaxed text-muted">
+      <main className="flex flex-1 items-center justify-center px-5 py-16 sm:px-8">
+        <div className="w-full max-w-[34rem] text-center">
+          <h1 className="font-playfair text-title font-bold text-navy">This page didn’t load</h1>
+          <p className="mt-4 text-body leading-relaxed text-muted">
             The shop is still open — nothing in your basket was lost. Try the page again, or keep browsing
             and come back to it later.
           </p>
 
-          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-            <button type="button" onClick={() => reset()} className="btn-primary text-sm">
+          <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+            <button type="button" onClick={() => reset()} className="btn-primary">
               Try again
             </button>
-            <Link href="/books" className="btn-secondary text-sm">Browse books</Link>
+            <Link href="/books" className="btn-quiet">Browse books</Link>
           </div>
 
           <p className="mt-6 text-xs text-muted">

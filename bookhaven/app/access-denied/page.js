@@ -17,47 +17,50 @@ export default function AccessDeniedPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-cream flex items-center justify-center p-6">
-      <div className="max-w-md w-full text-center">
-        <div className="w-24 h-24 bg-red-50 border-2 border-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
-          <svg className="w-12 h-12 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+    <div className="flex min-h-[100dvh] items-center justify-center bg-cream px-5 py-16">
+      <div className="w-full max-w-[34rem] text-center">
+        <div className="mx-auto mb-7 flex h-16 w-16 items-center justify-center rounded-full border border-error/25 bg-error/5">
+          <svg className="h-7 w-7 text-error" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
           </svg>
         </div>
 
-        <h1 className="mb-3 font-playfair text-3xl font-bold text-navy">Access Denied</h1>
-        <p className="text-stone-500 mb-2">You don&apos;t have permission to access this page.</p>
-        <p className="text-muted text-sm mb-8">This area is restricted to administrators only. If you believe this is a mistake, please contact the site administrator.</p>
+        <h1 className="font-playfair text-title font-bold text-navy">Access denied</h1>
+        <p className="mt-3 text-body text-ink">You don&apos;t have permission to access this page.</p>
+        <p className="mx-auto mt-2 max-w-[46ch] text-small text-muted">
+          This area is restricted to administrators only. If you believe this is a mistake, please contact the
+          site administrator.
+        </p>
 
-        <div className="bg-stone-100 rounded-2xl px-6 py-4 mb-8 text-left space-y-2.5">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted font-medium">Error code</span>
-            <span className="font-mono font-bold text-stone-600">403 FORBIDDEN</span>
+        <dl className="surface mt-8 mb-8 px-5 py-4 text-left sm:px-6">
+          <div className="flex items-center justify-between gap-6 py-1.5 text-small">
+            <dt className="text-muted">Error code</dt>
+            <dd className="font-semibold tabular-nums text-ink">403 Forbidden</dd>
           </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted font-medium">Required role</span>
-            <span className="font-mono font-bold text-purple-600">admin</span>
+          <div className="flex items-center justify-between gap-6 py-1.5 text-small">
+            <dt className="text-muted">Required role</dt>
+            <dd className="font-semibold text-ink">admin</dd>
           </div>
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-muted font-medium">Your role</span>
-            <span className="font-mono font-bold text-stone-600">customer</span>
+          <div className="flex items-center justify-between gap-6 py-1.5 text-small">
+            <dt className="text-muted">Your role</dt>
+            <dd className="font-semibold text-ink">customer</dd>
           </div>
-          <div className="flex items-center justify-between text-xs border-t border-line pt-2.5 mt-1">
-            <span className="text-muted font-medium">Redirecting in</span>
-            <span className="font-mono font-bold text-sienna">{countdown}s</span>
+          <div className="mt-1 flex items-center justify-between gap-6 border-t border-line pt-3 text-small">
+            <dt className="text-muted">Redirecting in</dt>
+            <dd className="font-semibold tabular-nums text-sienna">{countdown}s</dd>
           </div>
+        </dl>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link href="/" className="btn-primary flex-1">
+            Go to home
+          </Link>
+          <Link href="/login" className="btn-secondary flex-1">
+            Sign in as admin
+          </Link>
         </div>
 
-        <div className="flex gap-3">
-          <Link href="/" className="flex-1 bg-navy hover:bg-sienna text-white py-3 rounded-xl font-bold text-sm transition-all active:scale-95 text-center">
-            Go to Home
-          </Link>
-          <Link href="/login" className="flex-1 border border-line hover:border-stone-300 text-stone-600 py-3 rounded-xl font-bold text-sm transition text-center">
-            Sign In as Admin
-          </Link>
-        </div>
-
-        <p className="text-xs text-stone-300 mt-6">Book Haven · Admin access is logged and monitored</p>
+        <p className="mt-8 text-micro text-muted">Book Haven · Admin access is logged and monitored</p>
       </div>
     </div>
   );

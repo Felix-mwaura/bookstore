@@ -37,7 +37,7 @@ function Timeline({ status }) {
             <div className="flex flex-col items-center">
               <span
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0 ${
-                  done ? "bg-sienna border-sienna text-white" : "bg-white border-stone-300 text-muted"
+                  done ? "bg-sienna border-sienna text-white" : "bg-white border-line-strong text-muted"
                 }`}
                 aria-hidden="true"
               >
@@ -50,15 +50,15 @@ function Timeline({ status }) {
                 )}
               </span>
               {index < FULFILMENT_STEPS.length - 1 && (
-                <span className={`w-0.5 flex-1 mt-1 ${index < current ? "bg-sienna" : "bg-stone-200"}`} aria-hidden="true" />
+                <span className={`w-0.5 flex-1 mt-1 ${index < current ? "bg-sienna" : "bg-line"}`} aria-hidden="true" />
               )}
             </div>
             <div className="pt-1 pb-1">
               <p className={`text-sm font-bold ${active ? "text-sienna" : done ? "text-navy" : "text-muted"}`}>
                 {step.label}
-                {active && <span className="ml-2 text-[10px] uppercase tracking-wider text-sienna">Current</span>}
+                {active && <span className="ml-2 text-micro font-semibold uppercase text-sienna">Current</span>}
               </p>
-              <p className="text-xs text-stone-500 mt-0.5">{step.hint}</p>
+              <p className="text-xs text-muted mt-0.5">{step.hint}</p>
             </div>
           </li>
         );
@@ -76,13 +76,13 @@ export default function OrderView({ order }) {
 
   return (
     <>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        <Link href="/account" className="text-sm text-stone-500 hover:text-sienna">← Back to my account</Link>
+      <div className="shell max-w-[62rem] py-8 sm:py-12">
+        <Link href="/account" className="text-sm text-muted hover:text-sienna">← Back to my account</Link>
 
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="font-playfair text-2xl font-bold text-navy sm:text-3xl">Order {orderReference(order.id)}</h1>
-            <p className="text-sm text-stone-500 mt-1">Placed {formatDate(order.created_at, true)}</p>
+            <h1 className="font-playfair text-title font-bold text-navy">Order {orderReference(order.id)}</h1>
+            <p className="mt-1 text-small text-muted">Placed {formatDate(order.created_at, true)}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <BuyAgainButton items={items} className="w-full sm:w-auto" />
@@ -92,9 +92,9 @@ export default function OrderView({ order }) {
         </div>
 
         {cancelled && (
-          <div className="mt-6 bg-red-50 border border-red-200 rounded-2xl p-5">
-            <p className="font-bold text-red-900">This order was cancelled</p>
-            <p className="text-sm text-red-700 mt-1">
+          <div className="mt-6 border border-error/30 bg-error/5 rounded-card p-5">
+            <p className="font-bold text-error">This order was cancelled</p>
+            <p className="text-sm text-error mt-1">
               {formatDate(order.cancelled_at, true) ? `Cancelled ${formatDate(order.cancelled_at, true)}. ` : ""}
               Any stock reserved for it has been returned to the shelf. If you were charged, the refund is tracked on this order.
             </p>
@@ -102,11 +102,11 @@ export default function OrderView({ order }) {
         )}
 
         {paymentDue(order) && !cancelled && (
-          <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5">
-            <p className="font-bold text-amber-900">
+          <div className="mt-6 border border-warning/40 bg-warning/10 rounded-card p-5">
+            <p className="font-bold text-warning-strong">
               {order.payment_method === "cod" ? "Payment on delivery" : "Payment not confirmed yet"}
             </p>
-            <p className="text-sm text-amber-800 mt-1">
+            <p className="text-sm text-warning-strong mt-1">
               {order.payment_method === "cod"
                 ? "You will pay the rider in cash when your books arrive. Nothing is due before then."
                 : "We have not received confirmation of this payment. If you were charged, contact us with the reference below before paying again."}
@@ -116,7 +116,7 @@ export default function OrderView({ order }) {
 
         <div className="mt-8 grid lg:grid-cols-[1fr_320px] gap-6">
           <div className="space-y-6">
-            <section className="bg-white border border-line rounded-2xl p-5 sm:p-6">
+            <section className="bg-white border border-line rounded-card p-5 sm:p-6">
               <h2 className="font-bold text-navy mb-4">Items</h2>
               <ul className="space-y-3">
                 {items.map((item, index) => (
@@ -126,7 +126,7 @@ export default function OrderView({ order }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-navy truncate">{item.title}</p>
-                      <p className="text-xs text-stone-500">
+                      <p className="text-xs text-muted">
                         {item.author} · Qty {item.quantity || 1} × {formatKsh(item.price)}
                       </p>
                       {order.status === "Delivered" && (
@@ -138,71 +138,71 @@ export default function OrderView({ order }) {
                 ))}
               </ul>
 
-              <dl className="mt-5 pt-4 border-t border-stone-100 space-y-2 text-sm">
-                <div className="flex justify-between"><dt className="text-stone-500">Subtotal</dt><dd className="font-semibold">{formatKsh(order.subtotal)}</dd></div>
+              <dl className="mt-5 pt-4 border-t border-line space-y-2 text-sm">
+                <div className="flex justify-between"><dt className="text-muted">Subtotal</dt><dd className="font-semibold">{formatKsh(order.subtotal)}</dd></div>
                 <div className="flex justify-between">
-                  <dt className="text-stone-500">Delivery</dt>
-                  <dd className="font-semibold">{Number(order.delivery_fee) > 0 ? formatKsh(order.delivery_fee) : <span className="text-green-700">Free</span>}</dd>
+                  <dt className="text-muted">Delivery</dt>
+                  <dd className="font-semibold">{Number(order.delivery_fee) > 0 ? formatKsh(order.delivery_fee) : <span className="text-success">Free</span>}</dd>
                 </div>
-                <div className="flex justify-between pt-2 border-t border-stone-100 text-base">
+                <div className="flex justify-between pt-2 border-t border-line text-base">
                   <dt className="font-bold">Total</dt>
                   <dd className="font-black">{formatKsh(order.total)}</dd>
                 </div>
               </dl>
 
-              <div className="mt-4 pt-4 border-t border-stone-100 text-sm">
-                <p className="text-stone-500">
-                  Payment method: <span className="text-stone-800 font-semibold">{{
+              <div className="mt-4 pt-4 border-t border-line text-sm">
+                <p className="text-muted">
+                  Payment method: <span className="text-ink font-semibold">{{
                     cod: "Cash on delivery",
                     mpesa: "M-Pesa",
                   }[order.payment_method] || order.payment_method}</span>
                 </p>
                 {order.payment_ref && (
-                  <p className="text-stone-500 mt-1">
-                    Transaction reference: <span className="font-mono font-semibold text-stone-800">{order.payment_ref}</span>
+                  <p className="text-muted mt-1">
+                    Transaction reference: <span className="font-mono font-semibold text-ink">{order.payment_ref}</span>
                   </p>
                 )}
               </div>
             </section>
 
-            <section className="bg-white border border-line rounded-2xl p-5 sm:p-6">
+            <section className="bg-white border border-line rounded-card p-5 sm:p-6">
               <h2 className="font-bold text-navy mb-4">Delivery</h2>
               <p className="text-sm font-semibold text-navy">{details.firstName} {details.lastName}</p>
-              <p className="text-sm text-stone-600 mt-1">{details.address}</p>
-              <p className="text-sm text-stone-600">{details.city}</p>
-              <p className="text-sm text-stone-600 mt-1">{details.phone}</p>
-              {details.email && <p className="text-sm text-stone-500">{details.email}</p>}
+              <p className="mt-1 text-small text-muted">{details.address}</p>
+              <p className="text-small text-muted">{details.city}</p>
+              <p className="mt-1 text-small text-muted">{details.phone}</p>
+              {details.email && <p className="text-sm text-muted">{details.email}</p>}
               {(details.instructions || details.notes) && (
-                <p className="text-sm text-stone-500 mt-2 italic">“{details.instructions || details.notes}”</p>
+                <p className="text-sm text-muted mt-2 italic">“{details.instructions || details.notes}”</p>
               )}
 
               {(order.courier || order.tracking_ref) && (
-                <div className="mt-4 pt-4 border-t border-stone-100 text-sm">
-                  {order.courier && <p className="text-stone-500">Courier: <span className="font-semibold text-stone-800">{order.courier}</span></p>}
+                <div className="mt-4 pt-4 border-t border-line text-sm">
+                  {order.courier && <p className="text-muted">Courier: <span className="font-semibold text-ink">{order.courier}</span></p>}
                   {order.tracking_ref && (
-                    <p className="text-stone-500 mt-1">Tracking: <span className="font-mono font-semibold text-stone-800">{order.tracking_ref}</span></p>
+                    <p className="text-muted mt-1">Tracking: <span className="font-mono font-semibold text-ink">{order.tracking_ref}</span></p>
                   )}
                 </div>
               )}
             </section>
           </div>
 
-          <aside className="bg-white border border-line rounded-2xl p-5 sm:p-6 h-fit">
+          <aside className="bg-white border border-line rounded-card p-5 sm:p-6 h-fit">
             <h2 className="font-bold text-navy mb-4">Progress</h2>
             {cancelled ? (
-              <p className="text-sm text-stone-500">This order was cancelled and will not progress further.</p>
+              <p className="text-sm text-muted">This order was cancelled and will not progress further.</p>
             ) : (
               <Timeline status={order.status} />
             )}
 
-            <div className="mt-5 pt-4 border-t border-stone-100 text-xs text-stone-500 space-y-1">
+            <div className="mt-5 pt-4 border-t border-line text-xs text-muted space-y-1">
               {order.dispatched_at && <p>Dispatched {formatDate(order.dispatched_at)}</p>}
               {order.delivered_at && <p>Delivered {formatDate(order.delivered_at)}</p>}
               <p>Last updated {formatDate(order.updated_at, true)}</p>
             </div>
 
-            <p className="mt-4 text-xs text-stone-500">
-              Quote <span className="font-mono font-bold text-stone-800">{orderReference(order.id)}</span> when contacting support.
+            <p className="mt-4 text-xs text-muted">
+              Quote <span className="font-mono font-bold text-ink">{orderReference(order.id)}</span> when contacting support.
             </p>
           </aside>
         </div>

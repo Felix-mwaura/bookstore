@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import AddressBook from "../components/AddressBook";
 import StoreLayout from "../components/StoreLayout";
+import PageHeader from "../components/PageHeader";
 import {
   FULFILMENT_META,
   PAYMENT_META,
@@ -31,7 +32,7 @@ function StatusPill({ meta, fallback }) {
 function Field({ id, label, hint, error, children }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider text-muted mb-1">
+      <label htmlFor={id} className="block text-micro font-semibold uppercase text-muted mb-1">
         {label}
       </label>
       {children}
@@ -49,7 +50,7 @@ const inputClass =
 
 function LoadingPanel() {
   return (
-    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10" aria-busy="true" aria-live="polite">
+    <div className="shell max-w-[68rem] py-10" aria-busy="true" aria-live="polite">
       <div className="h-7 w-48 rounded bg-subtle animate-pulse" />
       <div className="mt-3 h-4 w-64 rounded bg-subtle animate-pulse" />
       <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -275,7 +276,7 @@ export default function AccountPage() {
 
   return (
     <StoreLayout>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10">
+      <div className="shell max-w-[68rem] py-8 sm:py-12">
         {toast && (
           <div
             role="status"
@@ -298,12 +299,12 @@ export default function AccountPage() {
           </div>
         )}
 
-        <header className="mb-6">
-          <h1 className="font-playfair text-2xl font-bold text-navy sm:text-3xl">
-            {displayName ? `Hello, ${displayName}` : "Your account"}
-          </h1>
-          <p className="mt-1 text-sm text-muted">{user?.email}</p>
-        </header>
+        <PageHeader
+          className="mb-8"
+          breadcrumb={[{ label: "Home", href: "/" }, { label: "Your account" }]}
+          title={displayName ? `Hello, ${displayName}` : "Your account"}
+          meta={user?.email}
+        />
 
         <dl className="mb-8 grid grid-cols-3 gap-2 sm:gap-4">
           {[
@@ -312,8 +313,8 @@ export default function AccountPage() {
             { label: "Paid to date", value: formatKsh(stats.spent) },
           ].map((item) => (
             <div key={item.label} className="rounded-card border border-line bg-white p-3 text-center sm:p-4">
-              <dd className="text-lg font-bold text-navy sm:text-2xl">{item.value}</dd>
-              <dt className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-muted">{item.label}</dt>
+              <dd className="text-lg font-bold tabular-nums text-navy sm:text-2xl">{item.value}</dd>
+              <dt className="mt-1 text-micro font-medium uppercase text-muted">{item.label}</dt>
             </div>
           ))}
         </dl>

@@ -33,11 +33,11 @@ export const PAYMENT_META = {
 // Tailwind classes must be written out in full — a template string like
 // `bg-${tone}-100` is invisible to the compiler and renders unstyled.
 const TONE_CLASSES = {
-  amber: "bg-amber-50 text-amber-800 border-amber-200",
-  blue: "bg-blue-50 text-blue-800 border-blue-200",
-  green: "bg-green-50 text-green-800 border-green-200",
-  red: "bg-red-50 text-red-800 border-red-200",
-  stone: "bg-stone-100 text-stone-600 border-line",
+  amber: "bg-warning/10 text-warning-strong border-warning/30",
+  blue: "bg-info/10 text-info border-info/30",
+  green: "bg-success/10 text-success border-success/30",
+  red: "bg-error/5 text-error border-error/30",
+  stone: "bg-subtle text-muted border-line",
 };
 
 export function toneClass(tone) {

@@ -14,22 +14,22 @@ import AssistantTab from "./assistant-tab";
 // ─────────────────────────────────────────────────────────
 function Badge({ status }) {
   const map = {
-    Processing:"bg-amber-50 text-amber-700 border border-amber-200",
+    Processing:"bg-warning/5 text-warning-strong border border-warning/30",
     Packed:"bg-sky-50 text-sky-700 border border-sky-200",
     Shipped:"bg-blue-50 text-blue-700 border border-blue-200",
-    Delivered:"bg-green-50 text-green-700 border border-green-200",
-    Cancelled:"bg-red-50 text-red-700 border border-red-200",
-    Pending:"bg-amber-50 text-amber-700 border border-amber-200",
-    Paid:"bg-green-50 text-green-700 border border-green-200",
-    Refunded:"bg-purple-50 text-purple-700 border border-purple-200",
-    Failed:"bg-red-50 text-red-700 border border-red-200",
-    Active:"bg-green-50 text-green-700 border border-green-200",
-    Suspended:"bg-red-50 text-red-700 border border-red-200",
-    admin:"bg-purple-50 text-purple-700 border border-purple-200",
-    customer:"bg-stone-50 text-stone-600 border border-[#E3DCCB]",
-    "In Stock":"bg-green-50 text-green-700 border border-green-200",
-    "Out of Stock":"bg-red-50 text-red-700 border border-red-200",
-    "Only 3 left":"bg-amber-50 text-amber-700 border border-amber-200",
+    Delivered:"bg-success/5 text-success border border-success/30",
+    Cancelled:"bg-error/5 text-error border border-error/30",
+    Pending:"bg-warning/5 text-warning-strong border border-warning/30",
+    Paid:"bg-success/5 text-success border border-success/30",
+    Refunded:"bg-navy/5 text-navy border border-navy/30",
+    Failed:"bg-error/5 text-error border border-error/30",
+    Active:"bg-success/5 text-success border border-success/30",
+    Suspended:"bg-error/5 text-error border border-error/30",
+    admin:"bg-navy/5 text-navy border border-navy/30",
+    customer:"bg-subtle text-muted border border-line",
+    "In Stock":"bg-success/5 text-success border border-success/30",
+    "Out of Stock":"bg-error/5 text-error border border-error/30",
+    "Only 3 left":"bg-warning/5 text-warning-strong border border-warning/30",
     "Only 1 left":"bg-orange-50 text-orange-700 border border-orange-200",
     "Pre-order":"bg-blue-50 text-blue-700 border border-blue-200",
   };
@@ -42,7 +42,7 @@ function Badge({ status }) {
   };
   return (
     <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${map[status]||"bg-subtle text-muted border border-line"}`}>
-      <span aria-hidden="true" className="text-[11px] leading-none">{marks[status] || "•"}</span>
+      <span aria-hidden="true" className="text-micro leading-none">{marks[status] || "•"}</span>
       {status}
     </span>
   );
@@ -50,7 +50,7 @@ function Badge({ status }) {
 
 function Avatar({ name, email, size = "sm" }) {
   const initials = name ? name.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase() : (email||"?")[0].toUpperCase();
-  const colors = ["bg-blue-500","bg-purple-500","bg-green-500","bg-rose-500","bg-amber-500","bg-teal-500"];
+  const colors = ["bg-blue-500","bg-navy","bg-success","bg-rose-500","bg-warning-strong","bg-teal-500"];
   const color = colors[(initials.charCodeAt(0)||0) % colors.length];
   const sz = size==="sm" ? "w-8 h-8 text-xs" : "w-10 h-10 text-sm";
   return <div className={`${sz} ${color} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0`}>{initials}</div>;
@@ -60,10 +60,27 @@ function Toast({ toasts, onRemove }) {
   return (
     <div className="fixed bottom-6 right-6 z-[200] space-y-2">
       {toasts.map(t => (
-        <div key={t.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium text-white min-w-[280px] ${t.type==="error"?"bg-red-600":"bg-[#1B2A4A]"}`}>
-          <span>{t.type==="error"?"⚠️":"✓"}</span>
+        <div key={t.id} className={`flex items-center gap-3 px-4 py-3 rounded-control shadow-lg text-sm font-medium text-white min-w-[280px] ${t.type==="error"?"bg-error":"bg-navy"}`}>
+          {t.type === "error" ? (
+            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.5M12 16.5h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          ) : (
+            <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          )}
           <span className="flex-1">{t.msg}</span>
-          <button onClick={()=>onRemove(t.id)} className="text-white/60 hover:text-white">✕</button>
+          <button
+            type="button"
+            onClick={() => onRemove(t.id)}
+            aria-label="Dismiss"
+            className="text-white/60 transition-colors hover:text-white"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       ))}
     </div>
@@ -87,7 +104,7 @@ function Modal({ open, onClose, labelledBy, className = "", children }) {
         aria-modal="true"
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className={`relative w-full max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-[#E3DCCB] outline-none ${className}`}
+        className={`relative w-full max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-card bg-white shadow-2xl border border-line outline-none ${className}`}
       >
         {children}
       </div>
@@ -101,19 +118,19 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger, load
   return (
     <Modal open={open} onClose={close} labelledBy="confirm-title" className="p-6 max-w-sm">
       <div className="w-full">
-        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${danger?"bg-red-50":"bg-amber-50"}`}>
-          <svg className={`w-6 h-6 ${danger?"text-red-500":"text-amber-500"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${danger?"bg-error/5":"bg-warning/5"}`}>
+          <svg className={`w-6 h-6 ${danger?"text-error":"text-warning-strong"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
           </svg>
         </div>
-        <h3 id="confirm-title" className="text-lg font-bold text-[#1B2A4A] mb-2 pr-6">{title}</h3>
-        <p className="text-stone-500 text-sm mb-6">{message}</p>
+        <h3 id="confirm-title" className="text-lg font-bold text-navy mb-2 pr-6">{title}</h3>
+        <p className="text-muted text-sm mb-6">{message}</p>
         <div className="flex gap-3">
-          <button onClick={onConfirm} disabled={loading} data-autofocus className={`flex-1 min-h-11 py-2.5 rounded-xl font-bold text-sm text-white transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 ${danger?"bg-red-600 hover:bg-red-700":"bg-[#1B2A4A] hover:bg-[#B5532F]"}`}>
+          <button onClick={onConfirm} disabled={loading} data-autofocus className={`flex-1 min-h-11 py-2.5 rounded-control font-bold text-sm text-white transition active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 ${danger?"bg-error hover:bg-error-hover":"bg-navy hover:bg-sienna"}`}>
             {loading && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"/>}
             {loading?loadingLabel:confirmLabel}
           </button>
-          <button onClick={onCancel} disabled={loading} className="flex-1 min-h-11 py-2.5 rounded-xl font-bold text-sm border border-[#E3DCCB] text-stone-600 hover:bg-stone-50 transition disabled:opacity-40">Cancel</button>
+          <button onClick={onCancel} disabled={loading} className="flex-1 min-h-11 py-2.5 rounded-control font-bold text-sm border border-line text-muted hover:bg-subtle transition disabled:opacity-40">Cancel</button>
         </div>
       </div>
     </Modal>
@@ -121,7 +138,7 @@ function ConfirmDialog({ open, title, message, onConfirm, onCancel, danger, load
 }
 
 function Skeleton({ className="" }) {
-  return <div className={`bg-stone-100 rounded-lg animate-pulse ${className}`}/>;
+  return <div className={`bg-subtle rounded-control animate-pulse ${className}`}/>;
 }
 
 // One small stroke icon per metric, instead of an emoji. Emoji render
@@ -165,19 +182,19 @@ function StatCard({ icon, label, value, delta, deltaUp, sub, accent, onClick }) 
       } ${onClick ? "hover:border-navy" : ""}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className={`text-[10px] font-bold uppercase tracking-wider ${accent ? "text-white/70" : "text-muted"}`}>
+        <p className={`text-micro font-bold uppercase tracking-wider ${accent ? "text-white/70" : "text-muted"}`}>
           {label}
         </p>
-        <StatIcon name={icon} className={`h-4 w-4 shrink-0 ${accent ? "text-sienna-soft" : "text-stone-300"}`} />
+        <StatIcon name={icon} className={`h-4 w-4 shrink-0 ${accent ? "text-sienna-soft" : "text-muted"}`} />
       </div>
 
       <p className={`mt-2 text-2xl font-black leading-none ${accent ? "text-white" : "text-navy"}`}>{value}</p>
 
       <div className="mt-1.5 flex min-h-[1rem] items-end justify-between gap-2">
         <div>
-          {sub && <p className={`text-[11px] leading-snug ${accent ? "text-white/70" : "text-muted"}`}>{sub}</p>}
+          {sub && <p className={`text-micro leading-snug ${accent ? "text-white/70" : "text-muted"}`}>{sub}</p>}
           {delta && (
-            <p className={`text-[11px] font-semibold ${deltaUp ? "text-success" : "text-error"}`}>{delta}</p>
+            <p className={`text-micro font-semibold ${deltaUp ? "text-success" : "text-error"}`}>{delta}</p>
           )}
         </div>
         {onClick && (
@@ -201,15 +218,15 @@ function StatBand({ title, description, columns = "sm:grid-cols-4", children }) 
   return (
     <section>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted">{title}</h2>
-        {description && <p className="text-[11px] text-muted">{description}</p>}
+        <h2 className="text-micro font-bold uppercase tracking-widest text-muted">{title}</h2>
+        {description && <p className="text-micro text-muted">{description}</p>}
       </div>
       <div className={`stat-grid grid grid-cols-2 gap-3 ${columns}`}>{children}</div>
     </section>
   );
 }
 
-function MiniChart({ data, color="#B5532F" }) {
+function MiniChart({ data, color="var(--color-sienna)" }) {
   const max = Math.max(...data, 1);
   return (
     <div className="flex items-end gap-1 h-12">
@@ -277,36 +294,36 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
   return (
     <aside className={`hidden lg:flex flex-col border-r border-line bg-white transition-all duration-200 flex-shrink-0 ${collapsed?"w-[56px]":"w-[240px]"}`}>
       {/* Logo */}
-      <div className="h-14 flex items-center gap-2.5 px-3.5 border-b border-[#E3DCCB] flex-shrink-0">
-        <div className="book-badge-3d w-7 h-7 rounded-lg bg-navy flex items-center justify-center flex-shrink-0 shadow-sm">
+      <div className="h-14 flex items-center gap-2.5 px-3.5 border-b border-line flex-shrink-0">
+        <div className="book-badge-3d w-7 h-7 rounded-control bg-navy flex items-center justify-center flex-shrink-0 shadow-sm">
           <span className="font-playfair text-sm font-bold text-white">B</span>
         </div>
-        {!collapsed && <span className="font-black text-sm text-[#1B2A4A] tracking-tight whitespace-nowrap">Book Haven</span>}
+        {!collapsed && <span className="font-black text-sm text-navy tracking-tight whitespace-nowrap">Book Haven</span>}
       </div>
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {NAV.map((item, i) => {
           if (item.section) return !collapsed ? (
-            <p key={i} className="px-2 pt-4 pb-1 text-[10px] font-bold text-muted uppercase tracking-widest">{item.section}</p>
-          ) : <div key={i} className="my-2 border-t border-stone-100"/>;
+            <p key={i} className="px-2 pt-4 pb-1 text-micro font-bold text-muted uppercase tracking-widest">{item.section}</p>
+          ) : <div key={i} className="my-2 border-t border-subtle/25"/>;
 
           const isActive = activeTab === item.id;
           return (
             <button key={item.id} onClick={()=>setTab(item.id)}
-              className={`relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-sm transition-all ${isActive?"bg-[#1B2A4A] text-white":"text-stone-600 hover:bg-stone-50 hover:text-[#1B2A4A]"}`}
+              className={`relative w-full flex items-center gap-2.5 px-2.5 py-2 rounded-control text-sm transition-all ${isActive?"bg-navy text-white":"text-muted hover:bg-subtle hover:text-navy"}`}
               title={collapsed?item.label:""}>
-              <NavIcon name={item.icon} className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : "text-stone-500"}`} />
+              <NavIcon name={item.icon} className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : "text-muted"}`} />
               {!collapsed && (
                 <>
                   <span className="flex-1 text-left font-medium whitespace-nowrap text-[13px]">{item.label}</span>
                   {item.badge && pendingCount > 0 && (
-                    <span className="bg-[#B5532F] text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingCount}</span>
+                    <span className="bg-sienna text-white text-micro font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{pendingCount}</span>
                   )}
                 </>
               )}
               {collapsed && item.badge && pendingCount > 0 && (
-                <span className="absolute top-1 right-1 w-2 h-2 bg-[#B5532F] rounded-full"/>
+                <span className="absolute top-1 right-1 w-2 h-2 bg-sienna rounded-full"/>
               )}
             </button>
           );
@@ -314,9 +331,9 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
       </nav>
 
       {/* Collapse toggle */}
-      <div className="border-t border-[#E3DCCB] p-2 flex-shrink-0">
+      <div className="border-t border-line p-2 flex-shrink-0">
         <button onClick={()=>setCollapsed(!collapsed)}
-          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-stone-500 hover:bg-stone-50 transition text-sm">
+          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-control text-muted hover:bg-subtle transition text-sm">
           <svg className={`w-4 h-4 flex-shrink-0 transition-transform ${collapsed?"rotate-180":""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
           </svg>
@@ -342,7 +359,7 @@ function Topbar({ activeTab, sessionUser, onLogout, onMenu }) {
         onClick={onMenu}
         aria-label="Open admin menu"
         aria-haspopup="dialog"
-        className="lg:hidden w-11 h-11 -ml-1 flex items-center justify-center rounded-lg text-navy hover:bg-subtle transition"
+        className="lg:hidden w-11 h-11 -ml-1 flex items-center justify-center rounded-control text-navy hover:bg-subtle transition"
       >
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -358,16 +375,16 @@ function Topbar({ activeTab, sessionUser, onLogout, onMenu }) {
       </div>
 
       <div className="flex items-center gap-1 sm:gap-2 ml-auto">
-        <Link href="/" className="w-10 h-10 rounded-lg border border-line bg-white flex items-center justify-center text-muted hover:bg-subtle transition" title="View store" aria-label="View store">
+        <Link href="/" className="w-10 h-10 rounded-control border border-line bg-white flex items-center justify-center text-muted hover:bg-subtle transition" title="View store" aria-label="View store">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
         </Link>
         <div className="flex items-center gap-2 pl-2 border-l border-line">
           <Avatar name={displayName} email={sessionUser?.email} size="sm"/>
           <div className="hidden sm:block max-w-[9rem]">
             <p className="text-xs font-bold text-navy leading-none truncate">{displayName}</p>
-            <p className="text-[10px] text-muted mt-0.5">Administrator</p>
+            <p className="text-micro text-muted mt-0.5">Administrator</p>
           </div>
-          <button onClick={onLogout} className="w-10 h-10 flex items-center justify-center rounded-lg text-muted hover:text-error hover:bg-error/5 transition" title="Sign out" aria-label="Sign out">
+          <button onClick={onLogout} className="w-10 h-10 flex items-center justify-center rounded-control text-muted hover:text-error hover:bg-error-hover/5 transition" title="Sign out" aria-label="Sign out">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
           </button>
         </div>
@@ -418,11 +435,15 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-        <div className="text-3xl mb-2">⚠️</div>
-        <p className="text-red-800 font-semibold text-sm mb-1">Could not load dashboard metrics</p>
-        <p className="text-red-600 text-xs mb-4">{error}</p>
-        <button onClick={onRetry} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition">
+      <div className="bg-error/5 border border-error/30 rounded-card p-8 text-center">
+        <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-error/10 text-error">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.5M12 16.5h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p className="text-error font-semibold text-sm mb-1">Could not load dashboard metrics</p>
+        <p className="text-error text-xs mb-4">{error}</p>
+        <button onClick={onRetry} className="bg-error hover:bg-error-hover text-white px-5 py-2 rounded-control text-sm font-bold transition">
           Retry
         </button>
       </div>
@@ -443,10 +464,10 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
             <button
               key={r.id}
               onClick={() => setRange(r.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+              className={`px-3 py-1.5 rounded-control text-xs font-semibold transition ${
                 range === r.id
-                  ? "bg-[#1B2A4A] text-white"
-                  : "bg-white border border-[#E3DCCB] text-stone-600 hover:border-stone-300"
+                  ? "bg-navy text-white"
+                  : "bg-white border border-line text-muted hover:border-line-strong/40"
               }`}
             >
               {r.label}
@@ -559,21 +580,21 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
       </StatBand>
 
       <div className="grid lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E3DCCB] p-5">
+        <div className="lg:col-span-2 bg-white rounded-card border border-line p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-[#1B2A4A] text-sm">Net revenue by day</h3>
+            <h3 className="font-bold text-navy text-sm">Net revenue by day</h3>
             <span className="text-xs text-muted">
               {daily.length ? `${daily.length} trading day${daily.length !== 1 ? "s" : ""}` : "No activity"}
             </span>
           </div>
           {dailyValues.length ? (
             <>
-              <MiniChart data={dailyValues} color="#B5532F" />
-              <div className="flex justify-between mt-2 text-[10px] text-muted">
+              <MiniChart data={dailyValues} color="var(--color-sienna)" />
+              <div className="flex justify-between mt-2 text-micro text-muted">
                 <span>{daily[0]?.date}</span>
                 <span>{daily[daily.length - 1]?.date}</span>
               </div>
-              <p className="text-[10px] text-muted mt-2">
+              <p className="text-micro text-muted mt-2">
                 Peak day: {fmt(busiest)} · only paid, non-cancelled orders count.
               </p>
             </>
@@ -584,17 +605,17 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
           )}
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E3DCCB] p-5">
-          <h3 className="font-bold text-[#1B2A4A] text-sm mb-4">Best-selling books</h3>
+        <div className="bg-white rounded-card border border-line p-5">
+          <h3 className="font-bold text-navy text-sm mb-4">Best-selling books</h3>
           <div className="space-y-3">
             {bestSellers.map((b, i) => (
               <div key={b.book_id} className="flex items-center gap-3">
                 <span className="text-xs text-muted w-4">{i + 1}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-[#1B2A4A] truncate">{b.title}</p>
-                  <p className="text-[10px] text-muted">{fmt(b.revenue)}</p>
+                  <p className="text-xs font-semibold text-navy truncate">{b.title}</p>
+                  <p className="text-micro text-muted">{fmt(b.revenue)}</p>
                 </div>
-                <span className="text-xs font-bold text-[#1B2A4A]">{b.units} sold</span>
+                <span className="text-xs font-bold text-navy">{b.units} sold</span>
               </div>
             ))}
             {bestSellers.length === 0 && (
@@ -603,23 +624,23 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
               </p>
             )}
           </div>
-          <p className="text-[10px] text-muted mt-4 pt-3 border-t border-stone-100">
+          <p className="text-micro text-muted mt-4 pt-3 border-t border-subtle/25">
             Counted from delivered orders only, so an unfulfilled order cannot inflate this list.
           </p>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-3 gap-5">
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
-          <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
-            <h3 className="font-bold text-[#1B2A4A] text-sm">Recent orders</h3>
-            <button onClick={() => onNavigate?.("orders")} className="text-xs font-semibold text-[#B5532F] hover:underline">
+        <div className="lg:col-span-2 bg-white rounded-card border border-line overflow-hidden">
+          <div className="px-5 py-4 border-b border-subtle/25 flex items-center justify-between">
+            <h3 className="font-bold text-navy text-sm">Recent orders</h3>
+            <button onClick={() => onNavigate?.("orders")} className="text-xs font-semibold text-sienna hover:underline">
               View all
             </button>
           </div>
           {/* Six columns do not fit a phone; the same rows are shown as a
               list there, and the full table from lg up. */}
-          <ul className="divide-y divide-stone-50 lg:hidden">
+          <ul className="divide-y divide-subtle lg:hidden">
             {recent.map((o) => (
               <li key={o.id} className="px-4 py-3">
                 <div className="flex items-baseline justify-between gap-3">
@@ -629,10 +650,10 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
                 <p className="mt-0.5 text-xs text-ink">{o.first_name} {o.last_name}</p>
                 <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   <Badge status={o.status} />
-                  <span className={`text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-warning-strong"}`}>
+                  <span className={`text-micro font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-warning-strong"}`}>
                     {payLabel[o.payment_status] || o.payment_status}
                   </span>
-                  <span className="text-[10px] text-muted">
+                  <span className="text-micro text-muted">
                     {new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short" })}
                   </span>
                 </div>
@@ -645,7 +666,7 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
 
           <div className="hidden overflow-x-auto lg:block">
             <table className="w-full text-sm">
-              <thead className="bg-stone-50 border-b border-stone-100">
+              <thead className="bg-subtle border-b border-subtle/25">
                 <tr>
                   {["Order", "Customer", "Total", "Payment", "Fulfilment", "Date"].map((h) => (
                     <th key={h} className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">
@@ -654,20 +675,20 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-50">
+              <tbody className="divide-y divide-subtle">
                 {recent.map((o) => (
-                  <tr key={o.id} className="hover:bg-stone-50/50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs text-[#B5532F]">
+                  <tr key={o.id} className="hover:bg-subtle/50 transition-colors">
+                    <td className="px-4 py-3 font-mono text-xs text-sienna">
                       {String(o.id).slice(0, 8).toUpperCase()}
                     </td>
-                    <td className="px-4 py-3 text-xs text-[#1B2A4A]">
+                    <td className="px-4 py-3 text-xs text-navy">
                       {o.first_name} {o.last_name}
                     </td>
-                    <td className="px-4 py-3 text-xs font-bold text-[#1B2A4A]">
+                    <td className="px-4 py-3 text-xs font-bold text-navy">
                       {fmt(o.total)}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`text-[10px] font-semibold ${o.payment_status === "paid" ? "text-green-600" : o.payment_status === "failed" ? "text-red-600" : "text-amber-600"}`}>
+                      <span className={`text-micro font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-warning-strong"}`}>
                         {payLabel[o.payment_status] || o.payment_status}
                       </span>
                     </td>
@@ -689,33 +710,33 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#E3DCCB] p-5">
-          <h3 className="font-bold text-[#1B2A4A] text-sm mb-4">Needs attention</h3>
+        <div className="bg-white rounded-card border border-line p-5">
+          <h3 className="font-bold text-navy text-sm mb-4">Needs attention</h3>
           <div className="space-y-3">
             {(counts.awaiting_dispatch ?? 0) > 0 && (
-              <button onClick={() => onNavigate?.("orders")} className="w-full text-left flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition">
+              <button onClick={() => onNavigate?.("orders")} className="w-full text-left flex items-start gap-3 p-3 bg-warning/5 border border-warning/25 rounded-control hover:bg-warning-hover/10 transition">
                 <span className="text-base">🚚</span>
                 <div>
-                  <p className="text-xs font-bold text-amber-800">{counts.awaiting_dispatch} order{counts.awaiting_dispatch !== 1 ? "s" : ""} waiting to ship</p>
-                  <p className="text-[10px] text-amber-600 mt-0.5">Pack and dispatch them</p>
+                  <p className="text-xs font-bold text-warning-strong">{counts.awaiting_dispatch} order{counts.awaiting_dispatch !== 1 ? "s" : ""} waiting to ship</p>
+                  <p className="text-micro text-warning-strong mt-0.5">Pack and dispatch them</p>
                 </div>
               </button>
             )}
             {(inventory.low_stock ?? 0) > 0 && (
-              <button onClick={() => onNavigate?.("inventory")} className="w-full text-left flex items-start gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl hover:bg-amber-100 transition">
+              <button onClick={() => onNavigate?.("inventory")} className="w-full text-left flex items-start gap-3 p-3 bg-warning/5 border border-warning/25 rounded-control hover:bg-warning-hover/10 transition">
                 <span className="text-base">📉</span>
                 <div>
-                  <p className="text-xs font-bold text-amber-800">{inventory.low_stock} title{inventory.low_stock !== 1 ? "s" : ""} low on stock</p>
-                  <p className="text-[10px] text-amber-600 mt-0.5">Review the inventory tab</p>
+                  <p className="text-xs font-bold text-warning-strong">{inventory.low_stock} title{inventory.low_stock !== 1 ? "s" : ""} low on stock</p>
+                  <p className="text-micro text-warning-strong mt-0.5">Review the inventory tab</p>
                 </div>
               </button>
             )}
             {(inventory.out_of_stock ?? 0) > 0 && (
-              <button onClick={() => onNavigate?.("inventory")} className="w-full text-left flex items-start gap-3 p-3 bg-red-50 border border-red-100 rounded-xl hover:bg-red-100 transition">
+              <button onClick={() => onNavigate?.("inventory")} className="w-full text-left flex items-start gap-3 p-3 bg-error/5 border border-error/25 rounded-control hover:bg-error-hover/10 transition">
                 <span className="text-base">🚫</span>
                 <div>
-                  <p className="text-xs font-bold text-red-800">{inventory.out_of_stock} title{inventory.out_of_stock !== 1 ? "s" : ""} out of stock</p>
-                  <p className="text-[10px] text-red-600 mt-0.5">Customers cannot buy these</p>
+                  <p className="text-xs font-bold text-error">{inventory.out_of_stock} title{inventory.out_of_stock !== 1 ? "s" : ""} out of stock</p>
+                  <p className="text-micro text-error mt-0.5">Customers cannot buy these</p>
                 </div>
               </button>
             )}
@@ -724,9 +745,9 @@ function OverviewTab({ metrics, loading, error, range, setRange, onRetry, onNavi
             )}
           </div>
 
-          <div className="mt-5 pt-4 border-t border-stone-100">
-            <h4 className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">How these are counted</h4>
-            <ul className="text-[10px] text-stone-500 space-y-1 list-disc pl-4">
+          <div className="mt-5 pt-4 border-t border-subtle/25">
+            <h4 className="text-micro font-bold text-muted uppercase tracking-wider mb-2">How these are counted</h4>
+            <ul className="text-micro text-muted space-y-1 list-disc pl-4">
               <li>Net revenue: paid orders only, cancellations and refunds excluded.</li>
               <li>Gross order value: every non-cancelled order, paid or not.</li>
               <li>Delivered and cancelled are final states.</li>
@@ -946,7 +967,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               placeholder="Search orders…"
-              className="bg-white border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition w-56"
+              className="bg-white border border-line rounded-control pl-8 pr-3 py-2 text-sm outline-none focus:border-navy transition w-56"
             />
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -960,8 +981,8 @@ function OrdersTab({ orders, books, onReload, showToast }) {
           <button
             key={s}
             onClick={() => { setStatusFilter(s); setPage(1); }}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
-              statusFilter === s ? "bg-[#1B2A4A] text-white" : "bg-white border border-[#E3DCCB] text-stone-600 hover:border-stone-300"
+            className={`px-3 py-1.5 rounded-control text-xs font-semibold transition ${
+              statusFilter === s ? "bg-navy text-white" : "bg-white border border-line text-muted hover:border-line-strong/40"
             }`}
           >
             {s} <span className="opacity-60 ml-0.5">({s === "All" ? orders.length : orders.filter((o) => o.status === s).length})</span>
@@ -970,12 +991,12 @@ function OrdersTab({ orders, books, onReload, showToast }) {
       </div>
 
       {selected.length > 0 && (
-        <div className="mb-4 bg-[#1B2A4A] text-white rounded-2xl p-4">
+        <div className="mb-4 bg-navy text-white rounded-card p-4">
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-sm font-bold">{selected.length} selected</p>
 
             {sharedTargets.length === 0 ? (
-              <p className="text-xs text-amber-300">
+              <p className="text-xs text-warning-strong">
                 These orders have no common next step — narrow the selection.
               </p>
             ) : (
@@ -983,7 +1004,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                 <select
                   value={effectiveBulkStatus}
                   onChange={(e) => setBulkStatus(e.target.value)}
-                  className="text-xs bg-white/10 border border-white/20 rounded-lg px-3 py-2 outline-none"
+                  className="text-xs bg-white/10 border border-white/20 rounded-control px-3 py-2 outline-none"
                 >
                   <option value="" className="text-black">Choose status…</option>
                   {sharedTargets.map((s) => (
@@ -997,14 +1018,14 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                     onChange={(e) => setCourier(e.target.value)}
                     placeholder="Courier (optional)"
                     maxLength={80}
-                    className="text-xs bg-white/10 border border-white/20 rounded-lg px-3 py-2 outline-none placeholder:text-white/40 w-40"
+                    className="text-xs bg-white/10 border border-white/20 rounded-control px-3 py-2 outline-none placeholder:text-white/40 w-40"
                   />
                 )}
 
                 <button
                   onClick={runBulk}
                   disabled={bulkBusy || !effectiveBulkStatus}
-                  className="bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-[#1B2A4A] text-xs font-bold px-4 py-2 rounded-lg transition"
+                  className="bg-warning-strong hover:bg-warning-hover/40 disabled:opacity-40 text-navy text-xs font-bold px-4 py-2 rounded-control transition"
                 >
                   {bulkBusy ? "Applying…" : `Apply to ${selected.length}`}
                 </button>
@@ -1013,7 +1034,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
 
             <button
               onClick={() => { setSelected([]); setBulkResult(null); }}
-              className="text-xs text-white/60 hover:text-white underline ml-auto"
+              className="text-xs text-white/60 underline ml-auto"
             >
               Clear
             </button>
@@ -1021,11 +1042,11 @@ function OrdersTab({ orders, books, onReload, showToast }) {
 
           {bulkResult && (
             <div className="mt-3 text-xs space-y-1">
-              <p className="text-green-300">
+              <p className="text-success">
                 {bulkResult.succeeded?.length || 0} of {bulkResult.requested} updated.
               </p>
               {(bulkResult.failed || []).map((f) => (
-                <p key={f.id} className="text-red-300">
+                <p key={f.id} className="text-error">
                   {String(f.id).slice(0, 8).toUpperCase()} — {f.reason}
                 </p>
               ))}
@@ -1034,11 +1055,11 @@ function OrdersTab({ orders, books, onReload, showToast }) {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
+      <div className="bg-white rounded-card border border-line overflow-hidden">
         {/* Phones: a card per order. The table below needs ten columns and is
             unusable at 360px, so the same data is laid out as a card with the
             full detail panel one tap away. */}
-        <ul role="list" className="lg:hidden divide-y divide-stone-100">
+        <ul role="list" className="lg:hidden divide-y divide-subtle">
           {paginated.map((o) => {
             const payFlow = PAYMENT_FLOW[o.payment_status] || [];
             const isOpen = expanded === o.id;
@@ -1050,7 +1071,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                     checked={selected.includes(o.id)}
                     onChange={() => toggleSelected(o.id)}
                     aria-label={`Select order ${o.id.slice(0, 8)}`}
-                    className="mt-1 h-4 w-4 rounded border-stone-300"
+                    className="mt-1 h-4 w-4 rounded border-line-strong/40"
                   />
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-xs text-sienna">{o.id.slice(0, 8).toUpperCase()}</p>
@@ -1064,7 +1085,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-bold text-navy">KSh {(o.total || 0).toLocaleString()}</p>
-                    <p className={`mt-1 text-[10px] font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-warning-strong"}`}>
+                    <p className={`mt-1 text-micro font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : "text-warning-strong"}`}>
                       {PAYMENT_LABEL[o.payment_status] || o.payment_status}
                     </p>
                   </div>
@@ -1094,14 +1115,14 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                 </div>
 
                 {isOpen && (
-                  <div id={`order-details-${o.id}`} className="mt-3 rounded-card border border-line bg-stone-50 p-3 text-xs">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Items</p>
+                  <div id={`order-details-${o.id}`} className="mt-3 rounded-card border border-line bg-subtle p-3 text-xs">
+                    <p className="text-micro font-bold uppercase tracking-wider text-muted mb-1">Items</p>
                     <ul className="space-y-2">
                       {(o.items || []).map((item, i) => {
                         const book = bookById.get(String(item.id));
                         return (
                           <li key={i} className="flex items-center gap-2">
-                            <div className="w-8 h-11 rounded bg-stone-200 overflow-hidden shrink-0">
+                            <div className="w-8 h-11 rounded bg-line/25 overflow-hidden shrink-0">
                               {book?.cover_url && (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img src={book.cover_url} alt="" className="w-full h-full object-cover" />
@@ -1109,7 +1130,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                             </div>
                             <div className="min-w-0 flex-1">
                               <p className="font-semibold text-navy truncate">{item.title}</p>
-                              <p className="text-[10px] text-muted">Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}</p>
+                              <p className="text-micro text-muted">Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}</p>
                             </div>
                             <p className="font-bold text-navy">KSh {((item.price || 0) * (item.quantity || 1)).toLocaleString()}</p>
                           </li>
@@ -1142,7 +1163,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                             type="button"
                             disabled={updating === o.id}
                             onClick={() => updatePayment(o.id, st)}
-                            className="min-h-11 px-3 rounded-control border border-line bg-white text-[11px] font-semibold text-ink disabled:opacity-40"
+                            className="min-h-11 px-3 rounded-control border border-line bg-white text-micro font-semibold text-ink disabled:opacity-40"
                           >
                             {st === "paid" ? "Mark paid" : st === "failed" ? "Mark failed" : st === "refund_pending" ? "Start refund" : st === "refunded" ? "Mark refunded" : "Reset to unpaid"}
                           </button>
@@ -1154,7 +1175,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                       <button
                         type="button"
                         onClick={() => setConfirm({ orderId: o.id })}
-                        className="mt-3 w-full min-h-11 rounded-control border border-error/30 text-xs font-bold text-error hover:bg-error/5"
+                        className="mt-3 w-full min-h-11 rounded-control border border-error/30 text-xs font-bold text-error hover:bg-error-hover/5"
                       >
                         Cancel this order
                       </button>
@@ -1173,7 +1194,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
 
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-stone-50 border-b border-stone-100">
+            <thead className="bg-subtle border-b border-subtle/25">
               <tr>
                 <th className="px-3 py-3 w-8">
                   <input
@@ -1181,7 +1202,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                     checked={allOnPageSelected}
                     onChange={toggleAllOnPage}
                     aria-label="Select all orders on this page"
-                    className="rounded border-stone-300"
+                    className="rounded border-line-strong/40"
                   />
                 </th>
                 {["", "Order ID", "Customer", "Address", "Books", "Total", "Payment", "Fulfilment", "Date", "Actions"].map((h) => (
@@ -1189,52 +1210,52 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-50">
+            <tbody className="divide-y divide-subtle">
               {paginated.map((o) => {
                 const payFlow = PAYMENT_FLOW[o.payment_status] || [];
                 return (
                   <Fragment key={o.id}>
-                    <tr className={`transition-colors ${selected.includes(o.id) ? "bg-amber-50/50" : "hover:bg-stone-50/50"}`}>
+                    <tr className={`transition-colors ${selected.includes(o.id) ? "bg-warning/5/50" : "hover:bg-subtle/50"}`}>
                       <td className="px-3 py-3">
                         <input
                           type="checkbox"
                           checked={selected.includes(o.id)}
                           onChange={() => toggleSelected(o.id)}
                           aria-label={`Select order ${o.id.slice(0, 8)}`}
-                          className="rounded border-stone-300"
+                          className="rounded border-line-strong/40"
                         />
                       </td>
                       <td className="px-3 py-3">
-                        <button onClick={() => setExpanded(expanded === o.id ? null : o.id)} className="text-muted hover:text-[#1B2A4A] transition" aria-label="Toggle order details">
+                        <button onClick={() => setExpanded(expanded === o.id ? null : o.id)} className="text-muted hover:text-navy transition" aria-label="Toggle order details">
                           <svg className={`w-4 h-4 transition-transform ${expanded === o.id ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                           </svg>
                         </button>
                       </td>
-                      <td className="px-3 py-3 font-mono text-xs text-[#B5532F]">{o.id.slice(0, 8).toUpperCase()}</td>
+                      <td className="px-3 py-3 font-mono text-xs text-sienna">{o.id.slice(0, 8).toUpperCase()}</td>
                       <td className="px-3 py-3">
                         <div className="flex items-center gap-2">
                           <Avatar name={`${o.delivery_details?.firstName || ""} ${o.delivery_details?.lastName || ""}`} email="" size="sm" />
                           <div>
-                            <p className="text-xs font-semibold text-[#1B2A4A]">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
-                            <p className="text-[10px] text-muted">{o.delivery_details?.phone}</p>
+                            <p className="text-xs font-semibold text-navy">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
+                            <p className="text-micro text-muted">{o.delivery_details?.phone}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-3 py-3">
-                        <p className="text-xs text-stone-600 max-w-[120px] truncate">{o.delivery_details?.address}</p>
-                        <p className="text-[10px] text-muted">{o.delivery_details?.city}</p>
+                        <p className="text-xs text-muted max-w-[120px] truncate">{o.delivery_details?.address}</p>
+                        <p className="text-micro text-muted">{o.delivery_details?.city}</p>
                       </td>
-                      <td className="px-3 py-3 text-xs text-stone-500">{(o.items || []).length} book{(o.items || []).length !== 1 ? "s" : ""}</td>
-                      <td className="px-3 py-3 text-xs font-bold text-[#1B2A4A]">KSh {(o.total || 0).toLocaleString()}</td>
+                      <td className="px-3 py-3 text-xs text-muted">{(o.items || []).length} book{(o.items || []).length !== 1 ? "s" : ""}</td>
+                      <td className="px-3 py-3 text-xs font-bold text-navy">KSh {(o.total || 0).toLocaleString()}</td>
                       <td className="px-3 py-3">
-                        <p className={`text-[10px] font-semibold ${o.payment_status === "paid" ? "text-green-600" : o.payment_status === "failed" ? "text-red-600" : o.payment_status === "refunded" ? "text-purple-600" : "text-amber-600"}`}>
+                        <p className={`text-micro font-semibold ${o.payment_status === "paid" ? "text-success" : o.payment_status === "failed" ? "text-error" : o.payment_status === "refunded" ? "text-navy" : "text-warning-strong"}`}>
                           {PAYMENT_LABEL[o.payment_status] || o.payment_status}
                         </p>
-                        <p className="text-[10px] text-muted">{o.payment_method}</p>
+                        <p className="text-micro text-muted">{o.payment_method}</p>
                       </td>
                       <td className="px-3 py-3"><Badge status={o.status} /></td>
-                      <td className="px-3 py-3 text-[10px] text-muted whitespace-nowrap">
+                      <td className="px-3 py-3 text-micro text-muted whitespace-nowrap">
                         {new Date(o.created_at).toLocaleDateString("en-KE", { day: "numeric", month: "short", year: "2-digit" })}
                       </td>
                       <td className="px-3 py-3">
@@ -1244,7 +1265,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                             onChange={(e) => updateStatus(o.id, e.target.value, e.target.value === "Shipped" && courier ? { courier } : {})}
                             disabled={updating === o.id || isTerminal(o.status)}
                             title={isTerminal(o.status) ? "Delivered and cancelled orders are final" : "Change fulfilment status"}
-                            className="text-xs bg-stone-50 border border-[#E3DCCB] rounded-lg px-2 py-1 outline-none focus:border-[#B5532F] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="text-xs bg-subtle border border-line rounded-control px-2 py-1 outline-none focus:border-sienna disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                           >
                             <option value={o.status}>{o.status}</option>
                             {(STATUS_FLOW[o.status] || []).map((s) => <option key={s} value={s}>{s}</option>)}
@@ -1255,28 +1276,28 @@ function OrdersTab({ orders, books, onReload, showToast }) {
 
                     {expanded === o.id && (
                       <tr key={`${o.id}-exp`}>
-                        <td colSpan={11} className="px-5 py-5 bg-stone-50 border-t border-stone-100">
+                        <td colSpan={11} className="px-5 py-5 bg-subtle border-t border-subtle/25">
                           <div className="grid lg:grid-cols-3 gap-5">
                             <div className="lg:col-span-2">
-                              <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-3">Items</p>
+                              <p className="text-micro font-bold text-muted uppercase tracking-wider mb-3">Items</p>
                               <div className="space-y-2">
                                 {(o.items || []).map((item, i) => {
                                   const book = bookById.get(String(item.id));
                                   return (
-                                    <div key={i} className="bg-white rounded-xl border border-stone-100 px-4 py-3 flex items-center gap-3">
-                                      <div className="w-10 h-14 rounded-md bg-stone-100 overflow-hidden flex-shrink-0">
+                                    <div key={i} className="bg-white rounded-control border border-subtle/25 px-4 py-3 flex items-center gap-3">
+                                      <div className="w-10 h-14 rounded-control bg-subtle overflow-hidden flex-shrink-0">
                                         {book?.cover_url && (
                                           // eslint-disable-next-line @next/next/no-img-element
                                           <img src={book.cover_url} alt="" className="w-full h-full object-cover" />
                                         )}
                                       </div>
                                       <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-semibold text-[#1B2A4A] truncate">{item.title}</p>
-                                        <p className="text-[10px] text-muted">
+                                        <p className="text-xs font-semibold text-navy truncate">{item.title}</p>
+                                        <p className="text-micro text-muted">
                                           {item.author} · Qty {item.quantity || 1} × KSh {(item.price || 0).toLocaleString()}
                                         </p>
                                       </div>
-                                      <p className="text-xs font-bold text-[#1B2A4A]">
+                                      <p className="text-xs font-bold text-navy">
                                         KSh {((item.price || 0) * (item.quantity || 1)).toLocaleString()}
                                       </p>
                                     </div>
@@ -1285,37 +1306,37 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                               </div>
 
                               <div className="mt-4 grid sm:grid-cols-2 gap-3 text-xs">
-                                <div className="bg-white rounded-xl border border-stone-100 p-4">
-                                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Delivery</p>
-                                  <p className="text-stone-700 font-semibold">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
-                                  <p className="text-stone-500">{o.delivery_details?.phone}</p>
-                                  <p className="text-stone-500">{o.delivery_details?.address}</p>
-                                  <p className="text-stone-500">{o.delivery_details?.city}</p>
+                                <div className="bg-white rounded-control border border-subtle/25 p-4">
+                                  <p className="text-micro font-bold text-muted uppercase tracking-wider mb-2">Delivery</p>
+                                  <p className="text-ink font-semibold">{o.delivery_details?.firstName} {o.delivery_details?.lastName}</p>
+                                  <p className="text-muted">{o.delivery_details?.phone}</p>
+                                  <p className="text-muted">{o.delivery_details?.address}</p>
+                                  <p className="text-muted">{o.delivery_details?.city}</p>
                                   {(o.delivery_details?.instructions || o.delivery_details?.notes) && (
-                                    <p className="text-stone-500 mt-1 italic">
+                                    <p className="text-muted mt-1 italic">
                                       “{o.delivery_details.instructions || o.delivery_details.notes}”
                                     </p>
                                   )}
                                 </div>
-                                <div className="bg-white rounded-xl border border-stone-100 p-4">
-                                  <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-2">Money & dispatch</p>
-                                  <p className="text-stone-500">Subtotal: <span className="font-semibold text-[#1B2A4A]">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
-                                  <p className="text-stone-500">Delivery: <span className="font-semibold text-[#1B2A4A]">{Number(o.delivery_fee) > 0 ? `KSh ${Number(o.delivery_fee).toLocaleString()}` : "Free"}</span></p>
-                                  <p className="text-stone-500">Total: <span className="font-bold text-[#1B2A4A]">KSh {(o.total ?? 0).toLocaleString()}</span></p>
-                                  {o.payment_ref && <p className="text-stone-500 mt-1">Receipt: <span className="font-mono font-bold">{o.payment_ref}</span></p>}
-                                  {o.courier && <p className="text-stone-500 mt-1">Courier: {o.courier}</p>}
-                                  {o.tracking_ref && <p className="text-stone-500">Tracking: <span className="font-mono">{o.tracking_ref}</span></p>}
-                                  {o.dispatched_at && <p className="text-muted mt-1 text-[10px]">Dispatched {new Date(o.dispatched_at).toLocaleString("en-KE")}</p>}
-                                  {o.delivered_at && <p className="text-muted text-[10px]">Delivered {new Date(o.delivered_at).toLocaleString("en-KE")}</p>}
+                                <div className="bg-white rounded-control border border-subtle/25 p-4">
+                                  <p className="text-micro font-bold text-muted uppercase tracking-wider mb-2">Money & dispatch</p>
+                                  <p className="text-muted">Subtotal: <span className="font-semibold text-navy">KSh {(o.subtotal ?? 0).toLocaleString()}</span></p>
+                                  <p className="text-muted">Delivery: <span className="font-semibold text-navy">{Number(o.delivery_fee) > 0 ? `KSh ${Number(o.delivery_fee).toLocaleString()}` : "Free"}</span></p>
+                                  <p className="text-muted">Total: <span className="font-bold text-navy">KSh {(o.total ?? 0).toLocaleString()}</span></p>
+                                  {o.payment_ref && <p className="text-muted mt-1">Receipt: <span className="font-mono font-bold">{o.payment_ref}</span></p>}
+                                  {o.courier && <p className="text-muted mt-1">Courier: {o.courier}</p>}
+                                  {o.tracking_ref && <p className="text-muted">Tracking: <span className="font-mono">{o.tracking_ref}</span></p>}
+                                  {o.dispatched_at && <p className="text-muted mt-1 text-micro">Dispatched {new Date(o.dispatched_at).toLocaleString("en-KE")}</p>}
+                                  {o.delivered_at && <p className="text-muted text-micro">Delivered {new Date(o.delivered_at).toLocaleString("en-KE")}</p>}
                                 </div>
                               </div>
                             </div>
 
                             <div>
-                              <p className="text-[10px] font-bold text-muted uppercase tracking-wider mb-3">Payment</p>
-                              <div className="bg-white rounded-xl border border-stone-100 p-4">
-                                <p className="text-sm font-bold text-[#1B2A4A]">{PAYMENT_LABEL[o.payment_status] || o.payment_status}</p>
-                                <p className="text-[10px] text-muted mt-0.5">via {o.payment_method}</p>
+                              <p className="text-micro font-bold text-muted uppercase tracking-wider mb-3">Payment</p>
+                              <div className="bg-white rounded-control border border-subtle/25 p-4">
+                                <p className="text-sm font-bold text-navy">{PAYMENT_LABEL[o.payment_status] || o.payment_status}</p>
+                                <p className="text-micro text-muted mt-0.5">via {o.payment_method}</p>
 
                                 {payFlow.length > 0 ? (
                                   <div className="flex flex-wrap gap-1.5 mt-3">
@@ -1324,16 +1345,16 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                                         key={s}
                                         disabled={updating === o.id}
                                         onClick={() => updatePayment(o.id, s)}
-                                        className="text-[11px] font-semibold px-2.5 py-1.5 rounded-lg border border-[#E3DCCB] hover:border-stone-300 hover:bg-stone-50 disabled:opacity-40 transition"
+                                        className="text-micro font-semibold px-2.5 py-1.5 rounded-control border border-line hover:border-line-strong/40 hover:bg-subtle disabled:opacity-40 transition"
                                       >
                                         {s === "paid" ? "Mark paid" : s === "failed" ? "Mark failed" : s === "refund_pending" ? "Start refund" : s === "refunded" ? "Mark refunded" : "Reset to unpaid"}
                                       </button>
                                     ))}
                                   </div>
                                 ) : (
-                                  <p className="text-[10px] text-muted mt-3">No further payment changes.</p>
+                                  <p className="text-micro text-muted mt-3">No further payment changes.</p>
                                 )}
-                                <p className="text-[10px] text-muted mt-3 pt-2 border-t border-stone-100">
+                                <p className="text-micro text-muted mt-3 pt-2 border-t border-subtle/25">
                                   A COD order stays unpaid until the courier collects the cash.
                                 </p>
                               </div>
@@ -1341,7 +1362,7 @@ function OrdersTab({ orders, books, onReload, showToast }) {
                               {!isTerminal(o.status) && (
                                 <button
                                   onClick={() => setConfirm({ orderId: o.id })}
-                                  className="w-full mt-3 text-xs font-bold text-red-600 border border-red-200 rounded-xl py-2 hover:bg-red-50 transition"
+                                  className="w-full mt-3 text-xs font-bold text-error border border-error/30 rounded-control py-2 hover:bg-error-hover/5 transition"
                                 >
                                   Cancel this order
                                 </button>
@@ -1367,16 +1388,16 @@ function OrdersTab({ orders, books, onReload, showToast }) {
         </div>
 
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-5 py-3 border-t border-stone-100">
+          <div className="flex items-center justify-between px-5 py-3 border-t border-subtle/25">
             <p className="text-xs text-muted">
               Showing {(page - 1) * perPage + 1}–{Math.min(page * perPage, filtered.length)} of {filtered.length}
             </p>
             <div className="flex gap-1">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 text-xs border border-[#E3DCCB] rounded-lg disabled:opacity-40 hover:bg-stone-50">Prev</button>
+              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 text-xs border border-line rounded-control disabled:opacity-40 hover:bg-subtle">Prev</button>
               {[...Array(totalPages)].map((_, i) => (
-                <button key={i} onClick={() => setPage(i + 1)} className={`w-7 h-7 text-xs rounded-lg border transition ${page === i + 1 ? "bg-[#1B2A4A] text-white border-[#1B2A4A]" : "border-[#E3DCCB] hover:bg-stone-50"}`}>{i + 1}</button>
+                <button key={i} onClick={() => setPage(i + 1)} className={`w-7 h-7 text-xs rounded-control border transition ${page === i + 1 ? "bg-navy text-white border-navy" : "border-line hover:bg-subtle"}`}>{i + 1}</button>
               ))}
-              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 text-xs border border-[#E3DCCB] rounded-lg disabled:opacity-40 hover:bg-stone-50">Next</button>
+              <button onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 text-xs border border-line rounded-control disabled:opacity-40 hover:bg-subtle">Next</button>
             </div>
           </div>
         )}
@@ -1583,10 +1604,10 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
   // remounts the <input> on each keystroke and focus/cursor is lost.
   const F = ({label,name,type="text",placeholder,full}) => (
     <div className={full?"col-span-2":""}>
-      <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">{label}</label>
+      <label className="mb-1 block text-micro font-semibold uppercase text-muted">{label}</label>
       <input type={type} value={form[name]} placeholder={placeholder} onChange={e=>setForm(p=>({...p,[name]:e.target.value}))}
-        className={`w-full bg-stone-50 border rounded-xl px-3 py-2.5 text-sm outline-none focus:ring-1 transition ${formErrors[name]?"border-red-400 focus:border-red-500 focus:ring-red-100":"border-[#E3DCCB] focus:border-[#B5532F] focus:ring-[#B5532F]/20"}`}/>
-      {formErrors[name] && <p className="text-red-500 text-xs mt-1">{formErrors[name]}</p>}
+        className={`field ${formErrors[name]?"field-error":""}`}/>
+      {formErrors[name] && <p className="mt-1 text-small text-error">{formErrors[name]}</p>}
     </div>
   );
 
@@ -1599,19 +1620,19 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
           <h1 className="text-lg font-bold text-navy">Products</h1>
           <p className="text-muted text-xs mt-0.5">{books.filter(b=>!b.is_archived).length} active · {books.filter(b=>b.is_archived).length} archived</p>
         </div>
-        <button onClick={openAdd} className="flex items-center gap-2 bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95">
+        <button onClick={openAdd} className="flex items-center gap-2 bg-navy hover:bg-sienna text-white px-4 py-2.5 rounded-control text-sm font-semibold transition-all active:scale-95">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg> Add book
         </button>
       </div>
 
       {showForm && (
-        <div className="bg-white border border-[#E3DCCB] rounded-2xl p-5 mb-5 shadow-sm">
+        <div className="bg-white border border-line rounded-card p-5 mb-5 shadow-sm">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h3 className="font-bold text-[#1B2A4A]">{editBook?`Editing: ${editBook.title}`:"Add new book"}</h3>
+              <h3 className="font-bold text-navy">{editBook?`Editing: ${editBook.title}`:"Add new book"}</h3>
               <p className="text-xs text-muted mt-0.5">{editBook?"Update the book details below":"Fill in the details for the new title"}</p>
             </div>
-            <button onClick={()=>setShowForm(false)} aria-label="Close the book form" className="p-2 hover:bg-stone-100 rounded-full transition text-muted">
+            <button onClick={()=>setShowForm(false)} aria-label="Close the book form" className="p-2 hover:bg-subtle rounded-full transition text-muted">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
             </button>
           </div>
@@ -1621,20 +1642,20 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
             {F({label:"Price (KSh) *",name:"price",type:"number",placeholder:"1299"})}
             {F({label:"Original price (KSh)",name:"original_price",type:"number",placeholder:"Leave blank if no discount"})}
             <div>
-              <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Category</label>
-              <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))} className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition">
+              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Category</label>
+              <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))} className="w-full bg-subtle border border-line rounded-control px-3 py-2.5 text-sm outline-none focus:border-sienna transition">
                 {categories.map(c=><option key={c}>{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Format</label>
-              <select value={form.format} onChange={e=>setForm(p=>({...p,format:e.target.value}))} className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition">
+              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Format</label>
+              <select value={form.format} onChange={e=>setForm(p=>({...p,format:e.target.value}))} className="w-full bg-subtle border border-line rounded-control px-3 py-2.5 text-sm outline-none focus:border-sienna transition">
                 {["Paperback","Hardcover","eBook"].map(f=><option key={f}>{f}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Badge</label>
-              <select value={form.badge} onChange={e=>setForm(p=>({...p,badge:e.target.value}))} className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition">
+              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Badge</label>
+              <select value={form.badge} onChange={e=>setForm(p=>({...p,badge:e.target.value}))} className="w-full bg-subtle border border-line rounded-control px-3 py-2.5 text-sm outline-none focus:border-sienna transition">
                 <option value="">No badge</option>
                 {["Bestseller","New","Trending","Staff Pick","Award Winner","Classic","Top Rated"].map(b=><option key={b}>{b}</option>)}
               </select>
@@ -1646,40 +1667,40 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
             {F({label:"Year",name:"year",type:"number",placeholder:"2024"})}
             {F({label:"ISBN",name:"isbn",placeholder:"9780735211292"})}
             <div className="col-span-2">
-              <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Cover image</label>
+              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Cover image</label>
               <div className="flex items-start gap-4">
-                <div className="w-20 flex-shrink-0 rounded-lg overflow-hidden border border-[#E3DCCB] bg-stone-100 flex items-center justify-center text-stone-300 text-2xl" style={{aspectRatio:"2/3"}}>
+                <div className="w-20 flex-shrink-0 rounded-control overflow-hidden border border-line bg-subtle flex items-center justify-center text-muted text-2xl" style={{aspectRatio:"2/3"}}>
                   {coverPreview ? <img src={coverPreview} alt="Cover preview" className="w-full h-full object-cover"/> : "📖"}
                 </div>
                 <div className="flex-1">
                   <div className="flex flex-wrap gap-2">
-                    <label className={`px-4 py-2 rounded-xl text-sm font-semibold border border-[#E3DCCB] bg-white hover:bg-stone-50 cursor-pointer transition ${saving?"opacity-50 pointer-events-none":""}`}>
+                    <label className={`px-4 py-2 rounded-control text-sm font-semibold border border-line bg-white hover:bg-subtle cursor-pointer transition ${saving?"opacity-50 pointer-events-none":""}`}>
                       {coverPreview ? "Replace image" : "Choose image"}
                       <input type="file" accept="image/jpeg,image/png,image/webp" onChange={onCoverSelected} disabled={saving} className="sr-only"/>
                     </label>
                     {coverPreview && (
-                      <button type="button" onClick={onCoverRemoved} disabled={saving} className="px-4 py-2 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition disabled:opacity-50">Remove</button>
+                      <button type="button" onClick={onCoverRemoved} disabled={saving} className="px-4 py-2 rounded-control text-sm font-semibold text-error border border-error/30 hover:bg-error-hover/5 transition disabled:opacity-50">Remove</button>
                     )}
                   </div>
                   <p className="text-xs text-muted mt-2">JPG, PNG or WebP, up to 2 MB. Without an image the store shows the styled text cover.</p>
-                  {formErrors.cover && <p className="text-red-500 text-xs mt-1">{formErrors.cover}</p>}
+                  {formErrors.cover && <p className="text-error text-xs mt-1">{formErrors.cover}</p>}
                 </div>
               </div>
             </div>
             <label className="flex items-center gap-2 mt-6 cursor-pointer">
-              <input type="checkbox" checked={form.is_featured} onChange={e=>setForm(p=>({...p,is_featured:e.target.checked}))} className="w-4 h-4 accent-[#B5532F]"/>
-              <span className="text-sm text-stone-600">Show in &quot;Recommended&quot; on the homepage</span>
+              <input type="checkbox" checked={form.is_featured} onChange={e=>setForm(p=>({...p,is_featured:e.target.checked}))} className="w-4 h-4 accent-sienna"/>
+              <span className="text-sm text-muted">Show in &quot;Recommended&quot; on the homepage</span>
             </label>
             <div className="col-span-2">
-              <label className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">Description</label>
-              <textarea value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} rows={3} placeholder="Book description…" className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition resize-none"/>
+              <label className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">Description</label>
+              <textarea value={form.description} onChange={e=>setForm(p=>({...p,description:e.target.value}))} rows={3} placeholder="Book description…" className="w-full bg-subtle border border-line rounded-control px-3 py-2.5 text-sm outline-none focus:border-sienna transition resize-none"/>
             </div>
           </div>
-          <div className="flex gap-3 mt-5 pt-4 border-t border-stone-100">
-            <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-[#1B2A4A] hover:bg-[#B5532F] disabled:bg-stone-200 disabled:text-stone-400 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all active:scale-95">
+          <div className="flex gap-3 mt-5 pt-4 border-t border-subtle/25">
+            <button onClick={save} disabled={saving} className="flex items-center gap-2 bg-navy hover:bg-sienna disabled:bg-line/25 disabled:text-muted text-white px-5 py-2.5 rounded-control text-sm font-semibold transition-all active:scale-95">
               {saving?<><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block"/>{saveStage||"Saving…"}</>:editBook?"Save changes":"Add book"}
             </button>
-            <button onClick={()=>setShowForm(false)} className="border border-[#E3DCCB] text-stone-600 px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-stone-50 transition">Cancel</button>
+            <button onClick={()=>setShowForm(false)} className="border border-line text-muted px-5 py-2.5 rounded-control text-sm font-semibold hover:bg-subtle transition">Cancel</button>
           </div>
         </div>
       )}
@@ -1687,29 +1708,33 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="relative flex-1">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search books…"
-            className="w-full bg-white border border-[#E3DCCB] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"/>
+            className="w-full bg-white border border-line rounded-control pl-9 pr-4 py-2.5 text-sm outline-none focus:border-sienna transition"/>
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
-        <label className="flex items-center gap-2 text-sm text-stone-500 whitespace-nowrap">
-          <input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)} className="w-4 h-4 accent-[#B5532F]"/>
+        <label className="flex items-center gap-2 text-sm text-muted whitespace-nowrap">
+          <input type="checkbox" checked={showArchived} onChange={e=>setShowArchived(e.target.checked)} className="w-4 h-4 accent-sienna"/>
           Show archived
         </label>
       </div>
 
       {error ? (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-          <div className="text-3xl mb-2">⚠️</div>
-          <p className="text-red-800 font-semibold text-sm mb-1">Failed to load books</p>
-          <p className="text-red-600 text-xs mb-4">{error}</p>
-          <button onClick={onRetry} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition">Retry</button>
+        <div className="bg-error/5 border border-error/30 rounded-card p-8 text-center">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-error/10 text-error">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.5M12 16.5h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+          <p className="text-error font-semibold text-sm mb-1">Failed to load books</p>
+          <p className="text-error text-xs mb-4">{error}</p>
+          <button onClick={onRetry} className="bg-error hover:bg-error-hover text-white px-5 py-2 rounded-control text-sm font-bold transition">Retry</button>
         </div>
       ) : loading ? (
         <div className="space-y-2">{[...Array(5)].map((_,i)=><Skeleton key={i} className="h-14"/>)}</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
+        <div className="bg-white rounded-card border border-line overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-stone-50 border-b border-stone-100">
+              <thead className="bg-subtle border-b border-subtle/25">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Title</th>
                   <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">Category</th>
@@ -1720,47 +1745,47 @@ function BooksTab({ books, loading, error, onRetry, reloadBooks, showToast }) {
                   <th className="text-right px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-50">
+              <tbody className="divide-y divide-subtle">
                 {filtered.map(book=>(
-                  <tr key={book.id} className={`hover:bg-stone-50/50 transition-colors group ${book.is_archived?"opacity-50":""}`}>
+                  <tr key={book.id} className={`hover:bg-subtle/50 transition-colors group ${book.is_archived?"opacity-50":""}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        {book.cover_url && <img src={book.cover_url} alt="" loading="lazy" className="w-8 h-12 object-cover rounded border border-[#E3DCCB] flex-shrink-0"/>}
+                        {book.cover_url && <img src={book.cover_url} alt="" loading="lazy" className="w-8 h-12 object-cover rounded border border-line flex-shrink-0"/>}
                         <div>
-                          <p className="text-sm font-semibold text-[#1B2A4A]">{book.title} {book.is_archived && <span className="text-[10px] text-muted font-normal">(archived)</span>}</p>
+                          <p className="text-sm font-semibold text-navy">{book.title} {book.is_archived && <span className="text-micro text-muted font-normal">(archived)</span>}</p>
                           <p className="text-xs text-muted">{book.author}</p>
-                          <p className="sm:hidden mt-0.5 text-xs font-bold text-[#1B2A4A]">KSh {book.price.toLocaleString()}</p>
+                          <p className="sm:hidden mt-0.5 text-xs font-bold text-navy">KSh {book.price.toLocaleString()}</p>
                         </div>
                       </div>
                     </td>
                     <td className="hidden md:table-cell px-4 py-3"><Badge status={book.category}/></td>
                     <td className="hidden sm:table-cell px-4 py-3">
-                      <p className="text-xs font-bold text-[#1B2A4A]">KSh {book.price.toLocaleString()}</p>
-                      {book.original_price&&<p className="text-[10px] text-muted line-through">KSh {book.original_price.toLocaleString()}</p>}
+                      <p className="text-xs font-bold text-navy">KSh {book.price.toLocaleString()}</p>
+                      {book.original_price&&<p className="text-micro text-muted line-through">KSh {book.original_price.toLocaleString()}</p>}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span className="text-xs font-semibold" style={{color:book.stock_quantity<=0?"#dc2626":book.stock_quantity<=(book.low_stock_threshold||5)?"#d97706":"#16a34a"}}>
                         {book.stock} · {book.stock_quantity ?? 0} units
                       </span>
                     </td>
-                    <td className="hidden lg:table-cell px-4 py-3">{book.is_featured?<span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-bold rounded-md">★ Featured</span>:<span className="text-stone-300 text-xs">—</span>}</td>
+                    <td className="hidden lg:table-cell px-4 py-3">{book.is_featured?<span className="px-2 py-0.5 bg-warning/10 text-warning-strong text-micro font-bold rounded-control">★ Featured</span>:<span className="text-muted text-xs">—</span>}</td>
                     <td className="hidden md:table-cell px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <span className="text-amber-400 text-xs">★</span>
+                        <span className="text-warning-strong text-xs">★</span>
                         {book.reviews > 0 ? (
                           <>
-                            <span className="text-xs font-semibold text-stone-600">{Number(book.rating).toFixed(1)}</span>
-                            <span className="text-[10px] text-muted">({book.reviews})</span>
+                            <span className="text-xs font-semibold text-muted">{Number(book.rating).toFixed(1)}</span>
+                            <span className="text-micro text-muted">({book.reviews})</span>
                           </>
                         ) : (
-                          <span className="text-[10px] text-muted">No reviews</span>
+                          <span className="text-micro text-muted">No reviews</span>
                         )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity">
-                        <button onClick={()=>openEdit(book)} className="text-xs text-[#B5532F] font-semibold hover:underline">Edit</button>
-                        <button onClick={()=>setDeleteConfirm(book.id)} className="text-xs text-muted hover:text-red-600 font-semibold">Delete</button>
+                        <button onClick={()=>openEdit(book)} className="text-xs text-sienna font-semibold hover:underline">Edit</button>
+                        <button onClick={()=>setDeleteConfirm(book.id)} className="text-xs text-muted hover:text-error font-semibold">Delete</button>
                       </div>
                     </td>
                   </tr>
@@ -1897,15 +1922,19 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
       {(outOfStock.length > 0 || lowStock.length > 0) && (
         <div className="grid sm:grid-cols-2 gap-3 mb-5">
           {lowStock.length > 0 && (
-            <button onClick={() => setStatusFilter("Low Stock")} className="text-left bg-amber-50 border border-amber-200 rounded-2xl p-4 hover:bg-amber-100 transition">
-              <p className="font-bold text-amber-800 text-sm">⚠️ {lowStock.length} book{lowStock.length !== 1 ? "s" : ""} running low on stock</p>
-              <p className="text-amber-600 text-xs mt-0.5">Click to view them</p>
+            <button onClick={() => setStatusFilter("Low Stock")} className="text-left bg-warning/5 border border-warning/30 rounded-card p-4 hover:bg-warning-hover/10 transition">
+              <p className="flex items-center gap-1.5 font-bold text-warning-strong text-sm">
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.5M12 16.5h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {lowStock.length} book{lowStock.length !== 1 ? "s" : ""} running low on stock</p>
+              <p className="text-warning-strong text-xs mt-0.5">Click to view them</p>
             </button>
           )}
           {outOfStock.length > 0 && (
-            <button onClick={() => setStatusFilter("Out of Stock")} className="text-left bg-red-50 border border-red-200 rounded-2xl p-4 hover:bg-red-100 transition">
-              <p className="font-bold text-red-800 text-sm">🚫 {outOfStock.length} book{outOfStock.length !== 1 ? "s" : ""} out of stock</p>
-              <p className="text-red-600 text-xs mt-0.5">Customers cannot buy these</p>
+            <button onClick={() => setStatusFilter("Out of Stock")} className="text-left bg-error/5 border border-error/30 rounded-card p-4 hover:bg-error-hover/10 transition">
+              <p className="font-bold text-error text-sm">🚫 {outOfStock.length} book{outOfStock.length !== 1 ? "s" : ""} out of stock</p>
+              <p className="text-error text-xs mt-0.5">Customers cannot buy these</p>
             </button>
           )}
         </div>
@@ -1925,7 +1954,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search inventory…"
-            className="w-full bg-white border border-[#E3DCCB] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"
+            className="w-full bg-white border border-line rounded-control pl-9 pr-4 py-2.5 text-sm outline-none focus:border-sienna transition"
           />
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1934,7 +1963,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="bg-white border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"
+          className="bg-white border border-line rounded-control px-3 py-2.5 text-sm outline-none focus:border-sienna transition"
         >
           {categories.map((c) => <option key={c}>{c}</option>)}
         </select>
@@ -1943,8 +1972,8 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
             <button
               key={s}
               onClick={() => setStatusFilter(s)}
-              className={`px-3 py-2 rounded-xl text-xs font-semibold transition whitespace-nowrap ${
-                statusFilter === s ? "bg-[#1B2A4A] text-white" : "bg-white border border-[#E3DCCB] text-stone-600"
+              className={`px-3 py-2 rounded-control text-xs font-semibold transition whitespace-nowrap ${
+                statusFilter === s ? "bg-navy text-white" : "bg-white border border-line text-muted"
               }`}
             >
               {s}
@@ -1954,19 +1983,23 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
       </div>
 
       {error ? (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center">
-          <div className="text-3xl mb-2">⚠️</div>
-          <p className="text-red-800 font-semibold text-sm mb-1">Failed to load inventory</p>
-          <p className="text-red-600 text-xs mb-4">{error}</p>
-          <button onClick={onRetry} className="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-xl text-sm font-bold transition">Retry</button>
+        <div className="bg-error/5 border border-error/30 rounded-card p-8 text-center">
+          <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-error/10 text-error">
+          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.5M12 16.5h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+          <p className="text-error font-semibold text-sm mb-1">Failed to load inventory</p>
+          <p className="text-error text-xs mb-4">{error}</p>
+          <button onClick={onRetry} className="bg-error hover:bg-error-hover text-white px-5 py-2 rounded-control text-sm font-bold transition">Retry</button>
         </div>
       ) : loading ? (
         <div className="space-y-2">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
+        <div className="bg-white rounded-card border border-line overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-stone-50 border-b border-stone-100">
+              <thead className="bg-subtle border-b border-subtle/25">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Book</th>
                   <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">Category</th>
@@ -1978,19 +2011,19 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                   <th className="text-right px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider sr-only">History</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-50">
+              <tbody className="divide-y divide-subtle">
                 {filtered.map((book) => {
                   const status = withStatus(book);
-                  const statusColor = status === "Out of Stock" ? "text-red-600" : status === "Low Stock" ? "text-amber-600" : "text-green-600";
+                  const statusColor = status === "Out of Stock" ? "text-error" : status === "Low Stock" ? "text-warning-strong" : "text-success";
                   return (
-                    <tr key={book.id} className="hover:bg-stone-50/50 transition-colors">
+                    <tr key={book.id} className="hover:bg-subtle/50 transition-colors">
                       <td className="px-4 py-3">
-                        <p className="text-sm font-semibold text-[#1B2A4A]">{book.title}</p>
+                        <p className="text-sm font-semibold text-navy">{book.title}</p>
                         <p className="text-xs text-muted">{book.author}</p>
                       </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-500">{book.category}</td>
-                      <td className="px-4 py-3 font-bold text-[#1B2A4A] text-sm whitespace-nowrap">{book.stock_quantity ?? 0}</td>
-                      <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-500">{book.low_stock_threshold ?? 5}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-xs text-muted">{book.category}</td>
+                      <td className="px-4 py-3 font-bold text-navy text-sm whitespace-nowrap">{book.stock_quantity ?? 0}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-xs text-muted">{book.low_stock_threshold ?? 5}</td>
                       <td className="px-4 py-3"><span className={`text-xs font-semibold ${statusColor}`}>{status}</span></td>
                       <td className="hidden lg:table-cell px-4 py-3 text-xs text-muted whitespace-nowrap">
                         {book.updated_at ? new Date(book.updated_at).toLocaleDateString("en-KE", { day: "numeric", month: "short" }) : "—"}
@@ -1998,7 +2031,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => openAdjust(book)}
-                          className="min-h-9 text-xs font-semibold border border-[#E3DCCB] rounded-lg px-3 py-1.5 hover:border-stone-300 hover:bg-stone-50 transition"
+                          className="min-h-9 text-xs font-semibold border border-line rounded-control px-3 py-1.5 hover:border-line-strong/40 hover:bg-subtle transition"
                         >
                           Adjust
                         </button>
@@ -2006,7 +2039,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => openHistory(book)}
-                          className="min-h-9 text-xs font-semibold text-[#B5532F] hover:underline whitespace-nowrap"
+                          className="min-h-9 text-xs font-semibold text-sienna hover:underline whitespace-nowrap"
                         >
                           History
                         </button>
@@ -2032,10 +2065,10 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
       <Modal open={Boolean(modal)} onClose={() => setModal(null)} labelledBy="adjust-title" className="max-w-md p-6">
         {modal && (
           <div>
-            <h3 id="adjust-title" className="font-black text-[#1B2A4A]">Adjust stock</h3>
+            <h3 id="adjust-title" className="font-black text-navy">Adjust stock</h3>
             <p className="text-xs text-muted mt-0.5 mb-4">{modal.book.title}</p>
 
-            <label className="block text-xs font-semibold text-stone-600 mb-1" htmlFor="inv-qty">
+            <label className="block text-xs font-semibold text-muted mb-1" htmlFor="inv-qty">
               New stock level (currently {modal.book.stock_quantity ?? 0})
             </label>
             <input
@@ -2044,20 +2077,20 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
               min="0"
               value={modal.quantity}
               onChange={(e) => setModal({ ...modal, quantity: e.target.value })}
-              className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#B5532F] mb-3"
+              className="w-full bg-subtle border border-line rounded-control px-3 py-2 text-sm outline-none focus:border-sienna mb-3"
             />
 
-            <label className="block text-xs font-semibold text-stone-600 mb-1" htmlFor="inv-reason">Reason</label>
+            <label className="block text-xs font-semibold text-muted mb-1" htmlFor="inv-reason">Reason</label>
             <select
               id="inv-reason"
               value={modal.reason}
               onChange={(e) => setModal({ ...modal, reason: e.target.value })}
-              className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#B5532F] mb-3"
+              className="w-full bg-subtle border border-line rounded-control px-3 py-2 text-sm outline-none focus:border-sienna mb-3"
             >
               {REASONS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
             </select>
 
-            <label className="block text-xs font-semibold text-stone-600 mb-1" htmlFor="inv-note">
+            <label className="block text-xs font-semibold text-muted mb-1" htmlFor="inv-note">
               Note (required — visible in the history)
             </label>
             <textarea
@@ -2067,14 +2100,14 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
               value={modal.note}
               onChange={(e) => setModal({ ...modal, note: e.target.value })}
               placeholder="e.g. Received 20 copies from supplier, invoice #4471"
-              className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2 text-sm outline-none focus:border-[#B5532F] mb-4 resize-none"
+              className="w-full bg-subtle border border-line rounded-control px-3 py-2 text-sm outline-none focus:border-sienna mb-4 resize-none"
             />
 
             <div className="flex gap-2">
-              <button onClick={() => setModal(null)} className="flex-1 border border-[#E3DCCB] rounded-xl py-2.5 text-sm font-bold text-stone-600 hover:bg-stone-50 transition">
+              <button onClick={() => setModal(null)} className="flex-1 border border-line rounded-control py-2.5 text-sm font-bold text-muted hover:bg-subtle transition">
                 Cancel
               </button>
-              <button onClick={submitAdjust} disabled={busy} className="flex-1 bg-[#1B2A4A] hover:bg-[#B5532F] disabled:opacity-50 text-white rounded-xl py-2.5 text-sm font-bold transition">
+              <button onClick={submitAdjust} disabled={busy} className="flex-1 bg-navy hover:bg-sienna disabled:opacity-50 text-white rounded-control py-2.5 text-sm font-bold transition">
                 {busy ? "Saving…" : "Save change"}
               </button>
             </div>
@@ -2088,17 +2121,17 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
           <div className="flex max-h-[80dvh] flex-col">
             <div className="flex items-start justify-between mb-3">
               <div>
-                <h3 id="history-title" className="font-black text-[#1B2A4A]">Stock history</h3>
+                <h3 id="history-title" className="font-black text-navy">Stock history</h3>
                 <p className="text-xs text-muted mt-0.5">{history.book.title}</p>
               </div>
-              <button onClick={() => setHistory(null)} className="text-muted hover:text-[#1B2A4A] text-xl leading-none" aria-label="Close">×</button>
+              <button onClick={() => setHistory(null)} className="text-muted hover:text-navy text-xl leading-none" aria-label="Close">×</button>
             </div>
 
             <div className="overflow-y-auto overflow-x-auto -mx-2 px-2">
               {history.loading ? (
                 <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
               ) : history.error ? (
-                <p className="text-xs text-red-600">{history.error}</p>
+                <p className="text-xs text-error">{history.error}</p>
               ) : history.rows.length === 0 ? (
                 <p className="text-xs text-muted text-center py-8">
                   No movements recorded yet. Changes made from now on will appear here.
@@ -2106,7 +2139,7 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
               ) : (
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-muted text-[10px] uppercase tracking-wider">
+                    <tr className="text-muted text-micro uppercase tracking-wider">
                       <th className="text-left py-2">When</th>
                       <th className="text-left py-2">Change</th>
                       <th className="text-left py-2">Result</th>
@@ -2114,21 +2147,21 @@ function InventoryTab({ books, loading, error, onRetry, reloadBooks, showToast }
                       <th className="text-left py-2">Note / who</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-100">
+                  <tbody className="divide-y divide-subtle">
                     {history.rows.map((m) => (
                       <tr key={m.id}>
                         <td className="py-2 text-muted whitespace-nowrap">
                           {new Date(m.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                         </td>
-                        <td className={`py-2 font-bold ${m.delta > 0 ? "text-green-600" : "text-red-600"}`}>
+                        <td className={`py-2 font-bold ${m.delta > 0 ? "text-success" : "text-error"}`}>
                           {m.delta > 0 ? "+" : ""}{m.delta}
                         </td>
-                        <td className="py-2 text-stone-600">{m.quantity_before} → {m.quantity_after}</td>
-                        <td className="py-2 text-stone-600 capitalize">{String(m.reason).replace(/_/g, " ")}</td>
-                        <td className="py-2 text-stone-500">
+                        <td className="py-2 text-muted">{m.quantity_before} → {m.quantity_after}</td>
+                        <td className="py-2 text-muted capitalize">{String(m.reason).replace(/_/g, " ")}</td>
+                        <td className="py-2 text-muted">
                           {m.note || "—"}
-                          {m.admin_email && <span className="block text-[10px] text-muted">{m.admin_email}</span>}
-                          {m.order_id && <span className="block text-[10px] text-muted font-mono">order {String(m.order_id).slice(0, 8)}</span>}
+                          {m.admin_email && <span className="block text-micro text-muted">{m.admin_email}</span>}
+                          {m.order_id && <span className="block text-micro text-muted font-mono">order {String(m.order_id).slice(0, 8)}</span>}
                         </td>
                       </tr>
                     ))}
@@ -2161,34 +2194,34 @@ function CustomersTab({ users, orders }) {
         </div>
         <div className="relative">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search customers…"
-            className="bg-white border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition w-56"/>
+            className="bg-white border border-line rounded-control pl-8 pr-3 py-2 text-sm outline-none focus:border-navy transition w-56"/>
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid gap-3 mb-5 sm:grid-cols-3 sm:gap-4">
-        <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 text-center">
-          <p className="text-2xl font-black text-[#1B2A4A]">{users.length}</p>
+        <div className="bg-white rounded-card border border-line p-4 text-center">
+          <p className="text-2xl font-black text-navy">{users.length}</p>
           <p className="text-xs text-muted mt-0.5">Total users</p>
         </div>
-        <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 text-center">
-          <p className="text-2xl font-black text-green-600">{users.filter(u=>getUserOrders(u.id).length>0).length}</p>
+        <div className="bg-white rounded-card border border-line p-4 text-center">
+          <p className="text-2xl font-black text-success">{users.filter(u=>getUserOrders(u.id).length>0).length}</p>
           <p className="text-xs text-muted mt-0.5">Have ordered</p>
         </div>
-        <div className="bg-white rounded-2xl border border-[#E3DCCB] p-4 text-center">
-          <p className="text-2xl font-black text-[#B5532F]">KSh {Math.round(users.reduce((s,u)=>s+getLTV(u.id),0)/Math.max(users.filter(u=>getLTV(u.id)>0).length,1)).toLocaleString()}</p>
+        <div className="bg-white rounded-card border border-line p-4 text-center">
+          <p className="text-2xl font-black text-sienna">KSh {Math.round(users.reduce((s,u)=>s+getLTV(u.id),0)/Math.max(users.filter(u=>getLTV(u.id)>0).length,1)).toLocaleString()}</p>
           <p className="text-xs text-muted mt-0.5">Avg lifetime value</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
+      <div className="bg-white rounded-card border border-line overflow-hidden">
         {/* Phones: a card per order. The table below needs ten columns and is
             unusable at 360px, so the same data is laid out as a card with the
             full detail panel one tap away. */}
         {/* Phones: one card per customer. The table below carries seven
             columns and is unreadable at 360px. This is the same data. */}
-        <ul role="list" className="lg:hidden divide-y divide-stone-100">
+        <ul role="list" className="lg:hidden divide-y divide-subtle">
           {filtered.map((u) => {
             const orderCount = getUserOrders(u.id).length;
             const ltv = getLTV(u.id);
@@ -2238,27 +2271,27 @@ function CustomersTab({ users, orders }) {
 
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-stone-50 border-b border-stone-100">
+            <thead className="bg-subtle border-b border-subtle/25">
               <tr>{["Customer","Email","Phone","Orders","Lifetime value","Joined","Role"].map(h=>(
                 <th key={h} className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">{h}</th>
               ))}</tr>
             </thead>
-            <tbody className="divide-y divide-stone-50">
+            <tbody className="divide-y divide-subtle">
               {filtered.map(u=>(
-                <tr key={u.id} className="hover:bg-stone-50/50 transition-colors">
+                <tr key={u.id} className="hover:bg-subtle/50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Avatar name={`${u.first_name} ${u.last_name}`} email={u.email}/>
                       <div>
-                        <p className="text-xs font-semibold text-[#1B2A4A]">{u.first_name||""} {u.last_name||""||<span className="text-muted italic">No name</span>}</p>
-                        <p className="text-[10px] text-muted">{u.id.slice(0,8)}</p>
+                        <p className="text-xs font-semibold text-navy">{u.first_name||""} {u.last_name||""||<span className="text-muted italic">No name</span>}</p>
+                        <p className="text-micro text-muted">{u.id.slice(0,8)}</p>
                       </div>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-xs text-stone-600">{u.email||"—"}</td>
-                  <td className="px-4 py-3 text-xs text-stone-500">{u.phone||"—"}</td>
-                  <td className="px-4 py-3 text-xs font-bold text-[#1B2A4A]">{getUserOrders(u.id).length}</td>
-                  <td className="px-4 py-3 text-xs font-bold text-green-600">{getLTV(u.id)>0?`KSh ${getLTV(u.id).toLocaleString()}`:"—"}</td>
+                  <td className="px-4 py-3 text-xs text-muted">{u.email||"—"}</td>
+                  <td className="px-4 py-3 text-xs text-muted">{u.phone||"—"}</td>
+                  <td className="px-4 py-3 text-xs font-bold text-navy">{getUserOrders(u.id).length}</td>
+                  <td className="px-4 py-3 text-xs font-bold text-success">{getLTV(u.id)>0?`KSh ${getLTV(u.id).toLocaleString()}`:"—"}</td>
                   <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{new Date(u.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
                   <td className="px-4 py-3"><Badge status={u.role}/></td>
                 </tr>
@@ -2330,24 +2363,24 @@ function UsersTab({ users, orders, session, showToast }) {
       />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1B2A4A]">Users & Roles</h2>
+          <h2 className="text-lg font-bold text-navy">Users & Roles</h2>
           <p className="text-muted text-xs mt-0.5">{localUsers.length} users · {localUsers.filter(u=>u.role==="admin").length} admins</p>
         </div>
         <div className="relative">
           <input type="text" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search users…"
-            className="bg-white border border-[#E3DCCB] rounded-xl pl-8 pr-3 py-2 text-sm outline-none focus:border-[#1B2A4A] transition w-56"/>
+            className="bg-white border border-line rounded-control pl-8 pr-3 py-2 text-sm outline-none focus:border-navy transition w-56"/>
           <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
+      <div className="bg-white rounded-card border border-line overflow-hidden">
         {/* Phones: a card per order. The table below needs ten columns and is
             unusable at 360px, so the same data is laid out as a card with the
             full detail panel one tap away. */}
         {/* Phones: one card per user, with the same role control as the
             table. Changing a role is the one action this tab exists for, so
             it is not hidden behind a breakpoint. */}
-        <ul role="list" className="lg:hidden divide-y divide-stone-100">
+        <ul role="list" className="lg:hidden divide-y divide-subtle">
           {filtered.map((u) => {
             const isYou = u.id === session?.id;
             const userOrders = orders.filter((o) => o.user_id === u.id);
@@ -2358,7 +2391,7 @@ function UsersTab({ users, orders, session, showToast }) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-navy">
                       {[u.first_name, u.last_name].filter(Boolean).join(" ") || "No name"}
-                      {isYou && <span className="ml-1 text-[10px] font-bold text-sienna">(you)</span>}
+                      {isYou && <span className="ml-1 text-micro font-bold text-sienna">(you)</span>}
                     </p>
                     <p className="truncate text-xs text-muted">{u.email || "—"}</p>
                     <p className="mt-0.5 text-xs text-muted">
@@ -2393,7 +2426,7 @@ function UsersTab({ users, orders, session, showToast }) {
                     <option value="admin">admin</option>
                   </select>
                   {isYou && (
-                    <p className="mt-1 text-[11px] text-muted">You cannot change your own role.</p>
+                    <p className="mt-1 text-micro text-muted">You cannot change your own role.</p>
                   )}
                 </div>
               </li>
@@ -2408,38 +2441,38 @@ function UsersTab({ users, orders, session, showToast }) {
 
         <div className="hidden lg:block overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-stone-50 border-b border-stone-100">
+            <thead className="bg-subtle border-b border-subtle/25">
               <tr>{["User","Email","Phone","Role","Orders","Total Spent","Joined","Actions"].map(h=>(
                 <th key={h} className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">{h}</th>
               ))}</tr>
             </thead>
-            <tbody className="divide-y divide-stone-50">
+            <tbody className="divide-y divide-subtle">
               {filtered.map(u=>{
                 const isYou = u.id===session?.id;
                 const userOrders = orders.filter(o=>o.user_id===u.id);
                 const spent = userOrders.reduce((s,o)=>s+(o.total||0),0);
                 return (
-                  <tr key={u.id} className="hover:bg-stone-50/50 transition-colors">
+                  <tr key={u.id} className="hover:bg-subtle/50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <Avatar name={`${u.first_name} ${u.last_name}`} email={u.email}/>
                         <div>
-                          <p className="text-xs font-semibold text-[#1B2A4A]">{u.first_name||""} {u.last_name||""}
-                            {isYou&&<span className="text-[10px] text-[#B5532F] ml-1">(you)</span>}
+                          <p className="text-xs font-semibold text-navy">{u.first_name||""} {u.last_name||""}
+                            {isYou&&<span className="text-micro text-sienna ml-1">(you)</span>}
                           </p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-xs text-stone-600">{u.email||"—"}</td>
-                    <td className="px-4 py-3 text-xs text-stone-500">{u.phone||"—"}</td>
+                    <td className="px-4 py-3 text-xs text-muted">{u.email||"—"}</td>
+                    <td className="px-4 py-3 text-xs text-muted">{u.phone||"—"}</td>
                     <td className="px-4 py-3"><Badge status={u.role||"customer"}/></td>
-                    <td className="px-4 py-3 text-xs font-bold text-[#1B2A4A]">{userOrders.length}</td>
-                    <td className="px-4 py-3 text-xs font-bold text-green-600">{spent>0?`KSh ${spent.toLocaleString()}`:"—"}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-navy">{userOrders.length}</td>
+                    <td className="px-4 py-3 text-xs font-bold text-success">{spent>0?`KSh ${spent.toLocaleString()}`:"—"}</td>
                     <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{new Date(u.created_at).toLocaleDateString("en-KE",{day:"numeric",month:"short",year:"2-digit"})}</td>
                     <td className="px-4 py-3">
                       {!isYou&&(
                         <button onClick={()=>setRoleConfirm({ id:u.id, role:u.role, label: `${u.first_name||""} ${u.last_name||""}`.trim() || u.email || "This user" })} disabled={updating===u.id}
-                          className={`text-xs font-semibold transition disabled:opacity-50 ${u.role==="admin"?"text-purple-600 hover:text-red-600":"text-muted hover:text-[#B5532F]"}`}>
+                          className={`text-xs font-semibold transition disabled:opacity-50 ${u.role==="admin"?"text-navy hover:text-error":"text-muted hover:text-sienna"}`}>
                           {updating===u.id?"…":u.role==="admin"?"Remove admin":"Make admin"}
                         </button>
                       )}
@@ -2490,21 +2523,21 @@ function ActivityLogTab() {
   return (
     <div>
       <div className="mb-5">
-        <h2 className="text-lg font-bold text-[#1B2A4A]">Activity Log</h2>
+        <h2 className="text-lg font-bold text-navy">Activity Log</h2>
         <p className="text-muted text-xs mt-0.5">Every admin change — books, stock, and order status — recorded automatically</p>
       </div>
       {loading ? (
         <div className="space-y-2">{[...Array(5)].map((_,i)=><Skeleton key={i} className="h-12"/>)}</div>
       ) : (
-                <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
+                <div className="bg-white rounded-card border border-line overflow-hidden">
           {/* Phones get a list: the three-column table forced the admin
               email and the timestamp onto one line and pushed the row wider
               than a 320px screen. */}
-          <ul className="divide-y divide-stone-50 lg:hidden">
+          <ul className="divide-y divide-subtle lg:hidden">
             {log.map((entry) => (
               <li key={entry.id} className="px-4 py-3">
-                <p className="text-xs font-medium leading-snug text-[#1B2A4A]">{describeActivity(entry)}</p>
-                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-stone-500">
+                <p className="text-xs font-medium leading-snug text-navy">{describeActivity(entry)}</p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-micro text-muted">
                   <span className="truncate max-w-[16rem]">{entry.admin_email}</span>
                   <span aria-hidden="true">·</span>
                   <span>{new Date(entry.created_at).toLocaleString("en-KE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</span>
@@ -2521,16 +2554,16 @@ function ActivityLogTab() {
 
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-stone-50 border-b border-stone-100">
+              <thead className="bg-subtle border-b border-subtle/25">
                 <tr>{["Admin","What happened","When"].map(h=>(
                   <th key={h} className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">{h}</th>
                 ))}</tr>
               </thead>
-              <tbody className="divide-y divide-stone-50">
+              <tbody className="divide-y divide-subtle">
                 {log.map(entry=>(
-                  <tr key={entry.id} className="hover:bg-stone-50/50 transition-colors">
-                    <td className="px-4 py-3 text-xs text-stone-600 whitespace-nowrap">{entry.admin_email}</td>
-                    <td className="px-4 py-3 text-xs font-medium text-[#1B2A4A]">{describeActivity(entry)}</td>
+                  <tr key={entry.id} className="hover:bg-subtle/50 transition-colors">
+                    <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{entry.admin_email}</td>
+                    <td className="px-4 py-3 text-xs font-medium text-navy">{describeActivity(entry)}</td>
                     <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{new Date(entry.created_at).toLocaleString("en-KE",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</td>
                   </tr>
                 ))}
@@ -2668,11 +2701,11 @@ function PaymentsTab({ onNavigate, showToast }) {
       </div>
 
       {config && !config.enabled && (
-        <div className="mb-4 rounded-control border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm font-semibold text-amber-900">
+        <div className="mb-4 rounded-control border border-warning/30 bg-warning/5 p-4">
+          <p className="text-sm font-semibold text-warning-strong">
             M-Pesa is not live yet — checkout is taking cash on delivery only.
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-amber-800">
+          <p className="mt-1 text-xs leading-relaxed text-warning-strong">
             {config.reason === "not-configured" && (
               <>Set <code className="font-mono">MPESA_CONSUMER_KEY</code>, <code className="font-mono">MPESA_CONSUMER_SECRET</code>,{" "}
               <code className="font-mono">MPESA_SHORTCODE</code> and <code className="font-mono">MPESA_PASSKEY</code> in the
@@ -2689,20 +2722,20 @@ function PaymentsTab({ onNavigate, showToast }) {
       )}
 
       {config?.enabled && (
-        <p className="mb-4 inline-flex items-center gap-2 rounded-control border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800">
+        <p className="mb-4 inline-flex items-center gap-2 rounded-control border border-success/30 bg-success/5 px-3 py-2 text-xs font-semibold text-success">
           <span aria-hidden="true">✓</span>
           M-Pesa is live · {config.environment === "sandbox" ? "Safaricom sandbox" : "production"}
         </p>
       )}
 
       {test && (
-        <div className={`mb-4 rounded-control border p-4 ${test.ok ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`} role="status">
-          <p className={`text-sm font-semibold ${test.ok ? "text-green-900" : "text-amber-900"}`}>
+        <div className={`mb-4 rounded-control border p-4 ${test.ok ? "border-success/30 bg-success/5" : "border-warning/30 bg-warning/5"}`} role="status">
+          <p className={`text-sm font-semibold ${test.ok ? "text-success" : "text-warning-strong"}`}>
             {test.ok ? "M-Pesa authentication works" : "M-Pesa authentication is failing"}
           </p>
 
           {test.advice && (
-            <p className={`mt-1 text-xs leading-relaxed ${test.ok ? "text-green-800" : "text-amber-800"}`}>
+            <p className={`mt-1 text-xs leading-relaxed ${test.ok ? "text-success" : "text-warning-strong"}`}>
               {test.advice}
             </p>
           )}
@@ -2730,18 +2763,18 @@ function PaymentsTab({ onNavigate, showToast }) {
                 <dd className="font-semibold text-ink">{test.environment}{test.environmentAssumed ? " (assumed)" : ""}</dd>
               </div>
               <div className="flex justify-between gap-3">
-                <dt className="text-muted">Short code <span className="text-[11px]">(signing)</span></dt>
+                <dt className="text-muted">Short code <span className="text-micro">(signing)</span></dt>
                 <dd className="text-right font-mono font-semibold text-ink">
                   {test.signingShortCode || test.shortcode || "—"}
-                  <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">owns the passkey</span>
+                  <span className="ml-1.5 font-sans text-micro font-normal text-muted">owns the passkey</span>
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-muted">Payment sent to{test.shortcodeKind === "till" ? " (till)" : ""}</dt>
                 <dd className="text-right font-mono font-semibold text-ink">
                   {test.businessShortCode || test.shortcode || "—"}
-                  {test.shortcodeKind === "till" && <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">Buy Goods</span>}
-                  {test.shortcodeKind === "paybill" && <span className="ml-1.5 font-sans text-[11px] font-normal text-muted">paybill</span>}
+                  {test.shortcodeKind === "till" && <span className="ml-1.5 font-sans text-micro font-normal text-muted">Buy Goods</span>}
+                  {test.shortcodeKind === "paybill" && <span className="ml-1.5 font-sans text-micro font-normal text-muted">paybill</span>}
                 </dd>
               </div>
               <div className="flex justify-between gap-3">
@@ -2773,7 +2806,7 @@ function PaymentsTab({ onNavigate, showToast }) {
           )}
 
           {test.shortcodeLooksLikeSandboxTest && test.environment === "production" && (
-            <p className="mt-3 text-xs text-amber-800">
+            <p className="mt-3 text-xs text-warning-strong">
               174379 is Safaricom&apos;s sandbox test shortcode. With production credentials, use the
               paybill or till number from your Daraja app instead.
             </p>
@@ -2786,7 +2819,7 @@ function PaymentsTab({ onNavigate, showToast }) {
       )}
 
       {error && (
-        <div className="mb-4 rounded-control border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">
+        <div className="mb-4 rounded-control border border-error/30 bg-error/5 p-4 text-sm text-error" role="alert">
           {error}
           <button type="button" onClick={() => load(filter)} className="ml-2 font-semibold underline">Try again</button>
         </div>
@@ -2828,7 +2861,7 @@ function PaymentsTab({ onNavigate, showToast }) {
           <>
             <table className="hidden w-full lg:table">
               <thead>
-                <tr className="border-b border-line bg-subtle/60 text-left text-[11px] uppercase tracking-wider text-muted">
+                <tr className="border-b border-line bg-subtle/60 text-left text-micro uppercase tracking-wider text-muted">
                   <th scope="col" className="px-4 py-2.5 font-semibold">When</th>
                   <th scope="col" className="px-4 py-2.5 font-semibold">Customer</th>
                   <th scope="col" className="px-4 py-2.5 font-semibold">Amount</th>
@@ -2837,7 +2870,7 @@ function PaymentsTab({ onNavigate, showToast }) {
                   <th scope="col" className="px-4 py-2.5 font-semibold">Order</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-stone-100">
+              <tbody className="divide-y divide-subtle">
                 {payments.map((p) => (
                   <tr key={p.id} className="align-top">
                     <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">
@@ -2854,7 +2887,7 @@ function PaymentsTab({ onNavigate, showToast }) {
                     <td className="px-4 py-3">
                       <Badge status={statusLabel[p.status] || p.status} />
                       {p.status === "failed" && p.result_desc && (
-                        <p className="mt-1 max-w-[16rem] text-[11px] text-muted">{p.result_desc}</p>
+                        <p className="mt-1 max-w-[16rem] text-micro text-muted">{p.result_desc}</p>
                       )}
                     </td>
                     <td className="px-4 py-3 text-xs">
@@ -2876,7 +2909,7 @@ function PaymentsTab({ onNavigate, showToast }) {
             </table>
 
             {/* Phones: one card per attempt, same fields, no horizontal scroll. */}
-            <ul role="list" className="divide-y divide-stone-100 lg:hidden">
+            <ul role="list" className="divide-y divide-subtle lg:hidden">
               {payments.map((p) => (
                 <li key={p.id} className="p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -2888,11 +2921,11 @@ function PaymentsTab({ onNavigate, showToast }) {
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Badge status={statusLabel[p.status] || p.status} />
-                    <span className="text-[11px] text-muted">
+                    <span className="text-micro text-muted">
                       {new Date(p.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                     </span>
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted">
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-micro text-muted">
                     <span className="font-mono">{p.receipt || "No receipt"}</span>
                     {p.order_id ? (
                       <button
@@ -2907,7 +2940,7 @@ function PaymentsTab({ onNavigate, showToast }) {
                     )}
                   </div>
                   {p.status === "failed" && p.result_desc && (
-                    <p className="mt-1 text-[11px] text-muted">{p.result_desc}</p>
+                    <p className="mt-1 text-micro text-muted">{p.result_desc}</p>
                   )}
                 </li>
               ))}
@@ -2923,7 +2956,7 @@ function PlaceholderTab({ icon, title, description }) {
   return (
     <div className="flex flex-col items-center justify-center py-24 text-center">
       <div className="text-6xl mb-4">{icon}</div>
-      <h2 className="text-xl font-bold text-[#1B2A4A] mb-2">{title}</h2>
+      <h2 className="text-xl font-bold text-navy mb-2">{title}</h2>
       <p className="text-muted text-sm max-w-sm">{description}</p>
     </div>
   );
@@ -3150,7 +3183,7 @@ function GenresTab({ showToast }) {
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-[#1B2A4A]">Genres</h2>
+          <h2 className="text-lg font-bold text-navy">Genres</h2>
           <p className="text-sm text-muted mt-0.5">
             The shelves shoppers browse by. A genre appears on the homepage and in the book form
             as soon as it is added here.
@@ -3161,8 +3194,8 @@ function GenresTab({ showToast }) {
         </span>
       </div>
 
-      <form onSubmit={add} className="bg-white border border-[#E3DCCB] rounded-2xl p-5 shadow-sm">
-        <label htmlFor="new-genre" className="block text-xs font-bold text-stone-500 uppercase tracking-wider mb-1">
+      <form onSubmit={add} className="bg-white border border-line rounded-card p-5 shadow-sm">
+        <label htmlFor="new-genre" className="block text-xs font-bold text-muted uppercase tracking-wider mb-1">
           Add a genre
         </label>
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
@@ -3173,9 +3206,9 @@ function GenresTab({ showToast }) {
             maxLength={40}
             placeholder="e.g. Business"
             aria-describedby="new-genre-hint"
-            className="flex-1 bg-stone-50 border border-[#E3DCCB] rounded-xl px-3 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"
+            className="flex-1 bg-subtle border border-line rounded-control px-3 py-2.5 text-sm outline-none focus:border-sienna transition"
           />
-          <label className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-[#E3DCCB] bg-white px-4 py-2.5 text-sm font-semibold text-[#1B2A4A] hover:bg-stone-50 transition ${saving ? "opacity-50 pointer-events-none" : ""}`}>
+          <label className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-control border border-line bg-white px-4 py-2.5 text-sm font-semibold text-navy hover:bg-subtle transition ${saving ? "opacity-50 pointer-events-none" : ""}`}>
             {imagePreview ? "Change image" : "Choose image"}
             <input
               type="file"
@@ -3188,7 +3221,7 @@ function GenresTab({ showToast }) {
           <button
             type="submit"
             disabled={saving || !name.trim()}
-            className="rounded-xl bg-[#1B2A4A] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#24375c] disabled:opacity-50 disabled:cursor-not-allowed min-h-11"
+            className="rounded-control bg-navy px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-navy-hover disabled:opacity-50 disabled:cursor-not-allowed min-h-11"
           >
             {saving ? (busyImage === "new" ? "Uploading…" : "Adding…") : "Add genre"}
           </button>
@@ -3197,12 +3230,12 @@ function GenresTab({ showToast }) {
         {imagePreview && (
           <div className="mt-3 flex items-center gap-3">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={imagePreview} alt="The selected genre image" className="h-14 w-14 rounded-lg object-cover border border-[#E3DCCB]" />
+            <img src={imagePreview} alt="The selected genre image" className="h-14 w-14 rounded-control object-cover border border-line" />
             <button
               type="button"
               onClick={() => { setImageFile(null); setImagePreview(null); }}
               disabled={saving}
-              className="rounded-lg border border-[#E3DCCB] px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
+              className="rounded-control border border-line px-3 py-1.5 text-xs font-semibold text-error hover:bg-error-hover/5 disabled:opacity-50"
             >
               Remove image
             </button>
@@ -3216,14 +3249,14 @@ function GenresTab({ showToast }) {
         </p>
       </form>
 
-      <div className="bg-white border border-[#E3DCCB] rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-line rounded-card shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-8 text-center text-sm text-muted">Loading genres…</div>
         ) : error ? (
           <div className="p-8 text-center" role="alert">
             <p className="text-sm text-navy font-semibold">The genres didn’t load</p>
             <p className="mt-1 text-xs text-muted">{error}</p>
-            <button onClick={load} className="mt-4 rounded-lg border border-[#E3DCCB] px-3 py-2 text-sm font-semibold text-navy hover:bg-stone-50">
+            <button onClick={load} className="mt-4 rounded-control border border-line px-3 py-2 text-sm font-semibold text-navy hover:bg-subtle">
               Try again
             </button>
           </div>
@@ -3232,7 +3265,7 @@ function GenresTab({ showToast }) {
             No genres yet. The first one you add appears on the homepage.
           </div>
         ) : (
-          <ul role="list" className="divide-y divide-[#F0EAD9]">
+          <ul role="list" className="divide-y divide-line">
             {genres.map((genre) => {
               const fallbackArt = genreArtwork(genre.slug);
               const thumb = genre.image_url || fallbackArt?.src || null;
@@ -3244,16 +3277,16 @@ function GenresTab({ showToast }) {
                     <img
                       src={thumb}
                       alt=""
-                      className="h-12 w-12 shrink-0 rounded-lg border border-[#E3DCCB] object-cover"
+                      className="h-12 w-12 shrink-0 rounded-control border border-line object-cover"
                     />
                   ) : (
-                    <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#1B2A4A] font-playfair text-lg italic text-white/50">
+                    <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-control bg-navy font-playfair text-lg italic text-white/50">
                       {genre.name.charAt(0)}
                     </span>
                   )}
 
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-[#1B2A4A] truncate">{genre.name}</p>
+                    <p className="text-sm font-semibold text-navy truncate">{genre.name}</p>
                     <p className="text-xs text-muted truncate">
                       /category/{genre.slug}
                       {genre.image_url ? " · own image" : " · shop artwork"}
@@ -3261,12 +3294,12 @@ function GenresTab({ showToast }) {
                   </div>
 
                   <span className={`rounded-full px-2.5 py-1 text-xs tabular-nums ${
-                    genre.books > 0 ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-stone-50 text-stone-500 border border-[#E3DCCB]"
+                    genre.books > 0 ? "bg-warning/5 text-warning-strong border border-warning/30" : "bg-subtle text-muted border border-line"
                   }`}>
                     {genre.books} {genre.books === 1 ? "book" : "books"}
                   </span>
 
-                  <label className={`cursor-pointer rounded-lg border border-[#E3DCCB] px-3 py-1.5 text-xs font-semibold text-[#1B2A4A] hover:bg-stone-50 ${busy ? "opacity-50 pointer-events-none" : ""}`}>
+                  <label className={`cursor-pointer rounded-control border border-line px-3 py-1.5 text-xs font-semibold text-navy hover:bg-subtle ${busy ? "opacity-50 pointer-events-none" : ""}`}>
                     {busy ? "Saving…" : genre.image_url ? "Replace image" : "Add image"}
                     <input
                       type="file"
@@ -3281,7 +3314,7 @@ function GenresTab({ showToast }) {
                     <button
                       onClick={() => clearArt(genre)}
                       disabled={busy}
-                      className="rounded-lg border border-[#E3DCCB] px-3 py-1.5 text-xs font-semibold text-muted hover:bg-stone-50 disabled:opacity-50"
+                      className="rounded-control border border-line px-3 py-1.5 text-xs font-semibold text-muted hover:bg-subtle disabled:opacity-50"
                     >
                       Remove image
                     </button>
@@ -3292,14 +3325,14 @@ function GenresTab({ showToast }) {
                       <span className="text-xs text-muted">Remove “{genre.name}”?</span>
                       <button
                         onClick={() => setConfirming(null)}
-                        className="rounded-lg border border-[#E3DCCB] px-3 py-1.5 text-xs font-semibold text-navy hover:bg-stone-50"
+                        className="rounded-control border border-line px-3 py-1.5 text-xs font-semibold text-navy hover:bg-subtle"
                       >
                         Cancel
                       </button>
                       <button
                         onClick={() => remove(genre)}
                         disabled={removing === genre.id}
-                        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                        className="rounded-control bg-error px-3 py-1.5 text-xs font-semibold text-white hover:bg-error-hover disabled:opacity-50"
                       >
                         {removing === genre.id ? "Removing…" : "Remove"}
                       </button>
@@ -3316,10 +3349,10 @@ function GenresTab({ showToast }) {
                         }
                         setConfirming(genre.id);
                       }}
-                      className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${
+                      className={`rounded-control border px-3 py-1.5 text-xs font-semibold transition ${
                         genre.books > 0
-                          ? "border-[#E3DCCB] text-muted cursor-not-allowed"
-                          : "border-[#E3DCCB] text-red-600 hover:bg-red-50"
+                          ? "border-line text-muted cursor-not-allowed"
+                          : "border-line text-error hover:bg-error-hover/5"
                       }`}
                       aria-disabled={genre.books > 0}
                     >
@@ -3439,7 +3472,7 @@ function ReviewsTab({ showToast, canMutate }) {
       </div>
 
       {!canMutate && (
-        <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+        <div className="mb-5 bg-warning/5 border border-warning/30 rounded-control px-4 py-3 text-sm text-warning-strong">
           Read-only here: <code className="font-mono text-xs">SUPABASE_SERVICE_ROLE_KEY</code> is not set on this
           deployment, so publishing, hiding and removing will fail.
         </div>
@@ -3451,8 +3484,8 @@ function ReviewsTab({ showToast, canMutate }) {
           { label: "Published", value: counts.published },
           { label: "Hidden", value: counts.hidden },
         ].map((card) => (
-          <div key={card.label} className="bg-white border border-line rounded-xl p-3 sm:p-4">
-            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-muted">{card.label}</p>
+          <div key={card.label} className="bg-white border border-line rounded-control p-3 sm:p-4">
+            <p className="text-micro sm:text-micro font-bold uppercase tracking-wider text-muted">{card.label}</p>
             <p className="mt-1 text-xl sm:text-2xl font-black text-navy tabular-nums">{card.value}</p>
           </div>
         ))}
@@ -3467,7 +3500,7 @@ function ReviewsTab({ showToast, canMutate }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search review text, reviewer or book title…"
-            className="w-full bg-white border border-[#E3DCCB] rounded-xl pl-9 pr-4 py-2.5 text-sm outline-none focus:border-[#B5532F] transition"
+            className="w-full bg-white border border-line rounded-control pl-9 pr-4 py-2.5 text-sm outline-none focus:border-sienna transition"
           />
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -3484,7 +3517,7 @@ function ReviewsTab({ showToast, canMutate }) {
               key={f.key}
               onClick={() => { setStatus(f.key); setPage(1); }}
               aria-pressed={status === f.key}
-              className={`min-h-11 px-3 rounded-xl text-xs font-semibold transition ${status === f.key ? "bg-[#1B2A4A] text-white" : "bg-white border border-[#E3DCCB] text-stone-600"}`}
+              className={`min-h-11 px-3 rounded-control text-xs font-semibold transition ${status === f.key ? "bg-navy text-white" : "bg-white border border-line text-muted"}`}
             >
               {f.label}
             </button>
@@ -3495,7 +3528,7 @@ function ReviewsTab({ showToast, canMutate }) {
           <button
             onClick={() => { setStars(0); setPage(1); }}
             aria-pressed={stars === 0}
-            className={`min-h-11 px-3 rounded-xl text-xs font-semibold transition ${stars === 0 ? "bg-[#1B2A4A] text-white" : "bg-white border border-[#E3DCCB] text-stone-600"}`}
+            className={`min-h-11 px-3 rounded-control text-xs font-semibold transition ${stars === 0 ? "bg-navy text-white" : "bg-white border border-line text-muted"}`}
           >
             Any ★
           </button>
@@ -3504,7 +3537,7 @@ function ReviewsTab({ showToast, canMutate }) {
               key={n}
               onClick={() => { setStars(n); setPage(1); }}
               aria-pressed={stars === n}
-              className={`min-h-11 px-2.5 rounded-xl text-xs font-semibold transition ${stars === n ? "bg-[#1B2A4A] text-white" : "bg-white border border-[#E3DCCB] text-stone-600"}`}
+              className={`min-h-11 px-2.5 rounded-control text-xs font-semibold transition ${stars === n ? "bg-navy text-white" : "bg-white border border-line text-muted"}`}
             >
               {n}★
             </button>
@@ -3513,7 +3546,7 @@ function ReviewsTab({ showToast, canMutate }) {
       </div>
 
       {error && (
-        <div role="alert" className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+        <div role="alert" className="mb-4 bg-error/5 border border-error/30 rounded-control px-4 py-3 text-sm text-error">
           {error}
           <button onClick={() => load()} className="ml-3 font-semibold underline">Retry</button>
         </div>
@@ -3521,10 +3554,10 @@ function ReviewsTab({ showToast, canMutate }) {
 
       {loading && !data ? (
         <div className="space-y-3" aria-busy="true" aria-label="Loading reviews">
-          {[1,2,3].map((i) => <div key={i} className="h-28 rounded-xl bg-white border border-line animate-pulse" />)}
+          {[1,2,3].map((i) => <div key={i} className="h-28 rounded-control bg-white border border-line animate-pulse" />)}
         </div>
       ) : !data || data.reviews.length === 0 ? (
-        <div className="bg-white border border-line rounded-xl p-10 text-center">
+        <div className="bg-white border border-line rounded-control p-10 text-center">
           <p className="font-semibold text-navy">
             {query || stars || status !== "all" ? "No reviews match these filters" : "No reviews yet"}
           </p>
@@ -3537,21 +3570,21 @@ function ReviewsTab({ showToast, canMutate }) {
       ) : (
         <ul role="list" className="space-y-3">
           {data.reviews.map((review) => (
-            <li key={review.id} className={`bg-white border rounded-xl p-4 ${review.is_published ? "border-line" : "border-amber-300 bg-amber-50/40"}`}>
+            <li key={review.id} className={`bg-white border rounded-control p-4 ${review.is_published ? "border-line" : "border-warning/40 bg-warning/5/40"}`}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Stars value={review.rating} className="text-amber-500" />
+                    <Stars value={review.rating} className="text-warning-strong" />
                     <span className="text-xs font-bold text-navy">{review.rating}/5</span>
                     {!review.is_published && (
-                      <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-200 text-amber-900">Hidden</span>
+                      <span className="text-micro font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-warning/25 text-warning-strong">Hidden</span>
                     )}
                     {review.verified_purchase && (
-                      <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-100 text-green-800">Verified</span>
+                      <span className="text-micro font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-success/10 text-success">Verified</span>
                     )}
                   </div>
                   <p className="mt-1.5 text-sm font-semibold text-navy">{review.book_title}</p>
-                  <p className="text-[11px] text-muted">
+                  <p className="text-micro text-muted">
                     {review.reviewer_name} · customer {String(review.reviewer_id || "").slice(0, 8)}… ·{" "}
                     {new Date(review.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                     {review.updated_at && new Date(review.updated_at) - new Date(review.created_at) > 60000 ? " · edited" : ""}
@@ -3561,14 +3594,14 @@ function ReviewsTab({ showToast, canMutate }) {
                   <button
                     onClick={() => moderate(review, !review.is_published)}
                     disabled={busy === review.id || !canMutate}
-                    className="min-h-11 px-3 rounded-control border border-[#E3DCCB] text-xs font-semibold text-navy hover:border-navy transition disabled:opacity-50"
+                    className="min-h-11 px-3 rounded-control border border-line text-xs font-semibold text-navy hover:border-navy transition disabled:opacity-50"
                   >
                     {busy === review.id ? "Working…" : review.is_published ? "Hide" : "Publish"}
                   </button>
                   <button
                     onClick={() => setConfirmDelete(review)}
                     disabled={busy === review.id || !canMutate}
-                    className="min-h-11 px-3 rounded-control border border-[#E3DCCB] text-xs font-semibold text-red-600 hover:border-red-400 transition disabled:opacity-50"
+                    className="min-h-11 px-3 rounded-control border border-line text-xs font-semibold text-error hover:border-error/50 transition disabled:opacity-50"
                   >
                     Remove
                   </button>
@@ -3576,7 +3609,7 @@ function ReviewsTab({ showToast, canMutate }) {
               </div>
 
               {review.title && <p className="mt-3 text-sm font-semibold text-ink">{review.title}</p>}
-              <p className="mt-1 text-sm text-stone-600 whitespace-pre-line break-words">{review.review_text}</p>
+              <p className="mt-1 text-sm text-muted whitespace-pre-line break-words">{review.review_text}</p>
             </li>
           ))}
         </ul>
@@ -3587,7 +3620,7 @@ function ReviewsTab({ showToast, canMutate }) {
           <button
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page <= 1}
-            className="min-h-11 px-4 rounded-control border border-[#E3DCCB] bg-white text-sm font-semibold text-navy disabled:opacity-40"
+            className="min-h-11 px-4 rounded-control border border-line bg-white text-sm font-semibold text-navy disabled:opacity-40"
           >
             ← Previous
           </button>
@@ -3595,7 +3628,7 @@ function ReviewsTab({ showToast, canMutate }) {
           <button
             onClick={() => setPage((p) => Math.min(data.pages, p + 1))}
             disabled={page >= data.pages}
-            className="min-h-11 px-4 rounded-control border border-[#E3DCCB] bg-white text-sm font-semibold text-navy disabled:opacity-40"
+            className="min-h-11 px-4 rounded-control border border-line bg-white text-sm font-semibold text-navy disabled:opacity-40"
           >
             Next →
           </button>
@@ -3604,7 +3637,7 @@ function ReviewsTab({ showToast, canMutate }) {
 
       {confirmDelete && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-navy/50 p-4" role="dialog" aria-modal="true" aria-labelledby="review-delete-title">
-          <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-pop">
+          <div className="w-full max-w-md rounded-control bg-white p-5 shadow-pop">
             <h2 id="review-delete-title" className="text-base font-bold text-navy">Remove this review?</h2>
             <p className="mt-2 text-sm text-muted">
               “{confirmDelete.title || confirmDelete.review_text.slice(0, 60)}…” from {confirmDelete.reviewer_name}
@@ -3618,7 +3651,7 @@ function ReviewsTab({ showToast, canMutate }) {
               <button
                 onClick={() => remove(confirmDelete)}
                 disabled={busy === confirmDelete.id}
-                className="min-h-11 px-4 rounded-control bg-red-600 text-sm font-semibold text-white disabled:opacity-60"
+                className="min-h-11 px-4 rounded-control bg-error text-sm font-semibold text-white disabled:opacity-60"
               >
                 {busy === confirmDelete.id ? "Removing…" : "Remove review"}
               </button>
@@ -3690,17 +3723,17 @@ function NotificationsTab({ showToast }) {
   };
 
   const tone = {
-    sent: "text-green-600",
-    queued: "text-amber-600",
-    failed: "text-red-600",
-    skipped: "text-stone-500",
+    sent: "text-success",
+    queued: "text-warning-strong",
+    failed: "text-error",
+    skipped: "text-muted",
   };
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
         <div>
-          <h2 className="text-lg font-bold text-[#1B2A4A]">Customer emails</h2>
+          <h2 className="text-lg font-bold text-navy">Customer emails</h2>
           <p className="text-muted text-xs mt-0.5">
             Queued in the same transaction as the order, so nothing is lost if the mail provider is down.
           </p>
@@ -3708,7 +3741,7 @@ function NotificationsTab({ showToast }) {
         <button
           onClick={dispatch}
           disabled={busy}
-          className="bg-[#1B2A4A] hover:bg-[#B5532F] disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-bold transition"
+          className="bg-navy hover:bg-sienna disabled:opacity-50 text-white px-4 py-2 rounded-control text-sm font-bold transition"
         >
           {busy ? "Sending…" : "Retry pending"}
         </button>
@@ -3717,26 +3750,26 @@ function NotificationsTab({ showToast }) {
       {loading && !data ? (
         <div className="space-y-2">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
       ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center">
-          <p className="text-red-800 text-sm font-semibold mb-1">Could not load the email queue</p>
-          <p className="text-red-600 text-xs mb-3">{error}</p>
-          <button onClick={load} className="bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-bold">Retry</button>
+        <div className="bg-error/5 border border-error/30 rounded-card p-6 text-center">
+          <p className="text-error text-sm font-semibold mb-1">Could not load the email queue</p>
+          <p className="text-error text-xs mb-3">{error}</p>
+          <button onClick={load} className="bg-error text-white px-4 py-2 rounded-control text-sm font-bold">Retry</button>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
             {["queued", "sent", "failed", "skipped"].map((k) => (
-              <div key={k} className="bg-white border border-[#E3DCCB] rounded-2xl p-4">
-                <p className="text-[10px] font-bold text-muted uppercase tracking-wider">{k}</p>
+              <div key={k} className="bg-white border border-line rounded-card p-4">
+                <p className="text-micro font-bold text-muted uppercase tracking-wider">{k}</p>
                 <p className={`text-2xl font-black ${tone[k]}`}>{data?.summary?.[k] ?? 0}</p>
               </div>
             ))}
           </div>
 
-          <div className="bg-white rounded-2xl border border-[#E3DCCB] overflow-hidden">
+          <div className="bg-white rounded-card border border-line overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-stone-50 border-b border-stone-100">
+                <thead className="bg-subtle border-b border-subtle/25">
                   <tr>
                     <th className="text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider whitespace-nowrap">Queued</th>
                     <th className="hidden md:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">To</th>
@@ -3746,17 +3779,17 @@ function NotificationsTab({ showToast }) {
                     <th className="hidden sm:table-cell text-left px-4 py-3 text-xs font-bold text-muted uppercase tracking-wider">Detail</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-stone-50">
+                <tbody className="divide-y divide-subtle">
                   {(data?.emails || []).map((m) => (
-                    <tr key={m.id} className="hover:bg-stone-50/50">
-                      <td className="px-4 py-3 text-[10px] text-muted whitespace-nowrap">
+                    <tr key={m.id} className="hover:bg-subtle/50">
+                      <td className="px-4 py-3 text-micro text-muted whitespace-nowrap">
                         {new Date(m.created_at).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
                       </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-600">{m.to_email || "—"}</td>
-                      <td className="hidden md:table-cell px-4 py-3 text-xs text-stone-600">{String(m.template).replace(/_/g, " ")}</td>
-                      <td className="px-4 py-3 font-mono text-[10px] text-muted">{m.order_id ? String(m.order_id).slice(0, 8).toUpperCase() : "—"}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-xs text-muted">{m.to_email || "—"}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-xs text-muted">{String(m.template).replace(/_/g, " ")}</td>
+                      <td className="px-4 py-3 font-mono text-micro text-muted">{m.order_id ? String(m.order_id).slice(0, 8).toUpperCase() : "—"}</td>
                       <td className={`px-4 py-3 text-xs font-semibold ${tone[m.status] || ""}`}>{m.status}</td>
-                      <td className="hidden sm:table-cell px-4 py-3 text-[10px] text-stone-500 max-w-[280px] truncate" title={m.last_error || ""}>
+                      <td className="hidden sm:table-cell px-4 py-3 text-micro text-muted max-w-[280px] truncate" title={m.last_error || ""}>
                         {m.last_error || (m.attempts ? `${m.attempts} attempt${m.attempts !== 1 ? "s" : ""}` : "—")}
                       </td>
                     </tr>
@@ -3813,7 +3846,7 @@ function MobileNav({ open, activeTab, onSelect, onClose }) {
             type="button"
             onClick={onClose}
             aria-label="Close admin menu"
-            className="w-11 h-11 -mr-2 flex items-center justify-center rounded-lg text-navy hover:bg-subtle"
+            className="w-11 h-11 -mr-2 flex items-center justify-center rounded-control text-navy hover:bg-subtle"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -3824,7 +3857,7 @@ function MobileNav({ open, activeTab, onSelect, onClose }) {
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5" aria-label="Admin sections">
           {NAV.map((item, i) => {
             if (item.section) {
-              return <p key={i} className="px-2 pt-4 pb-1 text-[10px] font-bold text-muted uppercase tracking-widest">{item.section}</p>;
+              return <p key={i} className="px-2 pt-4 pb-1 text-micro font-bold text-muted uppercase tracking-widest">{item.section}</p>;
             }
             const isActive = activeTab === item.id;
             return (
@@ -3833,11 +3866,11 @@ function MobileNav({ open, activeTab, onSelect, onClose }) {
                 type="button"
                 onClick={() => { onSelect(item.id); onClose(); }}
                 aria-current={isActive ? "page" : undefined}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm min-h-11 transition-colors ${
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-control text-sm min-h-11 transition-colors ${
                   isActive ? "bg-navy text-white" : "text-ink hover:bg-subtle"
                 }`}
               >
-                <NavIcon name={item.icon} className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : "text-stone-500"}`} />
+                <NavIcon name={item.icon} className={`h-4 w-4 flex-shrink-0 ${isActive ? "text-white" : "text-muted"}`} />
                 <span className="flex-1 text-left font-medium text-[13px]">{item.label}</span>
               </button>
             );
@@ -4060,16 +4093,16 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
   const processingCount = orders.filter(o=>o.status==="Pending"||o.status==="Processing").length;
 
   if (!verified) return (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+    <div className="min-h-screen bg-subtle flex items-center justify-center">
       <div className="text-center space-y-4">
-        <div className="w-12 h-12 border-4 border-[#E3DCCB] border-t-[#1B2A4A] rounded-full animate-spin mx-auto"/>
+        <div className="w-12 h-12 border-4 border-line border-t-navy rounded-full animate-spin mx-auto"/>
         <p className="text-muted text-sm">Verifying access…</p>
       </div>
     </div>
   );
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-stone-50">
+    <div className="flex h-[100dvh] overflow-hidden bg-subtle">
       <Toast toasts={toasts} onRemove={removeToast}/>
 
       <Sidebar activeTab={activeTab} setTab={setActiveTab} collapsed={collapsed} setCollapsed={setCollapsed} pendingCount={processingCount}/>
@@ -4090,9 +4123,9 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
 
         <main className="flex-1 overflow-y-auto p-3 sm:p-6">
           {checkout?.checkoutPaused && (
-            <div className="mb-5 rounded-control border border-red-200 bg-red-50 px-4 py-3">
-              <p className="text-sm font-bold text-red-900">Checkout is paused — no order can be saved</p>
-              <p className="mt-1 text-xs leading-relaxed text-red-800">
+            <div className="mb-5 rounded-control border border-error/30 bg-error/5 px-4 py-3">
+              <p className="text-sm font-bold text-error">Checkout is paused — no order can be saved</p>
+              <p className="mt-1 text-xs leading-relaxed text-error">
                 The database and the app disagree about delivery pricing, so every order is being
                 refused rather than charged a fee the customer never saw (the app charges 20% of the
                 book total).{" "}
@@ -4106,9 +4139,11 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
             </div>
           )}
           {!canMutate && (
-            <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-3">
-              <span className="text-lg leading-none">⚠️</span>
-              <div className="text-sm text-amber-800">
+            <div className="mb-5 bg-warning/5 border border-warning/30 rounded-control px-4 py-3 flex items-start gap-3">
+              <svg className="mt-0.5 h-4 w-4 shrink-0 text-warning-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.5M12 16.5h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div className="text-sm text-warning-strong">
                 <p className="font-bold">Read-only mode on this deployment</p>
                 <p className="text-xs mt-0.5">
                   <code className="font-mono">SUPABASE_SERVICE_ROLE_KEY</code> is not set here, so
