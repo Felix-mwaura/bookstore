@@ -96,6 +96,8 @@ column means the fix needs a business fact or an authorisation from you.
 | H5 | **A rating on Lord Of Mysteries came from test data** — the 4.0 was produced by a review that no customer wrote | `app/lib/reviews.js` reads `book_rating_summary`, which counts published reviews; the row itself lives in production `book_reviews` | A fabricated rating is exactly what the brief forbids, and Google may quote it through `aggregateRating` | **Confirmed test data, 3 Nov.** Removal is one click in `/admin` → Reviews → **Hide** (§5.4). No code bug: the moment the row is hidden the card shows "no rating yet" and the JSON-LD drops `aggregateRating` |
 
 | H6 | **Order emails cannot reach a customer**: the `send-email` function exists, but with no verified sending domain the provider only accepts the account owner's own address | `supabase/functions/send-email/index.ts`, `app/lib/email-dispatch.js`, `/terms`, `/privacy`, checkout confirmation | A customer is told their order is confirmed and hears nothing; a refund notice sent by email never arrives; password-reset mail is a separate Supabase path and is unaffected | **Copy fixed, capability open.** `ORDER_EMAILS_ENABLED` (new) drives every claim: unset, /terms says "We do not send email copies yet", /privacy says the same, and the checkout confirmation says the page is the record. The admin Emails tab now names the domain requirement and flags failed rows |
+| H7 | **A genre created in the admin could not be filtered.** `/books?category=Education` silently showed the whole shelf under the heading "All books", while the sidebar and the header picker both offered Education | `app/books/page.js` validated `?category=` against the hard-coded list in `app/lib/categories.js` | A customer picks a genre and gets the entire shop; the filter appears to do nothing | **Fixed 3 Nov** — resolution goes through `getGenres()`/`resolveGenre()`, name or slug, case-insensitive; covered by a new assertion against a fixture genre that exists only in the database |
+| H8 | **The sitemap advertised `/login`** while `robots.txt` disallows it and the response carries `X-Robots-Tag: noindex` | `app/sitemap.js` | Search Console reports the shop's own sitemap as submitting an excluded URL; three signals contradict each other | **Fixed 3 Nov** — `/login` removed from the sitemap; the noindex header and the robots rule stay |
 
 | # | Issue | Where | Impact | Status |
 |---|---|---|---|---|
@@ -316,7 +318,7 @@ supabase/migrations/20261025130000_rate_limit_store.sql` and allow the request.
 
 | Area | Why it could not be checked here | How to close it |
 |---|---|---|
-| Visual quality on any page | No browser, no screenshots in this environment | One manual pass at 320/375/768/1024/1440, or give me a browser-capable runner |
+| Visual quality on any page | No browser, no screenshots in this environment | One manual pass at 320/375/768/1024/1440, or a browser-capable runner. **Page content and behaviour were reviewed live on 3 Nov — see `live-review-2026-11-03.md`** |
 | Real Core Web Vitals / Lighthouse | Same | Run PageSpeed Insights against production |
 | Signed-in flows (account, addresses, order history) | The fixture answers 401 on `/auth/v1`; no real session exists here | Manual: sign in, place a COD order, open its order page |
 | M-Pesa sandbox | Needs Daraja credentials | Authorised sandbox run; `scripts/mpesa-smoke.mjs` + `mpesa-callback-smoke.mjs` cover the code paths only |
