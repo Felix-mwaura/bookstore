@@ -3,7 +3,7 @@
 //
 //   node scripts/trust-smoke.mjs
 //
-// Two failures this pass was written for:
+// Three failures this pass was written for:
 //
 //   1. The site published four contact details nobody had confirmed —
 //      hello@bookhaven.co.ke, +254 712 345 678, "The Junction Mall, Nairobi",
@@ -13,7 +13,13 @@
 //      not exist. The defaults are gone; an unset value is `null` and every
 //      consumer says the details are not published yet.
 //
-//   2. The sitemap listed eight category slugs from a literal array while the
+//   2. /terms and /privacy promised an email that cannot arrive: the
+//      send-email function has no verified sending domain, so the provider
+//      only accepts the account owner's own address. The copy is now driven
+//      by ORDER_EMAILS_ENABLED, and "we email you" is only printed when it is
+//      on.
+//
+//   3. The sitemap listed eight category slugs from a literal array while the
 //      nav, the filters and the admin read the `genres` table. A genre an
 //      admin created was invisible to crawlers; one they deleted was
 //      advertised as a 404. Both now come from getGenres().
@@ -198,6 +204,23 @@ if (!base) {
     "the announcement list does not take addresses without a way off it",
     !/id="newsletter-email"/.test(home.text) || Boolean(process.env.NEXT_PUBLIC_STORE_EMAIL)
   );
+
+  // Order email: the claim and the capability must agree. The environment
+  // that serves these pages decides which branch is true, and the check reads
+  // the same flag the pages read.
+  const emailsOn = /^(1|true|on|yes)$/i.test((process.env.NEXT_PUBLIC_ORDER_EMAILS || "").trim());
+  const terms = await body("/terms");
+  const privacy = await body("/privacy");
+  if (emailsOn) {
+    check("/terms promises the email the shop can actually send", /receive it by email|send it to the email address/.test(terms.text));
+    check("/privacy describes order emails as sent", /You get an email when an order is placed/.test(privacy.text));
+  } else {
+    check("/terms does not promise an order email", !/receive it by email/.test(terms.text));
+    check("/terms says no email copy is sent", /We do not send email copies yet/.test(terms.text));
+    check("/privacy does not promise an order email", !/You get an email when an order is placed/.test(privacy.text));
+    check("/privacy says no email copy is sent", /does not send email copies of an order yet/.test(privacy.text));
+  }
+  check("a password reset is never described as dependent on an order email", /password-reset link is sent by the account system/.test(privacy.text));
 
   const sitemap = await body("/sitemap.xml");
   check("the sitemap answers 200", sitemap.status === 200, String(sitemap.status));
