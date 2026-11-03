@@ -376,6 +376,9 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
         setStage("idle");
       }
     } catch (err) {
+      // The customer gets a sentence they can act on; the console keeps the
+      // reason, so a support report can be matched to a real failure.
+      console.error("M-Pesa request failed:", err);
       setErrorMsg("Network error. Please check your connection and try again.");
       setCanFallBack(true);
       setStage("idle");
@@ -888,7 +891,7 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
 
 // Minimal chrome for the states that are decided before the checkout form
 // exists: a focused page still needs a way back to the shop and to the basket.
-function CheckoutChrome({ children }) {
+function CheckoutChrome({ children, wide = false }) {
   return (
     <div className="flex min-h-screen flex-col bg-cream">
       <header className="sticky top-0 z-40 border-b border-line bg-surface">
@@ -901,7 +904,9 @@ function CheckoutChrome({ children }) {
           </Link>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-md px-4 py-12 sm:py-16">{children}</main>
+      <main className={`mx-auto w-full px-5 py-10 sm:px-8 sm:py-14 ${wide ? "max-w-5xl" : "max-w-md"}`}>
+        {children}
+      </main>
     </div>
   );
 }
@@ -1228,10 +1233,40 @@ export default function CheckoutPage() {
     );
   }
 
+  // The session check is a round trip. While it runs, the page shows what it
+  // is going to be — its title, its frame, and the shape of the step rail —
+  // instead of one grey sentence. That keeps the first paint honest and stops
+  // the layout jumping when the form arrives.
   if (signedIn === null && step < 3) {
     return (
-      <CheckoutChrome>
-        <p className="text-small text-muted" role="status">Checking your session…</p>
+      <CheckoutChrome wide>
+        <div className="mb-8 text-center">
+          <h1 className="font-playfair text-title font-bold text-navy">Checkout</h1>
+          <p className="mt-2 text-small text-muted">Delivery and payment on one page.</p>
+        </div>
+        <div className="mb-10 flex items-center justify-center" aria-hidden="true">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex items-center">
+              <div className="h-9 w-9 rounded-full border-2 border-line sm:h-10 sm:w-10" />
+              {n < 3 && <div className="mx-2 h-0.5 w-8 bg-line sm:mx-3 sm:w-24" />}
+            </div>
+          ))}
+        </div>
+        <div className="grid items-start gap-6 lg:grid-cols-[1fr_360px] lg:gap-8">
+          <div className="surface p-5 sm:p-7 lg:p-9">
+            <div className="h-5 w-40 rounded bg-subtle" />
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {[0, 1, 2, 3].map((n) => (
+                <div key={n}>
+                  <div className="h-3 w-24 rounded bg-subtle" />
+                  <div className="mt-2 h-11 rounded-control border border-line" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="hidden h-56 rounded-card border border-line bg-surface lg:block" />
+        </div>
+        <p className="sr-only" role="status">Checking your session…</p>
       </CheckoutChrome>
     );
   }

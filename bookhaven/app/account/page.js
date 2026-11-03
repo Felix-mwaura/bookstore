@@ -50,14 +50,24 @@ const inputClass =
 
 function LoadingPanel() {
   return (
-    <div className="shell max-w-[68rem] py-10" aria-busy="true" aria-live="polite">
-      <div className="h-7 w-48 rounded bg-subtle animate-pulse" />
-      <div className="mt-3 h-4 w-64 rounded bg-subtle animate-pulse" />
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <div className="h-32 rounded-card bg-white border border-line" />
-        <div className="h-32 rounded-card bg-white border border-line" />
+    <div className="shell max-w-[68rem] py-8 sm:py-12" aria-busy="true">
+      {/* The heading is real, not a grey bar: it is what the page is, and it
+          paints on the server before the session check has answered. */}
+      <nav aria-label="Breadcrumb" className="mb-4">
+        <Link href="/" className="text-small text-muted underline-offset-2 hover:text-sienna hover:underline">
+          Home
+        </Link>
+        <span className="mx-2 text-small text-muted" aria-hidden="true">/</span>
+        <span className="text-small text-ink" aria-current="page">Your account</span>
+      </nav>
+      <h1 className="font-playfair text-title font-bold text-navy">Your account</h1>
+      <p className="mt-2 text-small text-muted">Orders, addresses and the details we use to reach you.</p>
+
+      <div className="mt-8 grid gap-4 sm:grid-cols-2" aria-hidden="true">
+        <div className="h-32 animate-pulse rounded-card border border-line bg-white" />
+        <div className="h-32 animate-pulse rounded-card border border-line bg-white" />
       </div>
-      <span className="sr-only">Loading your account…</span>
+      <p className="sr-only" role="status">Loading your account…</p>
     </div>
   );
 }
