@@ -102,6 +102,15 @@
   75%      { transform: translate(9px, -4px) rotate(6deg); }
 }
 
+/* ── rest when nobody is watching ─────────────────────────────────────── */
+
+/* Set by useRestWhenHidden() when the tab is hidden or the scene is off
+   screen. `animation-play-state` does not inherit, so every animated child
+   is listed by the universal selector under the scene root. */
+.scene[data-motion="paused"] * {
+  animation-play-state: paused !important;
+}
+
 /* ── respect the reader ───────────────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {

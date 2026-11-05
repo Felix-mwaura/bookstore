@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "../../../../lib/admin-auth";
+import { readJsonObject, SMALL_BODY } from "../../../../lib/request-guard";
 import { queueEmailDispatch } from "../../../../lib/email-dispatch";
 
 const ALLOWED = ["pending", "paid", "failed", "refund_pending", "refunded"];
@@ -15,12 +16,9 @@ export async function PATCH(request) {
 
   const { adminClient, user } = auth;
 
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
+  const parsed = await readJsonObject(request, { maxBytes: SMALL_BODY });
+  if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: parsed.status });
+  const body = parsed.body;
 
   const { id, status, payment_ref: paymentRef } = body;
 

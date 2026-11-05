@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
-import { categories, categorySlug } from "../lib/categories";
+import { useGenres } from "./GenreProvider";
+import { DELIVERY_PERCENT } from "../lib/site";
 
 /* ── icons ────────────────────────────────────────────── */
 const SearchIcon = ({ className = "w-5 h-5" }) => (
@@ -14,7 +16,7 @@ const SearchIcon = ({ className = "w-5 h-5" }) => (
 );
 
 const HeartIcon = ({ filled }) => (
-  <svg className={`w-5 h-5 ${filled ? "text-[#B5532F] fill-[#B5532F]" : "text-navy"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+  <svg className={`w-5 h-5 ${filled ? "text-sienna fill-sienna" : "text-navy"}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
   </svg>
 );
@@ -52,7 +54,7 @@ function AccountMenu({ onNavigate, user, onSignOut, signingOut }) {
         className="flex items-center gap-2 min-h-11 px-2 sm:px-3 rounded-lg hover:bg-subtle transition"
       >
         {user ? (
-          <span className="w-8 h-8 rounded-full bg-[#B5532F] text-white font-bold text-sm flex items-center justify-center">{user.initial}</span>
+          <span className="w-8 h-8 rounded-full bg-sienna text-white font-bold text-sm flex items-center justify-center">{user.initial}</span>
         ) : (
           <svg className="w-5 h-5 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -61,10 +63,19 @@ function AccountMenu({ onNavigate, user, onSignOut, signingOut }) {
         <span className="hidden xl:block text-sm font-medium text-navy">{user ? user.name : "Account"}</span>
       </button>
 
-      {open && (
-        <div
+      {/* Exit animations are the one thing CSS cannot do: the element is
+          gone before a transition can run. AnimatePresence keeps it mounted
+          for the length of the exit, so the menu closes as deliberately as it
+          opens. */}
+      <AnimatePresence>
+        {open && (
+        <motion.div
           role="menu"
-          className="absolute right-0 top-full mt-2 w-64 bg-white rounded-card shadow-pop border border-line z-[60] overflow-hidden animate-fade-in"
+          initial={{ opacity: 0, y: -6, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -4, scale: 0.99 }}
+          transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
+          className="absolute right-0 top-full mt-2 w-64 origin-top-right bg-white rounded-card shadow-pop border border-line z-[60] overflow-hidden"
         >
           {user ? (
             <>
@@ -103,8 +114,9 @@ function AccountMenu({ onNavigate, user, onSignOut, signingOut }) {
               </div>
             </div>
           )}
-        </div>
-      )}
+        </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -145,8 +157,36 @@ function useSessionUser() {
   return { user, ready };
 }
 
+// The two ways into the catalogue that are not a genre. Every genre follows
+// these, read from the genre list the rest of the shop uses — this used to be
+// three hard-coded names (Fiction, Finance, Self-help), so a genre added in the
+// admin had no way into the shop from the header, and one renamed or removed
+// left a dead link behind.
+const NAV_LINKS = [
+  { label: "All books", href: "/books", match: "/books" },
+  { label: "New arrivals", href: "/books?sort=newest" },
+];
+
 export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartClick, onWishlistClick }) {
   const router = useRouter();
+  const pathname = usePathname() || "/";
+
+  // Elevation only once the page has moved: a sticky bar that starts with a
+  // shadow looks like it is floating over nothing. The listener is passive
+  // and only writes state on the transition, not on every scroll frame.
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      const next = window.scrollY > 8;
+      setStuck((current) => (current === next ? current : next));
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  // The genres the shop currently sells, from the database via the root
+  // layout, with the built-in list as the value before that resolves.
+  const genres = useGenres();
   const { user, ready: sessionReady } = useSessionUser();
   const [signingOut, setSigningOut] = useState(false);
   const [query, setQuery] = useState("");
@@ -156,6 +196,20 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
   const inputRef = useRef(null);
   const drawerRef = useRef(null);
   const drawerCloseRef = useRef(null);
+
+  // Picking a genre navigates straight away. The value used to be read only on
+  // submit, so choosing "Fiction" and stepping away did nothing at all — a
+  // select in a search bar reads as a filter, and a filter that needs a second,
+  // unannounced action looks broken.
+  const chooseCategory = (value) => {
+    setCategory(value);
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("q", query.trim());
+    if (value !== "All") params.set("category", value);
+    router.push(`/books${params.toString() ? `?${params}` : ""}`);
+    setSearchOpen(false);
+    setMenuOpen(false);
+  };
 
   const submitSearch = (e) => {
     e?.preventDefault();
@@ -217,15 +271,19 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
   }, [menuOpen]);
 
   const searchForm = (idPrefix) => (
-    <form onSubmit={submitSearch} role="search" className="flex w-full items-stretch rounded-control border border-line bg-white overflow-hidden focus-within:border-[#B5532F]">
+    <form
+      onSubmit={submitSearch}
+      role="search"
+      className="flex w-full items-center gap-1 rounded-full border border-line bg-surface p-1 transition-colors focus-within:border-sienna focus-within:ring-2 focus-within:ring-sienna"
+    >
       <label htmlFor={`${idPrefix}-category`} className="sr-only">Search category</label>
       <select
         id={`${idPrefix}-category`}
         value={category}
-        onChange={(e) => setCategory(e.target.value)}
-        className="hidden sm:block bg-transparent pl-3 pr-1 py-2.5 text-sm text-muted border-r border-line focus:outline-none max-w-[9.5rem]"
+        onChange={(e) => chooseCategory(e.target.value)}
+        className="hidden max-w-[10rem] rounded-full bg-transparent py-2 pl-4 pr-1 text-small text-muted focus:outline-none sm:block"
       >
-        {categories.map((c) => (
+        {["All", ...genres.map((g) => g.name)].map((c) => (
           <option key={c} value={c}>{c === "All" ? "All categories" : c}</option>
         ))}
       </select>
@@ -237,29 +295,38 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search books, authors, genres…"
-        className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-ink placeholder:text-muted/70 focus:outline-none"
+        className="min-w-0 flex-1 bg-transparent px-3 py-2 text-small text-ink placeholder:text-muted focus:outline-none"
       />
-      <button type="submit" aria-label="Search" className="px-3.5 min-w-11 text-navy hover:bg-subtle transition flex items-center justify-center">
-        <SearchIcon />
+      <button
+        type="submit"
+        aria-label="Search"
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-white transition-colors hover:bg-sienna"
+      >
+        <SearchIcon className="h-4 w-4" />
       </button>
     </form>
   );
 
   return (
     <>
-      <div className="bg-navy text-cream/90 text-center py-1.5 text-xs sm:text-[13px] px-4">
-        Delivery is 20% of the book total · Every order has a reference
+      <div className="bg-navy-deep px-4 py-2 text-center text-micro font-medium uppercase tracking-[0.08em] text-cream/85">
+        <span>Delivery is {DELIVERY_PERCENT}% of the book total</span>
+        <span aria-hidden="true" className="mx-2 text-cream/40">·</span>
+        <span className="text-cream/70">Every order has a reference</span>
       </div>
 
-      <header className="sticky top-0 z-40 bg-cream/95 backdrop-blur border-b border-line">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6">
-          <div className="flex items-center gap-2 sm:gap-4 h-14 sm:h-16">
+      <header
+        data-stuck={stuck ? "true" : undefined}
+        className="site-header sticky top-0 z-40 border-b border-line bg-cream"
+      >
+        <div className="shell">
+          <div className="flex h-16 items-center gap-2 sm:gap-4 sm:h-20">
             <button
               type="button"
               onClick={() => setMenuOpen(true)}
               aria-label="Open menu"
               aria-expanded={menuOpen}
-              className="lg:hidden -ml-1 w-11 h-11 flex items-center justify-center rounded-lg hover:bg-subtle transition"
+              className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-subtle lg:hidden"
             >
               <svg className="w-5 h-5 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -267,7 +334,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
             </button>
 
             <Link href="/" className="-my-2 flex flex-shrink-0 items-center gap-2 py-2" aria-label="Book Haven home">
-              <span className="font-playfair text-lg sm:text-xl font-bold text-navy leading-none">Book Haven</span>
+              <span className="font-playfair text-xl font-bold leading-none tracking-[-0.01em] text-navy sm:text-2xl">Book Haven</span>
             </Link>
 
             <div className="hidden md:block flex-1 max-w-2xl mx-auto">
@@ -280,7 +347,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
                 onClick={() => setSearchOpen((v) => !v)}
                 aria-label="Search"
                 aria-expanded={searchOpen}
-                className="md:hidden w-11 h-11 flex items-center justify-center rounded-lg hover:bg-subtle transition"
+                className="flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-subtle md:hidden"
               >
                 <SearchIcon />
               </button>
@@ -297,11 +364,11 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
                 type="button"
                 onClick={onWishlistClick}
                 aria-label={`Wishlist, ${wishlistCount} ${wishlistCount === 1 ? "book" : "books"}`}
-                className="hidden sm:flex relative w-11 h-11 items-center justify-center rounded-lg hover:bg-subtle transition"
+                className="relative hidden h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-subtle sm:flex"
               >
                 <HeartIcon filled={wishlistCount > 0} />
                 {wishlistCount > 0 && (
-                  <span className="absolute top-1.5 right-1 bg-[#B5532F] text-white text-[10px] font-bold h-4 min-w-4 px-1 rounded-full flex items-center justify-center">
+                  <span className="absolute top-1.5 right-1 bg-sienna text-white text-[10px] font-bold h-4 min-w-4 px-1 rounded-full flex items-center justify-center">
                     {wishlistCount}
                   </span>
                 )}
@@ -311,36 +378,134 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
                 type="button"
                 onClick={onCartClick}
                 aria-label={`Basket, ${cartCount} ${cartCount === 1 ? "item" : "items"}`}
-                className="relative w-11 h-11 flex items-center justify-center rounded-lg hover:bg-subtle transition"
+                className="relative flex h-11 w-11 items-center justify-center rounded-full transition-colors hover:bg-subtle"
               >
                 <CartIcon />
-                {cartCount > 0 && (
-                  <span
-                    key={cartCount}
-                    className="animate-badge-pop absolute right-1 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sienna px-1 text-[10px] font-bold text-white"
-                  >
-                    {cartCount}
-                  </span>
-                )}
+                <AnimatePresence initial={false}>
+                  {cartCount > 0 && (
+                    <motion.span
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.6, opacity: 0 }}
+                      transition={{ type: "spring", stiffness: 520, damping: 26 }}
+                      className="absolute right-1 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-sienna px-1 text-[10px] font-bold text-white"
+                    >
+                      {/* Keyed on the count, so a change re-mounts only the
+                          numeral and gives it one short spring — the badge
+                          itself keeps its place. */}
+                      <motion.span
+                        key={cartCount}
+                        initial={{ scale: 1.35 }}
+                        animate={{ scale: 1 }}
+                        transition={{ type: "spring", stiffness: 600, damping: 24 }}
+                        className="tabular-nums"
+                      >
+                        {cartCount}
+                      </motion.span>
+                    </motion.span>
+                  )}
+                </AnimatePresence>
               </button>
             </div>
           </div>
 
-          {searchOpen && (
-            <div className="md:hidden pb-3">{searchForm("mobile")}</div>
-          )}
+          {/* Navigation desktop: the header used to offer a shopper no way
+              to move through the shop except the footer or the home page.
+              One slim row of the things people actually browse. */}
+          <nav aria-label="Browse" className="hidden border-t border-line/70 lg:block">
+            <div className="flex h-11 items-center gap-6">
+              {/* The genre row scrolls sideways when it does not fit — nine
+                  genres plus two destinations do not fit at 1024px. Every
+                  genre comes from the same list the rest of the shop reads, so
+                  a genre added in the admin appears here without a deploy. */}
+              <ul className="scrollbar-none flex h-11 min-w-0 flex-1 items-center gap-5 overflow-x-auto text-small xl:gap-6">
+                {NAV_LINKS.map((item) => {
+                  const active = pathname === item.href || (item.match && pathname.startsWith(item.match));
+                  return (
+                    <li key={item.href} className="shrink-0">
+                      <Link
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={`inline-flex h-11 items-center whitespace-nowrap underline-offset-[6px] transition-colors hover:text-navy hover:underline ${
+                          active ? "text-navy underline decoration-sienna decoration-2" : "text-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+                {genres.map((genre) => {
+                  const href = `/category/${genre.slug}`;
+                  const active = pathname === href;
+                  return (
+                    <li key={genre.slug} className="shrink-0">
+                      <Link
+                        href={href}
+                        aria-current={active ? "page" : undefined}
+                        className={`inline-flex h-11 items-center whitespace-nowrap underline-offset-[6px] transition-colors hover:text-navy hover:underline ${
+                          active ? "text-navy underline decoration-sienna decoration-2" : "text-muted"
+                        }`}
+                      >
+                        {genre.name}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {/* Outside the scrolling list on purpose: a pinned destination
+                  that slides away when the genre strip overflows is worse
+                  than no pinned destination. */}
+              <Link
+                href="/help"
+                aria-current={pathname === "/help" ? "page" : undefined}
+                className="inline-flex h-11 shrink-0 items-center text-muted underline-offset-[6px] transition-colors hover:text-navy hover:underline"
+              >
+                Delivery &amp; help
+              </Link>
+            </div>
+          </nav>
+
+          <AnimatePresence initial={false}>
+            {searchOpen && (
+              <motion.div
+                key="mobile-search"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+                className="md:hidden overflow-hidden"
+              >
+                <div className="pb-3">{searchForm("mobile")}</div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </header>
 
+      <AnimatePresence>
       {menuOpen && (
         <div className="fixed inset-0 z-[70] lg:hidden">
-          <div className="absolute inset-0 bg-navy/50" onClick={() => setMenuOpen(false)} aria-hidden="true" />
-          <div
+          <motion.div
+            className="absolute inset-0 bg-navy/50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            onClick={() => setMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <motion.div
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
             aria-label="Menu"
-            className="absolute left-0 top-0 h-full w-[85%] max-w-xs bg-cream shadow-pop flex flex-col animate-slide-in-left"
+            initial={{ x: "-100%" }}
+            animate={{ x: 0 }}
+            exit={{ x: "-100%" }}
+            transition={{ type: "spring", stiffness: 340, damping: 36, mass: 0.9 }}
+            className="absolute left-0 top-0 h-full w-[85%] max-w-xs bg-cream shadow-pop flex flex-col"
           >
             <div className="flex items-center justify-between px-4 h-14 border-b border-line">
               <span className="font-playfair text-lg font-bold text-navy">Book Haven</span>
@@ -358,17 +523,21 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
             </div>
 
             <nav className="flex-1 overflow-y-auto py-3" aria-label="Shop">
-              <p className="px-5 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted">Browse</p>
-              {categories.map((c) => (
-                <Link key={c} href={c === "All" ? "/books" : `/category/${categorySlug(c)}`}
+              <p className="px-5 pb-2 pt-3 text-micro font-semibold uppercase text-muted">Browse</p>
+              <Link href="/books" onClick={() => setMenuOpen(false)}
+                className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">
+                All books
+              </Link>
+              {genres.map((genre) => (
+                <Link key={genre.slug} href={`/category/${genre.slug}`}
                   onClick={() => setMenuOpen(false)}
                   className="block px-5 py-3 text-sm text-ink hover:bg-subtle transition">
-                  {c === "All" ? "All books" : c}
+                  {genre.name}
                 </Link>
               ))}
 
               <div className="mt-3 pt-3 border-t border-line">
-                <p className="px-5 pb-1 text-[11px] font-bold uppercase tracking-widest text-muted">
+                <p className="px-5 pb-2 pt-3 text-micro font-semibold uppercase text-muted">
                   Account
                 </p>
 
@@ -430,9 +599,10 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
             <div className="p-4 border-t border-line">
               <Link href="/books" onClick={() => setMenuOpen(false)} className="btn-primary w-full text-sm">Browse all books</Link>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
+      </AnimatePresence>
     </>
   );
 }

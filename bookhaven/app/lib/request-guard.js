@@ -49,3 +49,19 @@ export function exceedsBodyLimit(request, maxBytes) {
   const declared = Number(request.headers.get("content-length"));
   return Number.isFinite(declared) && declared > maxBytes;
 }
+
+/**
+ * Like readJsonBody(), but also requires the payload to be a JSON object.
+ * `null`, an array or a bare string parses fine yet makes every `body.x`
+ * access below it throw a TypeError — which surfaced as a 500 instead of the
+ * 400 the caller deserves. Admin routes use this.
+ */
+export async function readJsonObject(request, options) {
+  const parsed = await readJsonBody(request, options);
+  if (!parsed.ok) return parsed;
+  const value = parsed.body;
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return { ok: false, status: 400, error: "A JSON object is required." };
+  }
+  return parsed;
+}

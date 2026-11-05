@@ -6,12 +6,16 @@ import Link from "next/link";
  * Before this, every band on the homepage invented its own arrangement:
  * heading left with a link right, heading with a sentence, heading alone.
  * Six sections in a row that all look slightly different read as six
- * different pages. This puts the same small sienna eyebrow, hairline rule and
- * Playfair title above every band, and allows at most one action on the right
- * so there is never a second place for the eye to go.
+ * different pages. This keeps one arrangement, one scale and at most one
+ * action on the right, so there is never a second place for the eye to go.
+ *
+ * There used to be a small uppercase kicker above each title — "Just in" over
+ * "New arrivals", "Browse" over "Explore Books…". Most of them repeated the
+ * heading in different words, and a label that says what the heading says is
+ * there for the designer, not the reader. The heading now carries the
+ * section on its own.
  */
 export function SectionHeading({
-  eyebrow,
   title,
   description,
   action,
@@ -20,31 +24,20 @@ export function SectionHeading({
   className = "",
 }) {
   const dark = tone === "dark";
-  const rule = dark ? "bg-[#E9B79F]" : "bg-sienna";
 
   return (
     <div className={`flex flex-wrap items-end justify-between gap-x-6 gap-y-3 ${className}`}>
       <div className="min-w-0">
-        {eyebrow && (
-          <p
-            className={`flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] ${
-              dark ? "text-[#E9B79F]" : "text-sienna"
-            }`}
-          >
-            <span aria-hidden="true" className={`h-px w-6 ${rule}`} />
-            {eyebrow}
-          </p>
-        )}
         <h2
           id={id}
-          className={`mt-2 text-xl font-bold sm:text-2xl ${dark ? "text-white" : "text-navy"}`}
+          className={`text-heading font-bold ${dark ? "text-white" : "text-navy"}`}
         >
           {title}
         </h2>
         {description && (
           <p
-            className={`mt-1.5 max-w-2xl text-sm leading-relaxed ${
-              dark ? "text-white/75" : "text-muted"
+            className={`mt-2 max-w-2xl text-small leading-relaxed sm:text-base ${
+              dark ? "text-white/80" : "text-muted"
             }`}
           >
             {description}
@@ -56,7 +49,7 @@ export function SectionHeading({
         <Link
           href={action.href}
           className={`group -my-1.5 inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap py-1.5 text-sm font-semibold underline-offset-4 hover:underline ${
-            dark ? "text-[#E9B79F] hover:text-white" : "text-sienna hover:text-sienna-hover"
+            dark ? "text-sienna-soft hover:text-white" : "text-sienna hover:text-sienna-hover"
           }`}
         >
           {action.label}

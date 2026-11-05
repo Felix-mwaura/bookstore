@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { categories, categorySlug } from "../lib/categories";
+import { categorySlug } from "../lib/categories";
+import { useGenres } from "./GenreProvider";
 import { PRICE_BANDS, SORT_OPTIONS } from "../lib/catalogue";
 import { buildCatalogueHref } from "../lib/catalogue-url";
 
@@ -30,11 +31,12 @@ function FilterLink({ href, active, children, count }) {
 
 /** Desktop sidebar. Plain links, so filtering works without JavaScript. */
 export function CatalogueSidebar({ basePath, params, counts }) {
+  const genres = useGenres();
   return (
     <div className="hidden lg:block">
       <div className="sticky top-24 space-y-6">
         <div>
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Genre</h2>
+          <h2 className="mb-3 text-micro font-semibold uppercase text-muted">Genre</h2>
           <nav aria-label="Filter by genre" className="space-y-0.5">
             <FilterLink
               href={buildCatalogueHref(basePath, params, { category: "", page: 1 })}
@@ -42,21 +44,21 @@ export function CatalogueSidebar({ basePath, params, counts }) {
             >
               All genres
             </FilterLink>
-            {categories.filter((c) => c !== "All").map((c) => (
+            {genres.map((genre) => (
               <FilterLink
-                key={c}
-                href={buildCatalogueHref(basePath, params, { category: c, page: 1 })}
-                active={params.category === c}
-                count={counts?.get ? counts.get(c) ?? 0 : counts?.[c]}
+                key={genre.slug}
+                href={buildCatalogueHref(basePath, params, { category: genre.name, page: 1 })}
+                active={params.category === genre.name}
+                count={counts?.get ? counts.get(genre.name) ?? 0 : counts?.[genre.name]}
               >
-                {c}
+                {genre.name}
               </FilterLink>
             ))}
           </nav>
         </div>
 
         <div>
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Price</h2>
+          <h2 className="mb-3 text-micro font-semibold uppercase text-muted">Price</h2>
           <nav aria-label="Filter by price" className="space-y-0.5">
             <FilterLink
               href={buildCatalogueHref(basePath, params, { price: "", page: 1 })}
@@ -77,7 +79,7 @@ export function CatalogueSidebar({ basePath, params, counts }) {
         </div>
 
         <div>
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Availability</h2>
+          <h2 className="mb-3 text-micro font-semibold uppercase text-muted">Availability</h2>
           <nav aria-label="Filter by availability" className="space-y-0.5">
             <FilterLink
               href={buildCatalogueHref(basePath, params, { availability: "", page: 1 })}
@@ -113,7 +115,7 @@ export function SortSelect({ basePath, params }) {
           router.push(buildCatalogueHref(basePath, params, patch), { scroll: false });
         }}
         aria-label="Sort books"
-        className="min-h-11 rounded-control border border-line bg-white px-3 pr-8 text-sm text-ink"
+        className="field field-inline text-small font-medium"
       >
         {SORT_OPTIONS.map((option) => (
           <option key={option.value} value={option.value}>{option.label}</option>
@@ -126,6 +128,7 @@ export function SortSelect({ basePath, params }) {
 /* ── mobile filter sheet ──────────────────────────────── */
 
 export function MobileFilterButton({ basePath, params, counts, resultCount }) {
+  const genres = useGenres();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({ category: params.category || "", price: params.price || "", availability: params.availability || "" });
   const router = useRouter();
@@ -238,29 +241,29 @@ export function MobileFilterButton({ basePath, params, counts, resultCount }) {
 
             <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6">
               <fieldset>
-                <legend className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Genre</legend>
+                <legend className="mb-3 text-micro font-semibold uppercase text-muted">Genre</legend>
                 <div className="flex flex-wrap gap-2">
-                  {categories.filter((c) => c !== "All").map((c) => (
+                  {genres.map((genre) => (
                     <button
-                      key={c}
+                      key={genre.slug}
                       type="button"
-                      onClick={() => toggle("category", c)}
-                      aria-pressed={draft.category === c}
+                      onClick={() => toggle("category", genre.name)}
+                      aria-pressed={draft.category === genre.name}
                       className={`rounded-full border px-3 py-2 text-sm min-h-11 ${
-                        draft.category === c
+                        draft.category === genre.name
                           ? "border-navy bg-navy text-white"
                           : "border-line bg-white text-ink"
                       }`}
                     >
-                      {c}
-                      {counts?.get ? ` (${counts.get(c) ?? 0})` : ""}
+                      {genre.name}
+                      {counts?.get ? ` (${counts.get(genre.name) ?? 0})` : ""}
                     </button>
                   ))}
                 </div>
               </fieldset>
 
               <fieldset>
-                <legend className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Price</legend>
+                <legend className="mb-3 text-micro font-semibold uppercase text-muted">Price</legend>
                 <div className="flex flex-wrap gap-2">
                   {PRICE_BANDS.map((band) => (
                     <button
@@ -281,7 +284,7 @@ export function MobileFilterButton({ basePath, params, counts, resultCount }) {
               </fieldset>
 
               <fieldset>
-                <legend className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Availability</legend>
+                <legend className="mb-3 text-micro font-semibold uppercase text-muted">Availability</legend>
                 <button
                   type="button"
                   onClick={() => toggle("availability", "in-stock")}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { BookCover } from "../components/BookCover";
 import { supabase } from "../lib/supabase";
 import { orderReference } from "../lib/orders";
-import { DELIVERY_PERCENT, deliveryFeeFor } from "../lib/site";
+import { DELIVERY_PERCENT, ORDER_EMAILS_ENABLED, deliveryFeeFor } from "../lib/site";
 
 function formatPhone(raw) {
   const d = String(raw || "").replace(/\D/g, "");
@@ -34,10 +34,10 @@ function StepBar({ step }) {
         return (
           <div key={label} className="flex items-center">
             <div className="flex flex-col items-center">
-              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold text-xs sm:text-sm border-2 transition-colors ${done ? "bg-[#B5532F] border-[#B5532F] text-white" : active ? "bg-white border-[#B5532F] text-[#B5532F]" : "bg-white border-stone-300 text-muted"}`}>
+              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-small font-semibold tabular-nums border-2 transition-colors ${done ? "bg-sienna border-sienna text-white" : active ? "bg-surface border-sienna text-sienna" : "bg-surface border-line-strong text-muted"}`}>
                 {done ? (<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>) : idx}
               </div>
-              <span className={`text-[10px] sm:text-xs font-semibold mt-1.5 whitespace-nowrap ${active ? "text-[#B5532F]" : done ? "text-stone-500" : "text-muted"}`}>{label}</span>
+              <span className={`mt-2 text-micro font-semibold uppercase whitespace-nowrap ${active ? "text-sienna" : done ? "text-muted" : "text-muted"}`}>{label}</span>
             </div>
             {i < steps.length - 1 && <div className={`w-8 sm:w-24 h-0.5 mx-1.5 sm:mx-3 mb-5 transition-colors ${done ? "bg-sienna" : "bg-line"}`} />}
           </div>
@@ -53,8 +53,8 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
   const delivery = deliveryFeeFor(total);
   const grand = total + delivery;
   return (
-    <div className="bg-white rounded-card border border-line p-5 sm:p-6 lg:sticky lg:top-24">
-      <h3 className="font-bold text-[#1B2A4A] text-lg mb-5">Order Summary</h3>
+    <div className="bg-surface rounded-card border border-line p-5 sm:p-6 lg:sticky lg:top-24">
+      <h3 className="font-bold text-navy text-lg mb-5">Order Summary</h3>
       <div className="space-y-4 max-h-56 overflow-y-auto pr-1">
         {cart.map((item) => (
           <div key={item.id} className="flex gap-3 items-start">
@@ -62,24 +62,24 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
               <BookCover book={item} className="w-full h-full" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#1B2A4A] line-clamp-1">{item.title}</p>
-              <p className="text-xs text-muted">{item.author}</p>
+              <p className="text-small font-semibold text-navy line-clamp-1">{item.title}</p>
+              <p className="text-small text-muted">{item.author}</p>
               <div className="flex justify-between items-center mt-1">
                 {onChangeQty ? (
-                  <div className="flex items-center border border-stone-300 rounded-lg">
+                  <div className="flex items-center border border-line-strong rounded-control">
                     <button type="button" aria-label={`Decrease quantity of ${item.title}`} onClick={() => onChangeQty(item.id, -1)}
-                      className="w-7 h-7 flex items-center justify-center hover:bg-stone-100 font-bold text-sm">−</button>
-                    <span className="w-7 text-center text-xs font-semibold" aria-live="polite">{item.quantity}</span>
+                      className="w-7 h-7 flex items-center justify-center hover:bg-subtle font-bold text-small">−</button>
+                    <span className="w-7 text-center text-small font-semibold" aria-live="polite">{item.quantity}</span>
                     <button type="button" aria-label={`Increase quantity of ${item.title}`} onClick={() => onChangeQty(item.id, 1)}
-                      className="w-7 h-7 flex items-center justify-center hover:bg-stone-100 font-bold text-sm">+</button>
+                      className="w-7 h-7 flex items-center justify-center hover:bg-subtle font-bold text-small">+</button>
                   </div>
                 ) : (
-                  <span className="text-xs text-muted">Qty: {item.quantity}</span>
+                  <span className="text-small text-muted">Qty: {item.quantity}</span>
                 )}
-                <span className="text-sm font-bold text-[#1B2A4A]">KSh {(item.price * item.quantity).toLocaleString()}</span>
+                <span className="text-small font-bold text-navy">KSh {(item.price * item.quantity).toLocaleString()}</span>
               </div>
               {onRemove && (
-                <button type="button" onClick={() => onRemove(item.id)} className="text-[11px] text-muted hover:text-red-600 underline mt-1">
+                <button type="button" onClick={() => onRemove(item.id)} className="text-micro text-muted hover:text-error underline mt-1">
                   Remove
                 </button>
               )}
@@ -87,29 +87,34 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
           </div>
         ))}
       </div>
-      <div className="border-t border-stone-100 mt-5 pt-4 space-y-2.5">
-        <div className="flex justify-between text-sm"><span className="text-stone-500">Subtotal</span><span className="font-semibold">KSh {total.toLocaleString()}</span></div>
-        <div className="flex justify-between text-sm">
-          <span className="text-stone-500">Delivery ({DELIVERY_PERCENT}%)</span>
+      <div className="border-t border-line mt-5 pt-4 space-y-2.5">
+        <div className="flex justify-between text-small"><span className="text-muted">Subtotal</span><span className="font-semibold">KSh {total.toLocaleString()}</span></div>
+        <div className="flex justify-between text-small">
+          <span className="text-muted">Delivery ({DELIVERY_PERCENT}%)</span>
           <span className="font-semibold">KSh {delivery.toLocaleString()}</span>
         </div>
         <div className="flex justify-between text-base font-bold text-navy border-t border-line pt-3"><span>Total</span><span>KSh {grand.toLocaleString()}</span></div>
       </div>
       <div className="mt-5 pt-4 border-t border-line space-y-1.5">
-        <p className="text-xs text-muted">Delivery is {DELIVERY_PERCENT}% of the book total, worked out here and charged once — nothing is added at the door.</p>
-        <p className="text-xs text-muted">You will see the full total before you confirm.</p>
+        <p className="text-small text-muted">Delivery is {DELIVERY_PERCENT}% of the book total, worked out here and charged once — nothing is added at the door.</p>
+        <p className="text-small text-muted">You will see the full total before you confirm.</p>
       </div>
     </div>
   );
 }
 
 // Defined OUTSIDE StepDetails so it doesn't remount on every keystroke
-function Field({ label, name, type = "text", placeholder, span2, value, onChange, error, autoComplete, inputMode }) {
+function Field({ label, name, type = "text", placeholder, span2, value, onChange, error, autoComplete, inputMode, readOnly = false, hint }) {
   const id = `checkout-${name}`;
   const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
+  const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined;
   return (
     <div className={span2 ? "sm:col-span-2" : ""}>
-      <label htmlFor={id} className="block text-xs font-bold text-muted uppercase tracking-wider mb-1.5">{label}</label>
+      <label htmlFor={id} className="mb-1.5 block text-micro font-semibold uppercase text-muted">{label}</label>
+      {/* readOnly, not disabled: a disabled field is skipped by the keyboard
+          and by screen readers, and this one still needs to be readable and
+          announceable. */}
       <input
         id={id}
         name={name}
@@ -118,12 +123,14 @@ function Field({ label, name, type = "text", placeholder, span2, value, onChange
         placeholder={placeholder}
         autoComplete={autoComplete}
         inputMode={inputMode}
+        readOnly={readOnly}
         aria-invalid={error ? "true" : undefined}
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy}
         onChange={(e) => onChange(name, e.target.value)}
-        className={`w-full min-h-11 bg-white border rounded-control px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-sienna/20 ${error ? "border-error bg-error/5" : "border-line focus:border-navy"}`}
+        className={`field ${error ? "field-error" : ""} ${readOnly ? "bg-subtle/60 text-muted" : ""}`}
       />
-      {error && <p id={errorId} className="text-error text-xs mt-1">{error}</p>}
+      {error && <p id={errorId} className="mt-1.5 text-small text-error">{error}</p>}
+      {hint && !error && <p id={hintId} className="mt-1.5 text-small text-muted">{hint}</p>}
     </div>
   );
 }
@@ -139,7 +146,7 @@ function validateDetails(data) {
   return found;
 }
 
-function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember, onRemember }) {
+function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember, onRemember, accountEmail = "" }) {
   const [errors, setErrors] = useState({});
 
   const validate = () => validateDetails(data);
@@ -165,15 +172,14 @@ function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember
 
   return (
     <div>
-      <p className="text-[11px] font-bold uppercase tracking-widest text-sienna">Step 1 of 3</p>
       <h2 className="mt-1 text-xl sm:text-2xl font-bold text-navy">Delivery details</h2>
-      <p className="text-muted text-sm mt-1 mb-5">Where should we send your books?</p>
+      <p className="text-muted text-small mt-1 mb-5">Where should we send your books?</p>
 
       {/* Saved addresses. Only rendered for a signed-in customer who has one,
           so a first-time buyer sees the plain form and nothing else. */}
       {saved.length > 0 && (
-        <div className="mb-5 rounded-xl border border-line bg-stone-50 p-3">
-          <label htmlFor="checkout-saved-address" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">
+        <div className="mb-5 rounded-control border border-line bg-subtle p-3">
+          <label htmlFor="checkout-saved-address" className="mb-1.5 block text-micro font-semibold uppercase text-muted">
             Use a saved address
           </label>
           <select
@@ -186,7 +192,7 @@ function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember
               // picked again after editing a field by hand.
               e.target.value = "";
             }}
-            className="min-h-11 w-full rounded-xl border border-[#E3DCCB] bg-white px-4 text-sm outline-none transition focus:border-[#B5532F]"
+            className="field"
           >
             <option value="">Choose a saved address…</option>
             {saved.map((a) => (
@@ -201,26 +207,38 @@ function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Field label="First name" name="firstName" placeholder="Grace" autoComplete="given-name" value={data.firstName} onChange={handleChange} error={errors.firstName} />
         <Field label="Last name" name="lastName" placeholder="Wambui" autoComplete="family-name" value={data.lastName} onChange={handleChange} error={errors.lastName} />
-        <Field label="Email address" name="email" type="email" placeholder="grace@example.com" autoComplete="email" span2 value={data.email} onChange={handleChange} error={errors.email} />
+        <Field
+          label="Email address"
+          name="email"
+          type="email"
+          placeholder="grace@example.com"
+          autoComplete="email"
+          span2
+          value={data.email}
+          onChange={handleChange}
+          error={errors.email}
+          readOnly={Boolean(accountEmail)}
+          hint={accountEmail ? "This is the email on your account; the order and its updates go to it." : undefined}
+        />
         <Field label="Phone number" name="phone" type="tel" inputMode="tel" placeholder="0712 345 678" autoComplete="tel" span2 value={data.phone} onChange={handleChange} error={errors.phone} />
         <Field label="Street address" name="address" placeholder="Estate, street, building…" autoComplete="street-address" span2 value={data.address} onChange={handleChange} error={errors.address} />
         <div>
-          <label htmlFor="checkout-city" className="block text-xs font-bold text-muted uppercase tracking-wider mb-1.5">City / town</label>
+          <label htmlFor="checkout-city" className="mb-1.5 block text-micro font-semibold uppercase text-muted">City / town</label>
           <select id="checkout-city" value={data.city} onChange={(e) => { onChange("city", e.target.value); setErrors((p) => ({ ...p, city: "" })); }}
-            className={`w-full bg-stone-50 border rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#B5532F] ${errors.city ? "border-red-400" : "border-[#E3DCCB]"}`}>
+            className={`field ${errors.city ? "field-error" : ""}`}>
             <option value="">Select city</option>
             {["Nairobi","Mombasa","Kisumu","Nakuru","Eldoret","Thika","Nyeri","Machakos","Meru","Garissa","Kakamega","Malindi","Kisii","Kericho","Naivasha"].map((c) => <option key={c}>{c}</option>)}
           </select>
-          {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
+          {errors.city && <p className="text-error text-small mt-1">{errors.city}</p>}
         </div>
         <div>
-          <label htmlFor="checkout-notes" className="block text-xs font-bold text-muted uppercase tracking-wider mb-1.5">Notes <span className="text-stone-300 normal-case font-normal">(optional)</span></label>
+          <label htmlFor="checkout-notes" className="mb-1.5 block text-micro font-semibold uppercase text-muted">Notes <span className="text-muted normal-case font-normal">(optional)</span></label>
           <input id="checkout-notes" type="text" value={data.notes} placeholder="Landmark, nearest stage..." onChange={(e) => onChange("notes", e.target.value)}
-            className="w-full bg-stone-50 border border-[#E3DCCB] rounded-xl px-4 py-3 text-sm outline-none transition focus:bg-white focus:border-[#B5532F]" />
+            className="field min-h-28" />
         </div>
       </div>
 
-      <label className="mt-4 flex items-start gap-2 text-sm text-muted">
+      <label className="mt-4 flex items-start gap-2 text-small text-muted">
         <input
           type="checkbox"
           checked={remember}
@@ -377,6 +395,9 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
         setStage("idle");
       }
     } catch (err) {
+      // The customer gets a sentence they can act on; the console keeps the
+      // reason, so a support report can be matched to a real failure.
+      console.error("M-Pesa request failed:", err);
       setErrorMsg("Network error. Please check your connection and try again.");
       setCanFallBack(true);
       setStage("idle");
@@ -396,12 +417,12 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
   if (stage === "idle") return (
     <div className="space-y-5">
       <div className="flex items-start gap-3 rounded-control border border-line bg-subtle/60 p-4">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-control bg-[#2F7D4F]" aria-hidden="true">
-          <span className="text-sm font-black text-white">M</span>
+        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-control bg-success" aria-hidden="true">
+          <span className="text-small font-black text-white">M</span>
         </div>
         <div>
-          <p className="text-sm font-semibold text-navy">Pay with M-Pesa</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted">
+          <p className="text-small font-semibold text-navy">Pay with M-Pesa</p>
+          <p className="mt-0.5 text-small leading-relaxed text-muted">
             We send a payment request to your phone. Enter your M-Pesa PIN there and this
             page updates by itself — no code to copy.
           </p>
@@ -410,16 +431,16 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
 
       {errorMsg && (
         <div className="rounded-control border border-error/30 bg-error/5 p-3" role="alert">
-          <p className="text-sm text-error">{errorMsg}</p>
+          <p className="text-small text-error">{errorMsg}</p>
           {canFallBack && onFallback && (
             <>
-              <p className="mt-1.5 text-xs leading-relaxed text-ink/70">
+              <p className="mt-1.5 text-small leading-relaxed text-ink/70">
                 Nothing was sent to your phone, so you can order now and pay the rider instead.
               </p>
               <button
                 type="button"
                 onClick={() => { setErrorMsg(""); setCanFallBack(false); onFallback(); }}
-                className="mt-2.5 min-h-11 w-full rounded-control border border-navy bg-white px-4 text-sm font-semibold text-navy transition hover:bg-navy hover:text-white"
+                className="mt-2.5 min-h-11 w-full rounded-control border border-navy bg-surface px-4 text-small font-semibold text-navy transition hover:bg-navy hover:text-white"
               >
                 Continue with cash on delivery
               </button>
@@ -429,7 +450,7 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
       )}
 
       <div>
-        <label htmlFor="mpesa-phone" className="mb-1.5 block text-xs font-bold uppercase tracking-wider text-muted">
+        <label htmlFor="mpesa-phone" className="mb-1.5 block text-micro font-semibold uppercase text-muted">
           Safaricom number
         </label>
         <input
@@ -442,15 +463,15 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
           placeholder="0712 345 678"
           aria-invalid={phoneError ? "true" : undefined}
           aria-describedby={phoneError ? "mpesa-phone-error" : "mpesa-phone-help"}
-          className={`min-h-11 w-full rounded-control border bg-white px-3.5 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-sienna/20 ${phoneError ? "border-error" : "border-line focus:border-navy"}`}
+          className={`min-h-11 w-full rounded-control border bg-surface px-3.5 py-2.5 text-small outline-none transition focus:ring-2 focus:ring-sienna ${phoneError ? "border-error" : "border-line focus:border-navy"}`}
         />
         {phoneError
-          ? <p id="mpesa-phone-error" className="mt-1 text-xs text-error">{phoneError}</p>
-          : <p id="mpesa-phone-help" className="mt-1.5 text-xs text-muted">Safaricom lines only (07XX / 01XX).</p>}
+          ? <p id="mpesa-phone-error" className="mt-1 text-small text-error">{phoneError}</p>
+          : <p id="mpesa-phone-help" className="mt-1.5 text-small text-muted">Safaricom lines only (07XX / 01XX).</p>}
       </div>
 
       <div className="flex items-center justify-between rounded-control bg-subtle px-4 py-3">
-        <span className="text-sm text-muted">Amount to pay</span>
+        <span className="text-small text-muted">Amount to pay</span>
         <span className="text-xl font-bold text-navy">KSh {displayAmount.toLocaleString()}</span>
       </div>
 
@@ -458,12 +479,12 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
         type="button"
         onClick={sendSTK}
         disabled={!ready}
-        className="btn-primary w-full text-base disabled:cursor-not-allowed disabled:bg-stone-200 disabled:text-muted"
+        className="btn-primary w-full text-base disabled:cursor-not-allowed disabled:bg-line disabled:text-muted"
       >
         Send M-Pesa request
       </button>
       {!ready && (
-        <p className="text-center text-xs text-muted">Add your delivery details above before paying.</p>
+        <p className="text-center text-small text-muted">Add your delivery details above before paying.</p>
       )}
     </div>
   );
@@ -475,7 +496,7 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
         <span className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-sienna" aria-hidden="true" />
       </div>
       <p className="font-semibold text-navy">Sending the request to Safaricom…</p>
-      <p className="text-sm text-muted">{mpesaPhone}</p>
+      <p className="text-small text-muted">{mpesaPhone}</p>
     </div>
   );
 
@@ -483,16 +504,16 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
   if (stage === "waiting") return (
     <div className="space-y-5">
       <div className="rounded-card bg-navy p-5 text-cream">
-        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-cream/70">M-Pesa request sent</p>
+        <p className="text-micro font-bold uppercase tracking-[0.16em] text-cream/70">M-Pesa request sent</p>
         <p className="mt-2 text-3xl font-bold text-white">KSh {displayAmount.toLocaleString()}</p>
-        <p className="mt-1 text-sm text-cream/80">
+        <p className="mt-1 text-small text-cream/80">
           to {mpesaPhone}{reference ? ` · ref ${reference}` : ""}
         </p>
       </div>
 
-      <div className="rounded-control border border-line bg-white p-4">
-        <p className="text-sm font-semibold text-navy">Check your phone</p>
-        <ol className="mt-2 space-y-1.5 text-sm text-muted">
+      <div className="rounded-control border border-line bg-surface p-4">
+        <p className="text-small font-semibold text-navy">Check your phone</p>
+        <ol className="mt-2 space-y-1.5 text-small text-muted">
           <li>1. A prompt from M-Pesa is waiting on your handset.</li>
           <li>2. Enter your M-Pesa PIN to approve it.</li>
           <li>3. This page updates on its own once it clears.</li>
@@ -500,26 +521,26 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
       </div>
 
       <div className="space-y-2 text-center">
-        <div className="inline-flex items-center gap-2 text-sm" role="status">
+        <div className="inline-flex items-center gap-2 text-small" role="status">
           <span className={`h-2 w-2 rounded-full ${countdown > 15 ? "bg-success" : "bg-warning"}`} aria-hidden="true" />
           <span className="text-muted">Waiting for payment</span>
           <span className={`font-semibold tabular-nums ${countdown <= 15 ? "text-warning" : "text-ink"}`}>{countdown}s</span>
         </div>
-        <p className="text-xs text-muted">Checking automatically. You can also check now.</p>
+        <p className="text-small text-muted">Checking automatically. You can also check now.</p>
       </div>
 
       <div className="flex gap-3">
         <button
           type="button"
           onClick={checkPaymentStatus}
-          className="flex-1 rounded-control border border-line py-3 text-sm font-semibold text-navy transition hover:border-navy"
+          className="flex-1 rounded-control border border-line py-3 text-small font-semibold text-navy transition hover:border-navy"
         >
           Check now
         </button>
         <button
           type="button"
           onClick={reset}
-          className="flex-1 rounded-control border border-line py-3 text-sm font-semibold text-muted transition hover:border-navy hover:text-navy"
+          className="flex-1 rounded-control border border-line py-3 text-small font-semibold text-muted transition hover:border-navy hover:text-navy"
         >
           Change number
         </button>
@@ -532,14 +553,14 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
   // thing the customer must not do is pay twice.
   if (stage === "unconfirmed") return (
     <div className="space-y-5">
-      <div className="rounded-control border border-line bg-white p-5">
-        <p className="text-sm font-semibold text-navy">We are still confirming this payment</p>
-        <p className="mt-2 text-sm leading-relaxed text-muted">
+      <div className="rounded-control border border-line bg-surface p-5">
+        <p className="text-small font-semibold text-navy">We are still confirming this payment</p>
+        <p className="mt-2 text-small leading-relaxed text-muted">
           Safaricom has not sent us a final answer for {mpesaPhone ? <span className="font-medium text-ink">{mpesaPhone}</span> : "this number"} yet.
           If your M-Pesa SMS shows the money left your account, <strong className="font-semibold text-ink">do not pay again</strong> —
           your order is completed as soon as the confirmation arrives.
         </p>
-        <p className="mt-2 text-xs leading-relaxed text-muted">
+        <p className="mt-2 text-small leading-relaxed text-muted">
           Nothing was charged twice and no order has been created yet.
         </p>
       </div>
@@ -551,14 +572,14 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
             setCountdown(60);
             setStage("waiting");
           }}
-          className="flex-1 rounded-control bg-navy py-3 text-sm font-semibold text-white transition hover:bg-navy-hover"
+          className="flex-1 rounded-control bg-navy py-3 text-small font-semibold text-white transition hover:bg-navy-hover"
         >
           Check again
         </button>
         <button
           type="button"
           onClick={reset}
-          className="flex-1 rounded-control border border-line py-3 text-sm font-semibold text-navy transition hover:border-navy"
+          className="flex-1 rounded-control border border-line py-3 text-small font-semibold text-navy transition hover:border-navy"
         >
           Change number
         </button>
@@ -575,7 +596,7 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
         </svg>
       </div>
       <p className="font-semibold text-navy">Payment received</p>
-      <p className="text-sm text-muted">Saving your order…</p>
+      <p className="text-small text-muted">Saving your order…</p>
     </div>
   );
 
@@ -584,13 +605,13 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
   // confirmed it. We do not know, so we say so — and we never invite a second
   // payment for the same order while the first might still land.
   if (stage === "unconfirmed") return (
-    <div className="space-y-4 rounded-control border border-line bg-white p-5">
+    <div className="space-y-4 rounded-control border border-line bg-surface p-5">
       <div className="space-y-2 text-center">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-warning/10">
           <span className="text-2xl font-bold text-warning" aria-hidden="true">?</span>
         </div>
         <p className="font-semibold text-navy">Still confirming your payment</p>
-        <p className="text-sm text-muted">
+        <p className="text-small text-muted">
           We have not heard back from M-Pesa yet. If your phone shows an M-Pesa
           message for KSh {displayAmount.toLocaleString()}, the payment went
           through — <strong className="font-semibold text-navy">do not pay again</strong>.
@@ -605,14 +626,14 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
             setStage("waiting");
             checkPaymentStatus();
           }}
-          className="flex-1 rounded-control border border-line py-3 text-sm font-semibold text-navy transition hover:border-navy"
+          className="flex-1 rounded-control border border-line py-3 text-small font-semibold text-navy transition hover:border-navy"
         >
           Check again
         </button>
         <button
           type="button"
           onClick={reset}
-          className="flex-1 rounded-control border border-line py-3 text-sm font-semibold text-muted transition hover:border-navy hover:text-navy"
+          className="flex-1 rounded-control border border-line py-3 text-small font-semibold text-muted transition hover:border-navy hover:text-navy"
         >
           Use another number
         </button>
@@ -633,25 +654,25 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
         </svg>
       </div>
       <p className="font-semibold text-navy">Payment not completed</p>
-      <p className="text-sm text-muted">
+      <p className="text-small text-muted">
         Payment could not be started. Please try again or contact support.
       </p>
-      <p className="text-xs text-muted">Nothing was charged.</p>
+      <p className="text-small text-muted">Nothing was charged.</p>
       {failure?.resultCode !== null && failure?.resultCode !== undefined && (
-        <p className="text-[11px] text-muted">
+        <p className="text-micro text-muted">
           Reference for support: M-Pesa result {failure.resultCode}
           {failure.resultDesc ? ` — ${failure.resultDesc}` : ""}
         </p>
       )}
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-        <button type="button" onClick={reset} className="btn-primary text-sm">
+        <button type="button" onClick={reset} className="btn-primary text-small">
           Try again
         </button>
         {onFallback && (
           <button
             type="button"
             onClick={() => { reset(); onFallback(); }}
-            className="min-h-11 rounded-control border border-line px-4 text-sm font-semibold text-navy transition hover:border-navy"
+            className="min-h-11 rounded-control border border-line px-4 text-small font-semibold text-navy transition hover:border-navy"
           >
             Pay on delivery instead
           </button>
@@ -671,8 +692,8 @@ function MpesaFlow({ phone, total, reference, items, ready = true, onSuccess, on
         </svg>
       </div>
       <p className="font-semibold text-navy">Payment not completed</p>
-      <p className="text-sm text-muted">The request was cancelled or timed out. Nothing was charged.</p>
-      <button type="button" onClick={reset} className="btn-primary text-sm">
+      <p className="text-small text-muted">The request was cancelled or timed out. Nothing was charged.</p>
+      <button type="button" onClick={reset} className="btn-primary text-small">
         Try again
       </button>
     </div>
@@ -683,39 +704,45 @@ function CodFlow({ total, onSuccess, disabled = false }) {
   const [agreed, setAgreed] = useState(false);
   return (
     <div className="space-y-5">
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
-        <div className="flex items-center gap-3 mb-4"><div><p className="font-bold text-amber-800">Cash on delivery</p><p className="text-sm text-amber-700">Pay in cash when your books arrive.</p></div></div>
+      <div className="border border-warning/40 bg-warning/10 rounded-card p-5">
+        <div className="flex items-center gap-3 mb-4"><div><p className="font-bold text-warning-strong">Cash on delivery</p><p className="text-small text-warning-strong">Pay in cash when your books arrive.</p></div></div>
         <ul className="space-y-2.5">
           {[
             `Have KSh ${total.toLocaleString()} ready when the books arrive`,
             "The rider will call the phone number you gave us",
             "We use this number if we need to reach you about the delivery",
           ].map((t) => (
-            <li key={t} className="flex items-start gap-2 text-sm text-amber-800">
-              <svg className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>{t}
+            <li key={t} className="flex items-start gap-2 text-small text-warning-strong">
+              <svg className="w-4 h-4 text-warning flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>{t}
             </li>
           ))}
         </ul>
       </div>
-      <div className="bg-stone-50 rounded-xl p-4 text-sm">
-        <div className="flex justify-between font-bold text-[#1B2A4A]"><span>Pay on delivery</span><span>KSh {total.toLocaleString()}</span></div>
+      <div className="bg-subtle rounded-control p-4 text-small">
+        <div className="flex justify-between font-bold text-navy"><span>Pay on delivery</span><span>KSh {total.toLocaleString()}</span></div>
       </div>
-      <label className="flex items-start gap-3 cursor-pointer group">
-        <div onClick={() => setAgreed(!agreed)} className={`mt-0.5 w-5 h-5 rounded flex items-center justify-center border-2 flex-shrink-0 transition ${agreed ? "bg-[#1B2A4A] border-[#1B2A4A]" : "border-stone-300 group-hover:border-stone-400"}`}>
-          {agreed && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-        </div>
-        <span className="text-sm text-stone-600 leading-relaxed">I understand I must pay <strong className="text-[#1B2A4A]">KSh {total.toLocaleString()}</strong> in cash to the delivery rider.</span>
+      {/* A real checkbox: the same agreement used to be a div with an
+          onClick, which meant a keyboard or screen-reader user could not give
+          consent to pay cash on delivery at all. The label is the touch target. */}
+      <label className="flex cursor-pointer items-start gap-3">
+        <input
+          type="checkbox"
+          checked={agreed}
+          onChange={(event) => setAgreed(event.target.checked)}
+          className="mt-0.5 h-5 w-5 shrink-0"
+        />
+        <span className="text-small leading-relaxed text-muted">I understand I must pay <strong className="text-navy">KSh {total.toLocaleString()}</strong> in cash to the delivery rider.</span>
       </label>
       <button
         type="button"
         onClick={() => agreed && !disabled && onSuccess("cod")}
         disabled={!agreed || disabled}
-        className="btn-primary w-full text-base disabled:bg-stone-200 disabled:text-muted disabled:cursor-not-allowed"
+        className="btn-primary w-full text-base disabled:bg-line disabled:text-muted disabled:cursor-not-allowed"
       >
         Place order — pay on delivery
       </button>
       {disabled && (
-        <p className="text-center text-xs text-muted">Add your delivery details above to place the order.</p>
+        <p className="text-center text-small text-muted">Add your delivery details above to place the order.</p>
       )}
     </div>
   );
@@ -730,7 +757,7 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, m
   const method = chosen ?? (mpesaEnabled ? "mpesa" : "cod");
   const grand = total + deliveryFeeFor(total);
   const methods = [
-    ...(mpesaEnabled ? [{ id: "mpesa", label: "M-Pesa", sub: "Pay from your phone", icon: "M", color: "bg-[#2F7D4F]" }] : []),
+    ...(mpesaEnabled ? [{ id: "mpesa", label: "M-Pesa", sub: "Pay from your phone", icon: "M", color: "bg-success" }] : []),
     { id: "cod", label: "Cash on delivery", sub: "Pay the rider", icon: "KSh", color: "bg-navy" },
   ];
 
@@ -739,18 +766,18 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, m
   if (!canPay) {
     return (
       <div className="space-y-5">
-        <h2 className="text-2xl font-bold text-[#1B2A4A] mb-1">Sign in to complete your order</h2>
-        <p className="text-stone-500 text-sm">
+        <h2 className="text-2xl font-bold text-navy mb-1">Sign in to complete your order</h2>
+        <p className="text-muted text-small">
           Orders are linked to your BookHaven account so you can track them and we can reach
           you about delivery.
         </p>
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+        <div className="border border-warning/40 bg-warning/10 rounded-control p-4 text-small text-warning-strong">
           Your basket is saved. Sign in or create an account and you will return straight to checkout.
         </div>
-        <Link href="/login?next=/checkout" className="block text-center bg-[#1B2A4A] hover:bg-[#B5532F] text-white py-4 rounded-xl font-bold transition">
+        <Link href="/login?next=/checkout" className="block text-center bg-navy hover:bg-sienna text-white py-4 rounded-control font-bold transition">
           Sign in to continue
         </Link>
-        <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-muted hover:text-stone-600 transition">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-small text-muted hover:text-muted transition">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           Back to details
         </button>
@@ -760,36 +787,35 @@ function StepPayment({ details, total, items, reference, canPay, ready = true, m
 
   return (
     <div>
-      <p className="text-[11px] font-bold uppercase tracking-widest text-sienna">Step 2 of 3</p>
       <h2 className="mt-1 text-2xl font-bold text-navy">Payment</h2>
-      <p className="text-muted text-sm mt-1 mb-6">
+      <p className="text-muted text-small mt-1 mb-6">
         {details.firstName || details.city
           ? <>Delivering to <span className="font-semibold text-ink">{[details.firstName, details.lastName].filter(Boolean).join(" ")}</span>{details.city ? ` · ${details.city}` : ""}</>
           : "Choose how you would like to pay."}
       </p>
       <div className={`grid gap-3 mb-7 ${methods.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
         {methods.map((m) => (
-          <button key={m.id} onClick={() => setChosen(m.id)} className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${method === m.id ? "border-[#B5532F] bg-[#B5532F]/5" : "border-[#E3DCCB] hover:border-stone-300 bg-white"}`}>
-            <div className={`w-9 h-9 ${m.color} rounded-lg flex items-center justify-center mx-auto mb-2`}><span className="text-white font-black text-sm">{m.icon}</span></div>
-            <p className={`text-xs font-bold leading-tight ${method === m.id ? "text-[#B5532F]" : "text-stone-700"}`}>{m.label}</p>
-            <p className="text-[10px] text-muted mt-0.5">{m.sub}</p>
+          <button key={m.id} onClick={() => setChosen(m.id)} className={`p-3 rounded-control border-2 text-center transition-all duration-200 ${method === m.id ? "border-sienna bg-sienna/5" : "border-line hover:border-line-strong bg-surface"}`}>
+            <div className={`w-9 h-9 ${m.color} rounded-control flex items-center justify-center mx-auto mb-2`}><span className="text-white font-black text-small">{m.icon}</span></div>
+            <p className={`text-small font-bold leading-tight ${method === m.id ? "text-sienna" : "text-ink"}`}>{m.label}</p>
+            <p className="text-micro text-muted mt-0.5">{m.sub}</p>
           </button>
         ))}
       </div>
-      <div className="bg-stone-50/50 rounded-2xl p-1">
-        <div className="bg-white rounded-xl p-5 border border-stone-100">
+      <div className="bg-subtle rounded-card p-1">
+        <div className="bg-surface rounded-control p-5 border border-line">
           {method === "mpesa" && <MpesaFlow phone={details.phone} total={grand} reference={reference} items={items} ready={ready} onSuccess={onSuccess} onFallback={() => setChosen("cod")} />}
           {method === "cod" && <CodFlow total={grand} onSuccess={onSuccess} disabled={!ready} />}
         </div>
       </div>
-      <p className="mt-5 text-center text-xs leading-relaxed text-muted">
+      <p className="mt-5 text-center text-small leading-relaxed text-muted">
         Paying places an order under our{" "}
         <Link href="/terms" className="font-semibold text-sienna underline-offset-2 hover:underline">terms of sale</Link>.
         Delivery is {DELIVERY_PERCENT}% of the book total, shown above before you pay —{" "}
         <Link href="/help#delivery" className="font-semibold text-sienna underline-offset-2 hover:underline">how delivery works</Link>.
       </p>
       {onBack && (
-        <button type="button" onClick={onBack} className="mt-4 text-sm text-muted hover:text-navy underline underline-offset-2">
+        <button type="button" onClick={onBack} className="mt-4 text-small text-muted hover:text-navy underline underline-offset-2">
           Back to delivery details
         </button>
       )}
@@ -809,42 +835,42 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
   return (
     <div className="text-center py-4 animate-slide-up">
       <div className="relative w-24 h-24 mx-auto mb-6">
-        <div className={`w-24 h-24 rounded-full flex items-center justify-center ${order ? "bg-green-100" : "bg-amber-100"}`}>
+        <div className={`w-24 h-24 rounded-full flex items-center justify-center ${order ? "border border-success/25 bg-success/10" : "border border-warning/30 bg-warning/10"}`}>
           {order
-            ? <svg className="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-            : <svg className="w-12 h-12 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+            ? <svg className="h-8 w-8 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            : <svg className="h-8 w-8 text-warning-strong" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         </div>
       </div>
 
-      <h1 className="text-2xl sm:text-3xl font-bold text-navy">{order ? "Order received" : "Your order could not be saved"}</h1>
-      <p className="text-stone-500 mt-2 mb-8">
+      <h1 className="font-playfair text-title font-bold text-navy">{order ? "Order received" : "Your order could not be saved"}</h1>
+      <p className="mx-auto mt-3 mb-8 max-w-[52ch] text-body text-muted">
         {order
           ? `Thank you ${details.firstName}. We have your order and will be in touch about delivery.`
           : `Thank you ${details.firstName}. We need to sort one thing out before this order is complete.`}
       </p>
 
       {stockError && (
-        <div className="max-w-sm mx-auto mb-6 bg-red-50 border border-red-200 rounded-xl p-4 text-left text-sm text-red-800">
+        <div className="max-w-sm mx-auto mb-6 bg-error/5 border border-error/30 rounded-control p-4 text-left text-small text-error">
           {stockError}
           {paidAlready && <> Your payment was received — please contact support with reference <strong>{shownRef}</strong> and we&apos;ll sort out a substitute or refund for that item.</>}
         </div>
       )}
 
       {saveError && !stockError && (
-        <div className="max-w-sm mx-auto mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 text-left text-sm text-amber-800 space-y-2">
+        <div className="max-w-sm mx-auto mb-6 border border-warning/40 bg-warning/10 rounded-control p-4 text-left text-small text-warning-strong space-y-2">
           <p>{saveError}</p>
           <p>
             {paidAlready
               ? <>Your M-Pesa payment went through but the order was not recorded. Save this reference and contact support — do <strong>not</strong> pay again.</>
               : <>Nothing has been charged. You can safely try again.</>}
           </p>
-          <button onClick={onRetry} disabled={saving} className="w-full bg-[#1B2A4A] hover:bg-[#B5532F] disabled:opacity-60 text-white py-3 rounded-xl font-bold text-sm transition">
+          <button onClick={onRetry} disabled={saving} className="w-full bg-navy hover:bg-sienna disabled:opacity-60 text-white py-3 rounded-control font-bold text-small transition">
             {saving ? "Saving…" : "Try saving the order again"}
           </button>
         </div>
       )}
 
-      <div className="bg-stone-50 rounded-2xl p-6 text-left max-w-sm mx-auto space-y-3 mb-6">
+      <div className="bg-subtle rounded-card p-6 text-left max-w-sm mx-auto space-y-3 mb-6">
         {[
           { label: order ? "Order reference" : "Payment reference", value: shownRef, mono: true },
           { label: "Delivering to", value: `${details.address}, ${details.city}` },
@@ -852,9 +878,9 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
           { label: order ? "Amount due" : "Amount", value: `KSh ${grand.toLocaleString()}` },
           ...(order?.subtotal != null ? [{ label: "Subtotal", value: `KSh ${order.subtotal.toLocaleString()}` }, { label: "Delivery", value: order.delivery_fee ? `KSh ${order.delivery_fee.toLocaleString()}` : "Free" }] : []),
         ].map(({ label, value, mono }) => (
-          <div key={label} className="flex justify-between text-sm gap-4">
-            <span className="text-stone-500 flex-shrink-0">{label}</span>
-            <span className={`font-semibold text-[#1B2A4A] text-right ${mono ? "font-mono" : ""}`}>{value}</span>
+          <div key={label} className="flex justify-between text-small gap-4">
+            <span className="text-muted flex-shrink-0">{label}</span>
+            <span className={`font-semibold text-navy text-right ${mono ? "font-mono" : ""}`}>{value}</span>
           </div>
         ))}
       </div>
@@ -865,18 +891,20 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
             <BookCover book={item} className="w-full h-full" />
           </div>
         ))}
-        {cart.length > 4 && <div className="w-12 bg-stone-100 rounded-r-sm flex items-center justify-center text-xs font-bold text-stone-500" style={{ aspectRatio: "2/3" }}>+{cart.length - 4}</div>}
+        {cart.length > 4 && <div className="w-12 bg-subtle rounded-r-sm flex items-center justify-center text-small font-bold text-muted" style={{ aspectRatio: "2/3" }}>+{cart.length - 4}</div>}
       </div>
 
-      <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 text-sm text-blue-700 max-w-sm mx-auto mb-8">
+      <div className="mx-auto mb-8 max-w-sm rounded-card border border-line bg-subtle/60 p-4 text-small text-muted">
         {order
-          ? "No receipt email is sent yet. This page and your account page are the record of this order."
+          ? ORDER_EMAILS_ENABLED
+            ? "A copy of this order is on its way to your email. This page and your account page are the record of it."
+            : "No receipt email is sent yet. This page and your account page are the record of this order."
           : "Keep the reference above. If money left your account, contact us before trying again."}
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
-        <Link href="/account" className="bg-[#1B2A4A] hover:bg-[#B5532F] text-white px-8 py-3.5 rounded-xl font-bold transition-all active:scale-95">View my orders</Link>
-        <Link href="/books" className="border-2 border-[#E3DCCB] hover:border-stone-300 text-stone-600 px-8 py-3.5 rounded-xl font-bold transition-all">Continue shopping</Link>
+        <Link href="/account" className="bg-navy hover:bg-sienna text-white px-8 py-3.5 rounded-control font-bold transition-all active:scale-95">View my orders</Link>
+        <Link href="/books" className="border-2 border-line hover:border-line-strong text-muted px-8 py-3.5 rounded-control font-bold transition-all">Continue shopping</Link>
       </div>
     </div>
   );
@@ -884,20 +912,22 @@ function StepConfirmation({ order, reference, details, method, cart, total, save
 
 // Minimal chrome for the states that are decided before the checkout form
 // exists: a focused page still needs a way back to the shop and to the basket.
-function CheckoutChrome({ children }) {
+function CheckoutChrome({ children, wide = false }) {
   return (
     <div className="flex min-h-screen flex-col bg-cream">
-      <header className="sticky top-0 z-40 border-b border-line bg-white">
-        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:h-16 sm:px-6">
+      <header className="sticky top-0 z-40 border-b border-line bg-surface">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5 sm:h-20 sm:px-8">
           <Link href="/" className="font-playfair text-lg font-bold text-navy transition-colors hover:text-sienna">
             Book Haven
           </Link>
-          <Link href="/books" className="text-sm text-muted underline-offset-2 hover:text-navy hover:underline">
+          <Link href="/books" className="text-small text-muted underline-offset-2 hover:text-navy hover:underline">
             Continue shopping
           </Link>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-md px-4 py-12 sm:py-16">{children}</main>
+      <main className={`mx-auto w-full px-5 py-10 sm:px-8 sm:py-14 ${wide ? "max-w-5xl" : "max-w-md"}`}>
+        {children}
+      </main>
     </div>
   );
 }
@@ -912,6 +942,11 @@ export default function CheckoutPage() {
   const [saveError, setSaveError] = useState(null);
   const [stockError, setStockError] = useState(null);
   const [signedIn, setSignedIn] = useState(null); // null = still checking
+  // The address the account is registered with. While it is set, the delivery
+  // email is that address and cannot be edited: an order belongs to an
+  // account, and an order that quietly emails a different address is one the
+  // customer cannot find again.
+  const [accountEmail, setAccountEmail] = useState("");
   // Payment options come from the server, never from a build-time flag: only
   // the server can see whether the Daraja credentials are present.
   const [mpesaEnabled, setMpesaEnabled] = useState(false);
@@ -1035,9 +1070,31 @@ export default function CheckoutPage() {
     let cancelled = false;
     supabase.auth
       .getSession()
-      .then(({ data: { session } }) => { if (!cancelled) setSignedIn(!!session); })
+      .then(({ data: { session } }) => {
+        if (cancelled) return;
+        setSignedIn(!!session);
+        const email = session?.user?.email || "";
+        if (!email) return;
+        setAccountEmail(email);
+        // Only prefill: a guest checkout still has an editable field, and a
+        // customer who signed in after starting the form keeps what they
+        // typed only if it already is their address.
+        setDetails((prev) => ({ ...prev, email: prev.email || email }));
+      })
       .catch(() => { if (!cancelled) setSignedIn(false); });
-    return () => { cancelled = true; };
+
+    // Signing in or out in another tab must not leave a locked field holding
+    // an address that is no longer the account's.
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const email = session?.user?.email || "";
+      setAccountEmail(email);
+      if (email) setDetails((prev) => ({ ...prev, email }));
+    });
+
+    return () => {
+      cancelled = true;
+      listener?.subscription?.unsubscribe();
+    };
   }, []);
 
   // Load the customer's saved addresses once we know they are signed in.
@@ -1050,7 +1107,7 @@ export default function CheckoutPage() {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
-        const res = await fetch("/api/adresses", {
+        const res = await fetch("/api/addresses", {
           headers: { authorization: `Bearer ${session.access_token}` },
           cache: "no-store",
         });
@@ -1090,7 +1147,7 @@ export default function CheckoutPage() {
     if (duplicate) return;
 
     try {
-      await fetch("/api/adresses", {
+      await fetch("/api/addresses", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1176,8 +1233,8 @@ export default function CheckoutPage() {
     return (
       <CheckoutChrome>
         <h1 className="font-playfair text-2xl font-bold text-navy">Your basket is empty</h1>
-        <p className="mt-2 text-sm text-muted">Add a book before checking out.</p>
-        <Link href="/books" className="btn-primary mt-6 text-sm">Browse the shelf</Link>
+        <p className="mt-2 text-small text-muted">Add a book before checking out.</p>
+        <Link href="/books" className="btn-primary mt-6 text-small">Browse the shelf</Link>
       </CheckoutChrome>
     );
   }
@@ -1187,17 +1244,17 @@ export default function CheckoutPage() {
   if (signedIn === false && step < 3) {
     return (
       <CheckoutChrome>
-        <div className="rounded-card border border-line bg-white p-6 text-center sm:p-7">
+        <div className="rounded-card border border-line bg-surface p-6 text-center sm:p-7">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-subtle" aria-hidden="true">
             <svg className="h-6 w-6 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-[#1B2A4A]">Sign in to finish your order</h1>
-          <p className="text-sm text-stone-500 mt-2">
+          <h1 className="font-playfair text-xl font-bold text-navy">Sign in to finish your order</h1>
+          <p className="text-small text-muted mt-2">
             Orders are tied to your account so you can track delivery and keep a record of every purchase.
           </p>
-          <p className="text-xs text-muted mt-3">
+          <p className="text-small text-muted mt-3">
             {cart.length === 0
               ? "Your basket is empty."
               : `Your ${cart.reduce((n, i) => n + i.quantity, 0)} item basket is saved on this device — nothing is lost.`}
@@ -1205,18 +1262,18 @@ export default function CheckoutPage() {
           <div className="mt-6 space-y-2">
             <Link
               href="/login?next=%2Fcheckout"
-              className="block w-full bg-[#B5532F] hover:bg-[#96431F] text-white py-3 rounded-xl font-bold transition"
+              className="block w-full bg-sienna hover:bg-sienna-hover text-white py-3 rounded-control font-bold transition"
             >
               Sign in
             </Link>
             <Link
               href="/login?tab=register&next=%2Fcheckout"
-              className="block w-full border-2 border-[#E3DCCB] hover:border-[#B5532F] text-stone-700 py-3 rounded-xl font-bold transition"
+              className="block w-full rounded-control border-2 border-line py-3 font-semibold text-ink transition-colors hover:border-sienna"
             >
               Create an account
             </Link>
           </div>
-          <Link href="/books" className="mt-5 inline-block text-xs text-muted hover:text-sienna">
+          <Link href="/books" className="mt-5 inline-block text-small text-muted hover:text-sienna">
             ← Continue browsing
           </Link>
         </div>
@@ -1224,33 +1281,63 @@ export default function CheckoutPage() {
     );
   }
 
+  // The session check is a round trip. While it runs, the page shows what it
+  // is going to be — its title, its frame, and the shape of the step rail —
+  // instead of one grey sentence. That keeps the first paint honest and stops
+  // the layout jumping when the form arrives.
   if (signedIn === null && step < 3) {
     return (
-      <CheckoutChrome>
-        <p className="text-sm text-muted" role="status">Checking your session…</p>
+      <CheckoutChrome wide>
+        <div className="mb-8 text-center">
+          <h1 className="font-playfair text-title font-bold text-navy">Checkout</h1>
+          <p className="mt-2 text-small text-muted">Delivery and payment on one page.</p>
+        </div>
+        <div className="mb-10 flex items-center justify-center" aria-hidden="true">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="flex items-center">
+              <div className="h-9 w-9 rounded-full border-2 border-line sm:h-10 sm:w-10" />
+              {n < 3 && <div className="mx-2 h-0.5 w-8 bg-line sm:mx-3 sm:w-24" />}
+            </div>
+          ))}
+        </div>
+        <div className="grid items-start gap-6 lg:grid-cols-[1fr_360px] lg:gap-8">
+          <div className="surface p-5 sm:p-7 lg:p-9">
+            <div className="h-5 w-40 rounded bg-subtle" />
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              {[0, 1, 2, 3].map((n) => (
+                <div key={n}>
+                  <div className="h-3 w-24 rounded bg-subtle" />
+                  <div className="mt-2 h-11 rounded-control border border-line" />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="hidden h-56 rounded-card border border-line bg-surface lg:block" />
+        </div>
+        <p className="sr-only" role="status">Checking your session…</p>
       </CheckoutChrome>
     );
   }
 
 
   return (
-    <div className="min-h-screen bg-[#FAF6EE]">
-      <header className="bg-white border-b border-[#E3DCCB] sticky top-0 z-40">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+    <div className="min-h-screen bg-cream">
+      <header className="bg-surface border-b border-line sticky top-0 z-40">
+        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5 sm:h-20 sm:px-8">
           <Link href="/" className="font-playfair text-lg font-bold text-navy hover:text-sienna transition-colors">
             Book Haven
           </Link>
-          <Link href="/books" className="text-sm text-muted hover:text-navy underline-offset-2 hover:underline">
+          <Link href="/books" className="text-small text-muted hover:text-navy underline-offset-2 hover:underline">
             Continue shopping
           </Link>
         </div>
       </header>
 
       {step < 3 && (
-        <div className="lg:hidden bg-white border-b border-[#E3DCCB] px-4 py-3 flex items-center justify-between">
+        <div className="lg:hidden bg-surface border-b border-line px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold text-stone-600">Order total</span>
-            <span className="text-sm font-black text-[#1B2A4A]">KSh {(total + deliveryFeeFor(total)).toLocaleString()}</span>
+            <span className="text-small font-semibold text-muted">Order total</span>
+            <span className="text-small font-black text-navy">KSh {(total + deliveryFeeFor(total)).toLocaleString()}</span>
           </div>
           <div className="flex items-center gap-1.5">
             {cart.slice(0, 3).map((item, i) => (
@@ -1258,21 +1345,21 @@ export default function CheckoutPage() {
                 <BookCover book={item} className="w-full h-full" />
               </div>
             ))}
-            {cart.length > 3 && <span className="text-xs text-muted font-medium">+{cart.length - 3}</span>}
+            {cart.length > 3 && <span className="text-small text-muted font-medium">+{cart.length - 3}</span>}
           </div>
         </div>
       )}
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10">
-        <div className="mb-6 text-center">
-          <h1 className="text-xl sm:text-2xl font-bold text-navy">Checkout</h1>
-          <p className="mt-1 text-sm text-muted">Delivery and payment on one page.</p>
+      <main className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-12">
+        <div className="mb-8 text-center">
+          <h1 className="font-playfair text-title font-bold text-navy">Checkout</h1>
+          <p className="mt-2 text-small text-muted">Delivery and payment on one page.</p>
         </div>
         <StepBar step={step === 3 ? 3 : detailsValid ? 2 : 1} />
         <div className="grid lg:grid-cols-[1fr_360px] gap-6 lg:gap-8 items-start">
-          <div className="bg-white rounded-card border border-line p-4 sm:p-6 lg:p-8">
+          <div className="surface p-5 sm:p-7 lg:p-9">
             {basketNotice && step < 3 && (
-              <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800" role="status">
+              <div className="mb-5 rounded-card border border-warning/40 bg-warning/10 p-4 text-small text-warning-strong" role="status">
                 {basketNotice}
               </div>
             )}
@@ -1281,6 +1368,7 @@ export default function CheckoutPage() {
                 <StepDetails
                   data={details}
                   onChange={updateDetail}
+                  accountEmail={accountEmail}
                   saved={savedAddresses}
                   onPickSaved={useSavedAddress}
                   remember={rememberAddress}

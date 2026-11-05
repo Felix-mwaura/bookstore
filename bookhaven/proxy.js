@@ -37,7 +37,18 @@ export async function proxy(request) {
 
   // getUser() validates the JWT with the Auth server; getSession() only
   // decodes whatever is in the cookie and cannot be trusted here.
-  const { data: { user } } = await supabase.auth.getUser();
+  //
+  // Guarded because an unconfigured deployment (a preview with no
+  // NEXT_PUBLIC_* variables) points at an unresolvable placeholder: the call
+  // fails, and "no user" is exactly the right interpretation. An exception
+  // here would turn /admin into a 500 instead of the sign-in page.
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getUser();
+    user = data?.user ?? null;
+  } catch {
+    user = null;
+  }
 
   if (!user) {
     const url = request.nextUrl.clone();
@@ -46,12 +57,19 @@ export async function proxy(request) {
     return NextResponse.redirect(url);
   }
 
-  // A missing profile is an expected state (never .single() here).
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .maybeSingle();
+  // A missing profile is an expected state (never .single() here) and an
+  // unreachable database is treated the same way: no admin role, no entry.
+  let profile = null;
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .maybeSingle();
+    profile = data ?? null;
+  } catch {
+    profile = null;
+  }
 
   if (profile?.role !== "admin") {
     const url = request.nextUrl.clone();

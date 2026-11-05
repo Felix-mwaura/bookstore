@@ -1,4 +1,5 @@
-import Link from "next/link";
+import PageHeader from "./PageHeader";
+import ScrollProgress from "./ScrollProgress";
 
 // Shared shell for the pages a shop has to have: help, privacy, terms, about.
 //
@@ -10,25 +11,21 @@ import Link from "next/link";
 
 const UPDATED = "23 October 2026";
 
-export function PolicyPage({ eyebrow, title, intro, children, updated = true }) {
+export function PolicyPage({ title, intro, children, updated = true }) {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14">
-      <nav aria-label="Breadcrumb" className="mb-5 text-xs text-muted">
-        <ol className="flex items-center gap-2">
-          <li><Link href="/" className="-my-1.5 inline-block py-1.5 underline-offset-2 hover:text-navy hover:underline">Home</Link></li>
-          <li aria-hidden="true">/</li>
-          <li className="font-medium text-ink" aria-current="page">{title}</li>
-        </ol>
-      </nav>
+    <div className="shell-doc py-8 sm:py-12">
+      <ScrollProgress />
+      <PageHeader
+        className="mb-10"
+        breadcrumb={[{ label: "Home", href: "/" }, { label: title }]}
+        title={title}
+        description={intro}
+        meta={updated ? `Last updated ${UPDATED}` : undefined}
+      />
 
-      <header className="border-b border-line pb-6">
-        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">{eyebrow}</p>
-        <h1 className="mt-2 font-playfair text-3xl font-bold text-navy sm:text-4xl">{title}</h1>
-        {intro && <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">{intro}</p>}
-        {updated && <p className="mt-3 text-xs text-muted">Last updated {UPDATED}</p>}
-      </header>
-
-      <div className="mt-8 space-y-8">{children}</div>
+      {/* Prose gets the measure of a book page, not a marketing column:
+          these are documents people read to the end. */}
+      <div className="max-w-[42rem] space-y-10">{children}</div>
     </div>
   );
 }
@@ -36,7 +33,7 @@ export function PolicyPage({ eyebrow, title, intro, children, updated = true }) 
 export function Section({ id, title, children }) {
   return (
     <section id={id} aria-labelledby={id ? `${id}-heading` : undefined} className="scroll-mt-24">
-      <h2 id={id ? `${id}-heading` : undefined} className="text-lg font-bold text-navy">
+      <h2 id={id ? `${id}-heading` : undefined} className="font-playfair text-xl font-bold text-navy">
         {title}
       </h2>
       <div className="mt-2 space-y-3 text-sm leading-relaxed text-ink">{children}</div>
@@ -55,9 +52,9 @@ export function Bullets({ children }) {
  * number and a shop address that nobody has confirmed. They are shown in the
  * footer because that predates this work, but repeating them across four new
  * public pages would turn a known placeholder into what looks like a real
- * address a customer might travel to. So when the details are still
- * placeholders this says so plainly instead, and stops saying it the moment
- * the store env vars are set.
+ * address a customer might travel to. So when nobody has confirmed them this
+ * says so plainly instead, and stops saying it the moment the store env vars
+ * are set.
  */
 export function ContactBlock({ contact }) {
   if (contact.usingPlaceholders) {
@@ -81,8 +78,24 @@ export function ContactBlock({ contact }) {
     <div className="rounded-card border border-line bg-white p-5">
       <p className="text-sm font-semibold text-navy">Talk to a person</p>
       <p className="mt-1 text-sm text-muted">
-        Email <a className="font-medium text-sienna underline-offset-2 hover:underline" href={`mailto:${contact.email}`}>{contact.email}</a>
-        {" "}or call <a className="font-medium text-sienna underline-offset-2 hover:underline" href={contact.phoneHref}>{contact.phone}</a>.
+        {contact.email && (
+          <>
+            Email{" "}
+            <a className="font-medium text-sienna underline-offset-2 hover:underline" href={`mailto:${contact.email}`}>
+              {contact.email}
+            </a>
+          </>
+        )}
+        {contact.email && contact.phone && " or "}
+        {contact.phone && contact.phoneHref && (
+          <>
+            {!contact.email && "Call "}
+            <a className="font-medium text-sienna underline-offset-2 hover:underline" href={contact.phoneHref}>
+              {contact.phone}
+            </a>
+          </>
+        )}
+        .
       </p>
       {contact.location && <p className="mt-1 text-sm text-muted">{contact.location}</p>}
       {contact.hours && <p className="text-sm text-muted">{contact.hours}</p>}

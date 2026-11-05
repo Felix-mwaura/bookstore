@@ -13,18 +13,6 @@ export const categories = [
   "Biography",
 ];
 
-export const categoryIcons = {
-  All: "🏠",
-  "Self-Help": "🌱",
-  Finance: "💰",
-  Productivity: "⚡",
-  Psychology: "🧠",
-  History: "🏛️",
-  Philosophy: "💭",
-  Fiction: "✨",
-  Biography: "👤",
-};
-
 /** "Self-Help" → "self-help" */
 export function categorySlug(name) {
   return String(name).toLowerCase().replace(/\s+/g, "-");

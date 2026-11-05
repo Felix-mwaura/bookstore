@@ -1,6 +1,6 @@
 import { Bullets, ContactBlock, PolicyPage, Section } from "../components/PolicyPage";
 import StoreLayout from "../components/StoreLayout";
-import { SITE_NAME, STORE_CONTACT } from "../lib/site";
+import { ORDER_EMAILS_ENABLED, SITE_NAME, STORE_CONTACT } from "../lib/site";
 
 export const metadata = {
   title: `Privacy · ${SITE_NAME}`,
@@ -17,7 +17,6 @@ export default function PrivacyPage() {
   return (
     <StoreLayout>
       <PolicyPage
-        eyebrow="Privacy"
         title="What we keep, and why"
         intro="This page describes the data this shop actually stores. It is short because the shop does not do very much with it."
       >
@@ -67,10 +66,26 @@ export default function PrivacyPage() {
         </Section>
 
         <Section id="email" title="Email">
+          {ORDER_EMAILS_ENABLED ? (
+            <p>
+              You get an email when an order is placed and when its status changes.
+            </p>
+          ) : (
+            <p>
+              The shop does not send email copies of an order yet: the confirmation screen and the order in your
+              account are the record, and nothing about an order depends on an inbox.
+            </p>
+          )}
           <p>
-            We email you an order confirmation and updates when an order is dispatched, delivered or cancelled,
-            and a password-reset link if you ask for one. If you subscribe to the newsletter, you get the
-            newsletter; unsubscribing is a link in every one of those emails.
+            A password-reset link is sent by the account system when you ask for one. Every one of these messages
+            goes only to the address on the order or the account; the shop does not email anyone else about your
+            order.
+          </p>
+          <p className="text-muted">
+            The announcement list is not open yet. The form that collects addresses stays closed until the shop
+            has a published way to contact it, because being able to leave a list is part of being on it. When it
+            opens, every message will say how to stop receiving them, and your address will never be shared or
+            sold.
           </p>
         </Section>
 
@@ -92,8 +107,9 @@ export default function PrivacyPage() {
             Two things survive, and you should know about them before asking. M-Pesa payment records are kept
             for accounting, but they are detached from your account when it is deleted — the amount, receipt
             number and phone number the payment was made from remain, as they must for a shop to account for
-            money received. Order emails already sent are in your inbox, outside our control. If you want a
-            copy of your order history, ask for it before the account is removed.
+            money received.{" "}
+            {ORDER_EMAILS_ENABLED ? "Any email already sent to you is in your inbox, outside our control. " : ""}
+            If you want a copy of your order history, ask for it before the account is removed.
           </p>
         </Section>
 

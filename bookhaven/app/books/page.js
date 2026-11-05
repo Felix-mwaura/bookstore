@@ -1,17 +1,36 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import StoreLayout from "../components/StoreLayout";
+import PageHeader from "../components/PageHeader";
 import BookGrid, { BookGridSkeleton, CatalogueEmpty } from "../components/BookGrid";
 import Pagination from "../components/Pagination";
 import { ActiveFilterChips, CatalogueSidebar, MobileFilterButton, SortSelect } from "../components/CatalogueControls";
 import { getCategoryCounts, isSort, priceBand, queryCatalogue } from "../lib/catalogue";
-import { categories } from "../lib/categories";
+import { getGenres, resolveGenre } from "../lib/genres-data";
 import { SITE_NAME } from "../lib/site";
 
 export const dynamic = "force-dynamic";
 
 const one = (value) => (Array.isArray(value) ? value[0] : value) || "";
+
+/**
+ * A page number past the end is a dead end: the heading still describes the
+ * shelf while the grid below it is empty. Send the reader to the last page
+ * that exists, keeping every filter they had chosen.
+ */
+function lastPageHref(basePath, sp, pages) {
+  const params = new URLSearchParams();
+  for (const key of ["q", "category", "sort", "price", "availability"]) {
+    const value = Array.isArray(sp[key]) ? sp[key][0] : sp[key];
+    if (value) params.set(key, value);
+  }
+  if (pages > 1) params.set("page", String(pages));
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
 
 const BASE_METADATA = {
   title: `All books · ${SITE_NAME}`,
@@ -29,7 +48,11 @@ const BASE_METADATA = {
 // back at the canonical catalogue instead of competing with it.
 export async function generateMetadata({ searchParams }) {
   const sp = await searchParams;
-  const category = categories.includes(one(sp.category)) ? one(sp.category) : "";
+  // Resolved against the same genre list the sidebar and the header picker
+  // render (see lib/genres-data.js), not the built-in taxonomy: a genre an
+  // admin adds must filter, not silently show the whole shelf.
+  const genre = resolveGenre(await getGenres(), one(sp.category));
+  const category = genre ? genre.name : "";
   const q = one(sp.q).slice(0, 80);
 
   if (!category && !q) return BASE_METADATA;
@@ -44,7 +67,8 @@ export async function generateMetadata({ searchParams }) {
 export default async function BooksPage({ searchParams }) {
   const sp = await searchParams;
   const requestedCategory = one(sp.category);
-  const category = categories.includes(requestedCategory) ? requestedCategory : "";
+  const genre = resolveGenre(await getGenres(), requestedCategory);
+  const category = genre ? genre.name : "";
   const sort = isSort(one(sp.sort)) ? one(sp.sort) : "newest";
   const price = priceBand(one(sp.price)) ? one(sp.price) : "";
   const availability = one(sp.availability) === "in-stock" ? "in-stock" : "";
@@ -59,44 +83,34 @@ export default async function BooksPage({ searchParams }) {
   ]);
 
   const { books, total, pages } = result;
+  if (books.length === 0 && page > pages) redirect(lastPageHref("/books", sp, pages));
+
   const hasFilters = Boolean(q || category || price || availability);
   const heading = q ? `Results for “${q}”` : category || "All books";
 
   return (
     <StoreLayout>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-10">
-        <nav aria-label="Breadcrumb" className="text-xs text-muted mb-4">
-          <ol className="flex items-center gap-2">
-            <li><Link href="/" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
-            <li aria-hidden="true">/</li>
-            <li className="text-ink font-medium" aria-current="page">{category || "All books"}</li>
-          </ol>
-        </nav>
-
-        <div className="mb-6 border-b border-line pb-5">
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">
-            <span aria-hidden="true" className="h-px w-6 bg-sienna" />
-            {hasFilters ? "Filtered shelf" : "The whole shelf"}
-          </p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-            <div className="min-w-0">
-              <h1 className="text-2xl font-bold text-navy sm:text-3xl">{heading}</h1>
-              <p className="mt-1 text-sm text-muted">
-                {total === 0
-                  ? "No titles match this selection."
-                  : hasFilters
-                    ? `${total} ${total === 1 ? "title matches" : "titles match"} your filters`
-                    : `${total} ${total === 1 ? "title" : "titles"} on the shelf`}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
+      <div className="shell py-8 sm:py-12">
+        <PageHeader
+          className="mb-8 sm:mb-10"
+          breadcrumb={[{ label: "Home", href: "/" }, { label: category || "All books" }]}
+          title={heading}
+          description={
+            total === 0
+              ? "No titles match this selection."
+              : hasFilters
+                ? `${total} ${total === 1 ? "title matches" : "titles match"} your filters`
+                : `${total} ${total === 1 ? "title" : "titles"} on the shelf, priced in Kenyan shillings with delivery across the country.`
+          }
+          actions={
+            <>
               <MobileFilterButton basePath="/books" params={params} counts={counts} resultCount={total} />
               <SortSelect basePath="/books" params={params} />
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
-        <div className="grid lg:grid-cols-[220px_minmax(0,1fr)] gap-8">
+        <div className="grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
           <aside aria-label="Catalogue filters">
             <CatalogueSidebar basePath="/books" params={params} counts={counts} />
           </aside>

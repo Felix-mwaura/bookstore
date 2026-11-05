@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import StoreLayout from "../../components/StoreLayout";
+import PageHeader from "../../components/PageHeader";
 import BookGrid, { CatalogueEmpty } from "../../components/BookGrid";
 import Pagination from "../../components/Pagination";
 import { ActiveFilterChips, CatalogueSidebar, MobileFilterButton, SortSelect } from "../../components/CatalogueControls";
 import { getCategoryCounts, isSort, priceBand, queryCatalogue } from "../../lib/catalogue";
-import { categories, categoryFromSlug, categorySlug } from "../../lib/categories";
+import { findGenre, getGenres } from "../../lib/genres-data";
 import { SITE_NAME } from "../../lib/site";
 
 export const dynamic = "force-dynamic";
@@ -32,24 +33,46 @@ const descriptions = {
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
-  const category = categoryFromSlug(slug);
-  if (!category) return { title: "Category not found" };
+  const genre = findGenre(await getGenres(), slug);
+  if (!genre) return { title: "Category not found" };
 
-  const title = `${category} books · ${SITE_NAME}`;
+  const title = `${genre.name} books · ${SITE_NAME}`;
   return {
     title,
-    description: descriptions[category] ?? `Browse ${category} books at ${SITE_NAME}.`,
-    alternates: { canonical: `/category/${categorySlug(category)}` },
-    openGraph: { title, url: `/category/${categorySlug(category)}` },
+    description: descriptions[genre.name] ?? `Browse ${genre.name} books at ${SITE_NAME}.`,
+    alternates: { canonical: `/category/${genre.slug}` },
+    openGraph: { title, url: `/category/${genre.slug}` },
   };
 }
 
 const one = (value) => (Array.isArray(value) ? value[0] : value) || "";
 
+/**
+ * A page number past the end is a dead end: the heading still describes the
+ * shelf while the grid below it is empty. Send the reader to the last page
+ * that exists, keeping every filter they had chosen.
+ */
+function lastPageHref(basePath, sp, pages) {
+  const params = new URLSearchParams();
+  for (const key of ["q", "category", "sort", "price", "availability"]) {
+    const value = Array.isArray(sp[key]) ? sp[key][0] : sp[key];
+    if (value) params.set(key, value);
+  }
+  if (pages > 1) params.set("page", String(pages));
+  const query = params.toString();
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+
 export default async function CategoryPage({ params, searchParams }) {
   const { slug } = await params;
-  const category = categoryFromSlug(slug);
-  if (!category) notFound();
+  // Genres are data now (see app/lib/genres-data.js). The old slug lookup
+  // could only ever know the eight hard-coded names; this one knows whatever
+  // the admin has added, and a slug that matches nothing is still a 404.
+  const genres = await getGenres();
+  const genre = findGenre(genres, slug);
+  if (!genre) notFound();
+  const category = genre.name;
 
   const sp = await searchParams;
   const sort = isSort(one(sp.sort)) ? one(sp.sort) : "newest";
@@ -58,7 +81,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const q = one(sp.q).slice(0, 80);
   const page = Math.max(1, Number(one(sp.page)) || 1);
 
-  const basePath = `/category/${categorySlug(category)}`;
+  const basePath = `/category/${genre.slug}`;
   const queryParams = { q, category: "", sort, price, availability, page };
   // Category pages are already scoped, so the sidebar only offers the other
   // shelves as cross-links instead of a competing "category" filter.
@@ -70,42 +93,32 @@ export default async function CategoryPage({ params, searchParams }) {
   ]);
 
   const { books, total, pages } = result;
+  if (books.length === 0 && page > pages) redirect(lastPageHref(basePath, sp, pages));
+
   const hasFilters = Boolean(q || price || availability);
 
   return (
     <StoreLayout>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-10">
-        <nav aria-label="Breadcrumb" className="text-xs text-muted mb-4">
-          <ol className="flex items-center gap-2 flex-wrap">
-            <li><Link href="/" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
-            <li aria-hidden="true">/</li>
-            <li><Link href="/books" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Books</Link></li>
-            <li aria-hidden="true">/</li>
-            <li className="text-ink font-medium" aria-current="page">{category}</li>
-          </ol>
-        </nav>
-
-        <div className="mb-6 border-b border-line pb-5">
-          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">
-            <span aria-hidden="true" className="h-px w-6 bg-sienna" />
-            Genre
-          </p>
-          <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
-            <div className="max-w-2xl min-w-0">
-              <h1 className="text-2xl font-bold text-navy sm:text-3xl">{category}</h1>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted">{descriptions[category]}</p>
-              <p className="mt-1 text-xs text-muted">
-                {total} {total === 1 ? "title" : "titles"} in this genre
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
+      <div className="shell py-8 sm:py-12">
+        <PageHeader
+          className="mb-8 sm:mb-10"
+          breadcrumb={[
+            { label: "Home", href: "/" },
+            { label: "Books", href: "/books" },
+            { label: category },
+          ]}
+          title={category}
+          description={descriptions[category] ?? `Everything we have on the ${category} shelf.`}
+          meta={`${total} ${total === 1 ? "title" : "titles"} in this genre`}
+          actions={
+            <>
               <MobileFilterButton basePath={basePath} params={queryParams} counts={counts} resultCount={total} />
               <SortSelect basePath={basePath} params={queryParams} />
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
 
-        <div className="grid lg:grid-cols-[220px_minmax(0,1fr)] gap-8">
+        <div className="grid gap-8 lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-12">
           <aside aria-label="Catalogue filters">
             <CatalogueSidebar basePath={basePath} params={sidebarParams} counts={counts} />
           </aside>
@@ -134,15 +147,15 @@ export default async function CategoryPage({ params, searchParams }) {
         </div>
 
         <nav aria-label="Other genres" className="mt-12 border-t border-line pt-6">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">Other genres</h2>
+          <h2 className="mb-3 text-lg font-bold text-navy">Other genres</h2>
           <ul role="list" className="flex flex-wrap gap-2">
-            {categories.filter((c) => c !== "All" && c !== category).map((c) => (
-              <li key={c}>
+            {genres.filter((other) => other.slug !== genre.slug).map((other) => (
+              <li key={other.slug}>
                 <Link
-                  href={`/category/${categorySlug(c)}`}
+                  href={`/category/${other.slug}`}
                   className="inline-flex items-center rounded-full border border-line bg-white px-3 py-2 text-sm text-ink hover:border-navy"
                 >
-                  {c}
+                  {other.name}
                 </Link>
               </li>
             ))}

@@ -3,6 +3,7 @@ import { serviceClient } from "../../../lib/server";
 import { mpesaConfig, resolveAccessToken, stkQuery } from "../../../lib/mpesa";
 import { handleMpesaCallback, supabaseStore, ACCEPTED, RETRY } from "../../../lib/mpesa-callback-handler";
 import { exceedsBodyLimit, CALLBACK_BODY } from "../../../lib/request-guard";
+import { verifyCallbackToken } from "../../../lib/callback-secret.js";
 
 // POST /api/mpesa/callback — Safaricom's asynchronous result notification.
 //
@@ -17,9 +18,22 @@ import { exceedsBodyLimit, CALLBACK_BODY } from "../../../lib/request-guard";
 //   500 — OUR failure (database write, Daraja unreachable) so Safaricom
 //         retries. Returning 200 there would silently lose the only
 //         notification of a real payment.
+//
+// MPESA_CALLBACK_TOKEN is optional: when set, MPESA_CALLBACK_URL must carry
+// the same value as ?k=<token> (or the caller may send x-callback-token).
+// See docs/security-audit-2026-10-25.md for the exact rotation steps.
 export const dynamic = "force-dynamic";
 
 export async function POST(request) {
+  // Optional shared secret (MPESA_CALLBACK_TOKEN). Unset -> no behaviour
+  // change, so the URL already registered with Safaricom keeps working. When
+  // set, a request that cannot present it is refused before the body is read.
+  const tokenCheck = verifyCallbackToken(request, process.env.MPESA_CALLBACK_TOKEN);
+  if (!tokenCheck.ok) {
+    console.warn("M-Pesa callback: rejected, callback token", tokenCheck.reason);
+    return NextResponse.json({ ResultCode: 1, ResultDesc: "Rejected" }, { status: 403 });
+  }
+
   // A real callback is well under a kilobyte. Anything larger is not one we
   // should spend memory parsing; acknowledge it so Safaricom stops retrying.
   if (exceedsBodyLimit(request, CALLBACK_BODY)) {

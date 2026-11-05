@@ -62,7 +62,7 @@ export function StarRating({
       <span role="img" aria-label={spoken} className="relative inline-flex shrink-0">
         {/* Empty row underneath, filled row clipped on top. Both rows are
             identical in geometry, so the fill lands exactly on a star. */}
-        <span className="flex gap-0.5 text-[#CBBFA8]">
+        <span className="flex gap-0.5 text-star-empty">
           {[1, 2, 3, 4, 5].map((n) => <Star key={n} className={sizeClass} filled={false} />)}
         </span>
         <span
@@ -112,7 +112,7 @@ export function StarPicker({ name = "rating", value, onChange, disabled = false,
             />
             <span
               className={`block rounded transition-transform group-hover:scale-110 peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-sienna ${
-                selected || (value && n <= value) ? "text-warning" : "text-[#CBBFA8]"
+                selected || (value && n <= value) ? "text-warning" : "text-star-empty"
               }`}
             >
               <Star className="h-8 w-8" filled={Boolean(selected || (value && n <= value))} />

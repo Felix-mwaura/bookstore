@@ -74,10 +74,9 @@ function Field({
           aria-invalid={error ? "true" : undefined}
           aria-describedby={describedBy}
           onChange={(event) => onChange(name, event.target.value)}
-          className={`min-h-12 w-full rounded-xl border bg-white py-3 text-[15px] text-ink outline-none transition
-            placeholder:text-muted/60 focus:ring-4 focus:ring-navy/10
-            ${icon ? "pl-11" : "pl-3.5"} ${isPassword ? "pr-12" : "pr-3.5"}
-            ${error ? "border-error focus:border-error" : "border-line focus:border-navy"}`}
+          className={`field min-h-12 ${icon ? "pl-11" : ""} ${isPassword ? "pr-12" : ""} ${
+            error ? "field-error" : ""
+          }`}
         />
         {isPassword && (
           <button
@@ -544,7 +543,7 @@ export default function AuthPage({ mode, tab, nextPath }) {
 
       <main className="mx-auto grid w-full max-w-[1360px] items-stretch gap-6 px-4 pb-10 sm:px-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-8 lg:pb-14">
         {/* ── the room ── */}
-        <section className="relative order-2 overflow-hidden rounded-[26px] bg-[#F6EDDD] px-6 pt-8 pb-[176px] sm:px-10 sm:pt-10 lg:order-1 lg:flex lg:min-h-[600px] lg:flex-col lg:justify-center lg:px-12 lg:pt-12 lg:pb-[248px]">
+        <section className="relative order-2 overflow-hidden rounded-[26px] bg-sand px-6 pt-8 pb-[176px] sm:px-10 sm:pt-10 lg:order-1 lg:flex lg:min-h-[600px] lg:flex-col lg:justify-center lg:px-12 lg:pt-12 lg:pb-[248px]">
           <div className="relative z-10 max-w-[460px]">
             <h1 className="font-playfair text-[34px] font-bold leading-[1.12] text-navy sm:text-[42px] lg:text-[46px]">
               {heroTitle}

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import StoreLayout from "../../components/StoreLayout";
 import OrderView from "../../components/OrderView";
 import { supabaseServer, getServerUser } from "../../lib/supabase-server";
+import { attachOrderItemCovers } from "../../lib/order-covers";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -30,9 +31,13 @@ export default async function OrderPage({ params }) {
 
   if (error || !order) notFound();
 
+  // The order keeps its own titles and prices; the covers are looked up from
+  // the books that are still on the shelf, by id.
+  const [withCovers] = await attachOrderItemCovers(supabase, [order]);
+
   return (
     <StoreLayout>
-      <OrderView order={order} />
+      <OrderView order={withCovers} />
     </StoreLayout>
   );
 }

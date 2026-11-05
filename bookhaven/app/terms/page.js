@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { Bullets, ContactBlock, PolicyPage, Section } from "../components/PolicyPage";
 import StoreLayout from "../components/StoreLayout";
-import { DELIVERY_PERCENT, SITE_NAME, STORE_CONTACT } from "../lib/site";
+import { DELIVERY_PERCENT, ORDER_EMAILS_ENABLED, SITE_NAME, STORE_CONTACT } from "../lib/site";
 
 export const metadata = {
   title: `Terms of sale · ${SITE_NAME}`,
@@ -19,14 +19,17 @@ export default function TermsPage() {
   return (
     <StoreLayout>
       <PolicyPage
-        eyebrow="Terms"
         title="Terms of sale"
         intro="What you are agreeing to when you buy a book here. Plain language, and short enough to actually read."
       >
         <Section id="orders" title="Placing an order">
           <p>
             An order is an offer to buy. It is accepted when we confirm it, which happens as soon as the order
-            is saved — you will see an order reference at checkout and receive it by email.
+            is saved — you will see an order reference at checkout, and it is kept for you at{" "}
+            <Link href="/account" className="font-medium text-sienna underline-offset-2 hover:underline">your account</Link>.
+            {ORDER_EMAILS_ENABLED
+              ? " We also send it to the email address on the order."
+              : " We do not send email copies yet, so keep that reference: it is what identifies the order if you need to ask about it."}
           </p>
           <p>
             Prices, stock and availability can change. The price you pay is the one shown at the moment you
@@ -66,6 +69,12 @@ export default function TermsPage() {
           <p>
             We may cancel an order if the book turns out to be unavailable, if the delivery details cannot be
             confirmed, or if a pricing error makes it impossible to honour. Any payment made is refunded.
+          </p>
+          <p>
+            Refunds are paid back by hand, by the shop, rather than automatically by the payment system. We do
+            not publish a number of days for one to arrive, because that last step is the payment provider&apos;s
+            and not ours — but a refund that has been promised is sent. Keep your order reference: it is what
+            the shop uses to find the payment.
           </p>
         </Section>
 

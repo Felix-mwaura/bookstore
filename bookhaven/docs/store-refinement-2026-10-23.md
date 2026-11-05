@@ -28,7 +28,8 @@ out, nothing changes.
 
 ### Saved addresses, end to end
 
-`/api/adresses` has existed since the checkout work, with full create, read,
+`/api/addresses` (spelled `/api/adresses` until Oct 2026, still answered
+as an alias) has existed since the checkout work, with full create, read,
 update and delete — and **nothing in the customer UI ever called it**. The table
 held zero rows; every order asked for the same address again.
 

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback } from "react";
+import { AnimatePresence, motion } from "motion/react";
 
 import { BookCover } from "./BookCover";
 import { useDialog } from "../lib/useDialog";
@@ -12,19 +13,31 @@ export default function WishlistDrawer({ wishlist, isOpen, onClose, onRemove, on
   const close = useCallback(() => onClose(), [onClose]);
   const panelRef = useDialog(isOpen, close);
 
-  if (!isOpen) return null;
-
   return (
+    <AnimatePresence>
+      {isOpen && (
     <div className="fixed inset-0 z-[60]">
-      <div className="absolute inset-0 bg-navy/50" onClick={close} aria-hidden="true" />
+      <motion.div
+        className="absolute inset-0 bg-navy/50"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.18 }}
+        onClick={close}
+        aria-hidden="true"
+      />
 
-      <div
+      <motion.div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="wishlist-title"
         tabIndex={-1}
-        className="absolute left-0 top-0 h-[100dvh] w-full max-w-md bg-cream shadow-pop flex flex-col animate-slide-in-left"
+        initial={{ x: "-100%" }}
+        animate={{ x: 0 }}
+        exit={{ x: "-100%" }}
+        transition={{ type: "spring", stiffness: 340, damping: 36, mass: 0.9 }}
+        className="absolute left-0 top-0 h-[100dvh] w-full max-w-md bg-cream shadow-pop flex flex-col"
       >
         <div className="flex items-center justify-between gap-4 px-5 py-4 border-b border-line">
           <div>
@@ -114,7 +127,9 @@ export default function WishlistDrawer({ wishlist, isOpen, onClose, onRemove, on
             <p className="mt-2 text-center text-xs text-muted">Saved on this device.</p>
           </div>
         )}
-      </div>
+      </motion.div>
     </div>
+      )}
+    </AnimatePresence>
   );
 }

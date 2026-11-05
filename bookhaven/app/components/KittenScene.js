@@ -9,9 +9,18 @@
 // still in pleasant positions.
 //
 // No images, no animation library, no canvas: just SVG and CSS, so there is
-// nothing to download and no hydration mismatch to worry about: there is no
-// state, no effect and no randomness here, so the server and the browser
-// render byte-identical markup.
+// nothing to download and no hydration mismatch to worry about — no
+// randomness and no markup that depends on state, so the server and the
+// browser render byte-identical output.
+//
+// The one effect here does not touch the markup: it pauses the CSS loops when
+// the scene is off screen or the tab is in the background. Four walkers on
+// five infinite loops is a lot of compositor work to keep doing while nobody
+// is looking at it, and on a phone that is battery for no reason.
+
+"use client";
+
+import { useEffect, useRef } from "react";
 
 import s from "./kitten-scene.module.css";
 
@@ -21,6 +30,47 @@ const FUR = {
   tuxedo: { body: "#2E3038", shade: "#1E2026", ear: "#C98F8C", eye: "#F7F2E8", nose: "#C98F8C", whisker: "#7C7F88", bib: "#F7F2E8" },
   grey: { body: "#B7BBC4", shade: "#9CA1AC", ear: "#E3A29B", eye: "#3A3226", nose: "#8C7A78", whisker: "#8F939C" },
 };
+
+/**
+ * Pause every loop in the scene while it cannot be seen.
+ *
+ * `animation-play-state` is inherited by nothing, so the rule in the module
+ * stylesheet targets the children. Paused rather than stopped: resuming puts
+ * the kittens back mid-stride instead of snapping them to the start of a
+ * 54-second walk.
+ */
+function useRestWhenHidden(sceneRef) {
+  useEffect(() => {
+    const node = sceneRef.current;
+    if (!node) return;
+
+    let onScreen = true;
+
+    const sync = () => {
+      const pause = document.hidden || !onScreen;
+      if (pause) node.dataset.motion = "paused";
+      else delete node.dataset.motion;
+    };
+
+    const observer =
+      "IntersectionObserver" in window
+        ? new IntersectionObserver(([entry]) => {
+            onScreen = entry.isIntersecting;
+            sync();
+          })
+        : null;
+    observer?.observe(node);
+
+    document.addEventListener("visibilitychange", sync);
+    sync();
+
+    return () => {
+      observer?.disconnect();
+      document.removeEventListener("visibilitychange", sync);
+      delete node.dataset.motion;
+    };
+  }, [sceneRef]);
+}
 
 function Ribbon() {
   return (
@@ -192,8 +242,11 @@ function Room() {
 }
 
 export default function KittenScene() {
+  const sceneRef = useRef(null);
+  useRestWhenHidden(sceneRef);
+
   return (
-    <div className={s.scene} aria-hidden="true">
+    <div ref={sceneRef} className={s.scene} aria-hidden="true">
       <Room />
 
       {/* Mochi — cream kitten with the navy ribbon, wandering left to right */}

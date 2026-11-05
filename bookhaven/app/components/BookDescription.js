@@ -15,7 +15,7 @@ export default function BookDescription({ text }) {
 
   return (
     <div className="mt-8">
-      <h2 className="text-sm font-bold uppercase tracking-widest text-muted">About this book</h2>
+      <h2 className="text-lg font-bold text-navy">About this book</h2>
       <p
         id="book-description"
         className={`mt-2 text-[15px] leading-relaxed text-ink ${!expanded && long ? "line-clamp-[5]" : ""}`}

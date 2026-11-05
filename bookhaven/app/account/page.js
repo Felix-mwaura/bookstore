@@ -5,7 +5,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import AddressBook from "../components/AddressBook";
+import { BookCover } from "../components/BookCover";
+import { attachOrderItemCovers } from "../lib/order-covers";
 import StoreLayout from "../components/StoreLayout";
+import PageHeader from "../components/PageHeader";
 import {
   FULFILMENT_META,
   PAYMENT_META,
@@ -31,7 +34,7 @@ function StatusPill({ meta, fallback }) {
 function Field({ id, label, hint, error, children }) {
   return (
     <div>
-      <label htmlFor={id} className="block text-xs font-bold uppercase tracking-wider text-muted mb-1">
+      <label htmlFor={id} className="block text-micro font-semibold uppercase text-muted mb-1">
         {label}
       </label>
       {children}
@@ -45,18 +48,28 @@ function Field({ id, label, hint, error, children }) {
 }
 
 const inputClass =
-  "w-full min-h-11 rounded-control border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none transition focus:border-navy focus-visible:ring-2 focus-visible:ring-navy/20 disabled:opacity-60";
+  "w-full min-h-11 rounded-control border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none transition focus:border-navy focus-visible:ring-2 focus-visible:ring-navy disabled:opacity-60";
 
 function LoadingPanel() {
   return (
-    <div className="mx-auto max-w-5xl px-4 sm:px-6 py-10" aria-busy="true" aria-live="polite">
-      <div className="h-7 w-48 rounded bg-subtle animate-pulse" />
-      <div className="mt-3 h-4 w-64 rounded bg-subtle animate-pulse" />
-      <div className="mt-8 grid gap-4 sm:grid-cols-2">
-        <div className="h-32 rounded-card bg-white border border-line" />
-        <div className="h-32 rounded-card bg-white border border-line" />
+    <div className="shell max-w-[68rem] py-8 sm:py-12" aria-busy="true">
+      {/* The heading is real, not a grey bar: it is what the page is, and it
+          paints on the server before the session check has answered. */}
+      <nav aria-label="Breadcrumb" className="mb-4">
+        <Link href="/" className="text-small text-muted underline-offset-2 hover:text-sienna hover:underline">
+          Home
+        </Link>
+        <span className="mx-2 text-small text-muted" aria-hidden="true">/</span>
+        <span className="text-small text-ink" aria-current="page">Your account</span>
+      </nav>
+      <h1 className="font-playfair text-title font-bold text-navy">Your account</h1>
+      <p className="mt-2 text-small text-muted">Orders, addresses and the details we use to reach you.</p>
+
+      <div className="mt-8 grid gap-4 sm:grid-cols-2" aria-hidden="true">
+        <div className="h-32 animate-pulse rounded-card border border-line bg-white" />
+        <div className="h-32 animate-pulse rounded-card border border-line bg-white" />
       </div>
-      <span className="sr-only">Loading your account…</span>
+      <p className="sr-only" role="status">Loading your account…</p>
     </div>
   );
 }
@@ -152,7 +165,11 @@ export default function AccountPage() {
         phone: prof?.phone || session.user.user_metadata?.phone || "",
       });
       if (orderError) setLoadError("We couldn’t load your orders just now. Refresh to try again.");
-      setOrders(orderRows || []);
+      // Covers come from `books`, by id — an order's items are a price
+      // snapshot and carry no image.
+      const withCovers = await attachOrderItemCovers(supabase, orderRows || []);
+      if (cancelled) return;
+      setOrders(withCovers);
       setLoading(false);
     }
 
@@ -275,7 +292,7 @@ export default function AccountPage() {
 
   return (
     <StoreLayout>
-      <div className="mx-auto max-w-5xl px-4 sm:px-6 py-8 sm:py-10">
+      <div className="shell max-w-[68rem] py-8 sm:py-12">
         {toast && (
           <div
             role="status"
@@ -298,13 +315,12 @@ export default function AccountPage() {
           </div>
         )}
 
-        <header className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-sienna">Your account</p>
-          <h1 className="mt-1 font-playfair text-2xl font-bold text-navy sm:text-3xl">
-            {displayName ? `Hello, ${displayName}` : "Your account"}
-          </h1>
-          <p className="mt-1 text-sm text-muted">{user?.email}</p>
-        </header>
+        <PageHeader
+          className="mb-8"
+          breadcrumb={[{ label: "Home", href: "/" }, { label: "Your account" }]}
+          title={displayName ? `Hello, ${displayName}` : "Your account"}
+          meta={user?.email}
+        />
 
         <dl className="mb-8 grid grid-cols-3 gap-2 sm:gap-4">
           {[
@@ -313,8 +329,8 @@ export default function AccountPage() {
             { label: "Paid to date", value: formatKsh(stats.spent) },
           ].map((item) => (
             <div key={item.label} className="rounded-card border border-line bg-white p-3 text-center sm:p-4">
-              <dd className="text-lg font-bold text-navy sm:text-2xl">{item.value}</dd>
-              <dt className="mt-0.5 text-[11px] font-medium uppercase tracking-wider text-muted">{item.label}</dt>
+              <dd className="text-lg font-bold tabular-nums text-navy sm:text-2xl">{item.value}</dd>
+              <dt className="mt-1 text-micro font-medium uppercase text-muted">{item.label}</dt>
             </div>
           ))}
         </dl>
@@ -379,6 +395,12 @@ export default function AccountPage() {
                     <ul className="space-y-2">
                       {(order.items || []).map((item, index) => (
                         <li key={`${order.id}-${index}`} className="flex items-start gap-3">
+                          {/* The cover the book had when this order was
+                              placed — looked up by id, so the row reads as
+                              the books the customer actually bought. */}
+                          <div className="w-9 shrink-0 overflow-hidden rounded-r-sm" style={{ aspectRatio: "2/3" }}>
+                            <BookCover book={item} className="h-full w-full" sizes="36px" />
+                          </div>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-navy">{item.title}</p>
                             <p className="truncate text-xs text-muted">

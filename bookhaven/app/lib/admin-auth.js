@@ -17,6 +17,14 @@ import { serviceClient } from "./server";
  *   500 = server misconfiguration.
  */
 export async function requireAdmin(request) {
+  // Identity first, configuration second. A caller with no token is not
+  // signed in whatever the server's state is, and answering "server
+  // misconfigured" told a stranger how the deployment is wired.
+  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+  if (!token) {
+    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
+  }
+
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceKey) {
     console.error("requireAdmin: SUPABASE_SERVICE_ROLE_KEY is not set");
@@ -24,11 +32,6 @@ export async function requireAdmin(request) {
       { error: "Server misconfigured: SUPABASE_SERVICE_ROLE_KEY is not set" },
       { status: 500 }
     );
-  }
-
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!token) {
-    return NextResponse.json({ error: "Not signed in" }, { status: 401 });
   }
 
   let adminClient;

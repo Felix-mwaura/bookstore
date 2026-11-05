@@ -1,65 +1,79 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { GenreCarousel } from "./GenreCarousel";
+import { useGenres } from "./GenreProvider";
 import { HeroFan } from "./HeroFan";
 import ProductCard from "./ProductCard";
 import SectionHeading from "./SectionHeading";
+import NumberTicker from "./NumberTicker";
 import { useStore } from "./StoreShell";
-import { STORE_CONTACT } from "../lib/site";
-import { categories } from "../lib/categories";
+import { armRevealOnScroll } from "../lib/reveal";
+import { DELIVERY_COVERAGE, DELIVERY_PERCENT, STORE_CONTACT } from "../lib/site";
+
+/* ── reveal on scroll ─────────────────────────────────── */
+
+// The rules live in app/lib/reveal.js so they can be tested without a
+// browser; this only owns the lifetime of the observer.
+function useReveal() {
+  useEffect(() => armRevealOnScroll(), []);
+}
 
 /* ── hero ─────────────────────────────────────────────── */
 
 function Hero({ books }) {
   return (
     <section className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:py-20">
+      <div className="shell py-14 sm:py-20 lg:py-24">
         {/* Two columns only from 1280px. At tablet widths the fan left the headline a 350px column and broke it over four lines; stacked, the copy keeps its measure and the fan sits under it. */}
-        <div className="grid items-center gap-8 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-16">
+        <div className="grid items-center gap-12 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-20">
           {/* min-w-0: without it the grid item's min-content width (the
               search field's fixed pieces) wins and pushes the page wider
               than a 320px screen. */}
           <div className="min-w-0">
-            <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-sienna">
-              <span aria-hidden="true" className="h-px w-6 shrink-0 bg-sienna" />
-              Book Haven · Books in Kenyan shillings
-            </p>
-            <h1 className="mt-3 text-[1.75rem] font-bold leading-[1.1] tracking-[-0.01em] text-navy sm:text-[2.5rem] xl:text-[3.25rem]">
+            {/* The display face, like every other page title in the shop. The
+                homepage was the one place a reader met Inter at 52px, which is
+                the size the serif exists for. */}
+            <h1 className="font-playfair text-display font-bold text-navy">
               Books worth keeping,
               <br />
               <span className="italic text-sienna">delivered</span> to your door.
             </h1>
-            <p className="mt-4 max-w-lg text-base leading-relaxed text-muted sm:mt-5 sm:text-lg">
-              Paperbacks and hardcovers across fiction, finance, self-help and biography.
-              Stock shown is the real shelf quantity, and delivery is 20% of the book total,
-              worked out before you pay.
+            <p className="lead mt-6 max-w-xl">
+              Prices in Kenyan shillings. Paperbacks and hardcovers across fiction, finance,
+              self-help and biography. Stock shown is the real shelf quantity, and delivery is
+              {DELIVERY_PERCENT}% of the book total, worked out before you pay.
             </p>
 
-            <form action="/books" method="get" role="search" className="mt-6 max-w-lg sm:mt-8">
+            <form action="/books" method="get" role="search" className="mt-8 max-w-xl">
               <label htmlFor="hero-search" className="sr-only">Search books by title or author</label>
-              <div className="flex items-stretch gap-2 rounded-card border border-line bg-white p-1.5 shadow-card focus-within:border-navy">
-                <span className="flex items-center pl-2 text-muted" aria-hidden="true">
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </span>
+              <div className="flex items-center gap-2 rounded-full border border-line bg-surface p-1.5 pl-5 shadow-card transition-colors focus-within:border-sienna focus-within:ring-2 focus-within:ring-sienna">
                 <input
                   id="hero-search"
                   name="q"
                   type="search"
                   placeholder="Title or author…"
-                  className="min-w-0 flex-1 bg-transparent py-2.5 text-[15px] outline-none placeholder:text-muted/80"
+                  className="min-w-0 flex-1 bg-transparent py-2.5 text-[15px] outline-none placeholder:text-muted"
                 />
-                <button type="submit" className="btn-primary shrink-0 px-4 py-2.5 text-sm">Search</button>
+                <button
+                  type="submit"
+                  aria-label="Search the catalogue"
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy text-white transition-colors hover:bg-sienna"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </button>
               </div>
             </form>
 
-            <div className="mt-5 flex flex-wrap gap-3">
-              <Link href="/books" className="btn-primary text-sm">Shop all books</Link>
-              <Link href="#genres" className="btn-secondary text-sm">Browse genres</Link>
+            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
+              <Link href="/books" className="btn-primary">Shop all books</Link>
+              <Link href="#genres" className="text-small font-semibold text-navy underline-offset-4 hover:underline">
+                Browse by genre
+              </Link>
             </div>
           </div>
 
@@ -81,9 +95,8 @@ function NewArrivals({ books }) {
 
   return (
     <section className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="shell band">
         <SectionHeading
-          eyebrow="Just in"
           title="New arrivals"
           description="The latest titles added to the shelf."
           action={{ href: "/books?sort=newest", label: "See all" }}
@@ -91,8 +104,15 @@ function NewArrivals({ books }) {
         />
 
         <ul role="list" className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
-          {latest.map((book) => (
-            <li key={book.id} className="min-w-0">
+          {latest.map((book, index) => (
+            <li
+              key={book.id}
+              className="min-w-0"
+              data-reveal
+              // Cap the stagger at eight steps: past that the last cards in
+              // a long grid arrive so late the row looks broken.
+              style={{ "--rv-delay": `${Math.min(index, 7) * 45}ms` }}
+            >
               <ProductCard book={book} onAddToCart={store.addToCart} />
             </li>
           ))}
@@ -122,12 +142,17 @@ function HowItWorks() {
 
   return (
     <section className="border-b border-line bg-white">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
-        <SectionHeading eyebrow="Ordering" title="How ordering works" className="mb-6" />
+      <div className="shell band">
+        <SectionHeading title="How ordering works" className="mb-6" />
 
         <ol className="grid gap-6 sm:grid-cols-3 sm:gap-8">
           {steps.map((step, index) => (
-            <li key={step.title} className="border-t border-line pt-4">
+            <li
+              key={step.title}
+              className="border-t border-line pt-4"
+              data-reveal
+              style={{ "--rv-delay": `${index * 60}ms` }}
+            >
               <span className="font-playfair text-2xl font-bold text-sienna" aria-hidden="true">
                 {String(index + 1).padStart(2, "0")}
               </span>
@@ -144,40 +169,54 @@ function HowItWorks() {
 /* ── catalogue facts ──────────────────────────────────── */
 
 function ShelfFacts({ stats }) {
-  const facts = [
-    { value: stats.titles.toLocaleString("en-KE"), label: "titles on the shelf" },
-    { value: stats.categories.toLocaleString("en-KE"), label: "genres to browse" },
-    { value: stats.inStock.toLocaleString("en-KE"), label: "ready to ship" },
-    { value: "20%", label: "delivery on every order" },
+  // Three figures that are counted live from the catalogue, and one that is a
+  // policy ("20%" is a constant, so counting it up would be theatre).
+  const counted = [
+    { value: stats.titles, label: "titles on the shelf" },
+    { value: stats.categories, label: "genres to browse" },
+    { value: stats.inStock, label: "ready to ship" },
   ];
 
   return (
     <section id="about" className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="shell band">
         <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
-          <div>
-            <SectionHeading eyebrow="About the shop" title="A bookshop for Kenyan readers" />
+          <div data-reveal>
+            <SectionHeading title="A bookshop for Kenyan readers" />
             <p className="mt-4 text-sm leading-relaxed text-muted sm:text-base">
-              Prices are in Kenyan shillings and delivery is 20% of the book total — worked out on
-              screen before you confirm, so nothing is added at the door.
+              Prices are in Kenyan shillings and delivery is {DELIVERY_PERCENT}% of the book total —
+              worked out on screen before you confirm, so nothing is added at the door.
             </p>
             <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
-              We deliver countrywide and every order can be followed from your account.
-              If something is not on the shelf, write to us and we will tell you honestly whether we can get it.
+              {DELIVERY_COVERAGE ? `${DELIVERY_COVERAGE} ` : ""}
+              Every order appears in your account with its current stage. If something is not on
+              the shelf, tell us and we will say honestly whether we can get it.
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
-              <a href={`mailto:${STORE_CONTACT.email}`} className="btn-secondary text-sm">Email the shop</a>
+              {STORE_CONTACT.email ? (
+                <a href={`mailto:${STORE_CONTACT.email}`} className="btn-secondary text-sm">Email the shop</a>
+              ) : (
+                <Link href="/help#delivery" className="btn-secondary text-sm">Delivery &amp; returns</Link>
+              )}
               <Link href="/books" className="btn-primary text-sm">Browse the shelf</Link>
             </div>
           </div>
 
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-5">
-            {facts.map(({ value, label }) => (
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-6">
+            {counted.map(({ value, label }) => (
               <div key={label} className="border-t border-line pt-3">
-                <dt className="text-xs text-muted sm:text-sm">{label}</dt>
-                <dd className="mt-1 text-2xl font-bold text-navy sm:text-3xl">{value}</dd>
+                <dt className="text-small text-muted">{label}</dt>
+                <NumberTicker
+                  value={value}
+                  label={label}
+                  className="mt-1 font-playfair text-3xl font-bold tabular-nums text-navy sm:text-4xl"
+                />
               </div>
             ))}
+            <div className="border-t border-line pt-3">
+              <dt className="text-small text-muted">delivery on every order</dt>
+              <dd className="mt-1 font-playfair text-3xl font-bold tabular-nums text-navy sm:text-4xl">{DELIVERY_PERCENT}%</dd>
+            </div>
           </dl>
         </div>
       </div>
@@ -192,7 +231,7 @@ function TrustStrip({ mpesaEnabled }) {
   // payment: the homepage is rendered on the server, which is the one place
   // that knows whether the Daraja credentials are present.
   const items = [
-    { title: "20% delivery", body: "On every order, shown before you pay." },
+    { title: `${DELIVERY_PERCENT}% delivery`, body: "On every order, shown before you pay." },
     { title: "Order tracking", body: "Every order has a reference." },
     mpesaEnabled
       ? { title: "Pay with M-Pesa", body: "Or in cash on delivery." }
@@ -201,7 +240,7 @@ function TrustStrip({ mpesaEnabled }) {
 
   return (
     <section className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+      <div className="shell band-tight">
         <ul role="list" className="grid gap-3 sm:grid-cols-3 sm:gap-6">
           {items.map((item) => (
             <li key={item.title} className="flex items-start gap-2.5">
@@ -223,7 +262,16 @@ function TrustStrip({ mpesaEnabled }) {
 /* ── newsletter ───────────────────────────────────────── */
 
 function Newsletter() {
+  // The list is only open when there is a way to leave it. Sign-ups mean
+  // storing someone's address, and being able to remove it is not a nicety —
+  // so the form waits for the shop's contact details (see lib/site.js) and
+  // renders an honest "not open yet" state until then. Nothing collects
+  // addresses that the owner could not later take off the list.
   const [email, setEmail] = useState("");
+  // Honeypot. The route answers a filled trap with success, so a script that
+  // posts every field it finds learns nothing. Kept out of the tab order and
+  // out of the accessibility tree, because a person must never land on it.
+  const [company, setCompany] = useState("");
   const [subscribed, setSubscribed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -242,7 +290,7 @@ function Newsletter() {
       const response = await fetch("/api/newsletter", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: value }),
+        body: JSON.stringify({ email: value, company }),
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
@@ -262,23 +310,49 @@ function Newsletter() {
 
   return (
     <section className="bg-navy text-white">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="shell band">
         <div className="grid gap-6 sm:grid-cols-2 sm:items-center sm:gap-10">
           <SectionHeading
             tone="dark"
-            eyebrow="Newsletter"
             title="New titles, occasionally"
             description="One email when there is something worth telling you. No fixed schedule, no spam, and you can ask us to remove you at any time."
           />
 
-          {subscribed ? (
+          {!STORE_CONTACT.reachable ? (
+            <div className="text-sm leading-relaxed text-cream/80">
+              <p>
+                The announcement list is not open yet. When it opens, it will be a single email when
+                there is something worth telling you — and every email will say how to stop
+                receiving them.
+              </p>
+              <Link href="/books" className="mt-4 inline-block font-semibold text-white underline underline-offset-4 hover:text-cream">
+                See what is on the shelf
+              </Link>
+            </div>
+          ) : subscribed ? (
             <p className="text-sm font-semibold text-white" role="status">
-              <span className="mr-1.5 text-[#8FD3A8]" aria-hidden="true">✓</span>
+              <span className="mr-1.5 inline-flex align-[-3px] text-success-soft" aria-hidden="true">
+                <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+              </span>
               You’re on the list. We’ll email you when new titles arrive.
             </p>
           ) : (
             <form onSubmit={subscribe} className="w-full">
               <label htmlFor="newsletter-email" className="sr-only">Email address</label>
+              <div aria-hidden="true" className="sr-only">
+                <label htmlFor="newsletter-company">Company</label>
+                <input
+                  id="newsletter-company"
+                  name="company"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={company}
+                  onChange={(event) => setCompany(event.target.value)}
+                />
+              </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <input
                   id="newsletter-email"
@@ -296,7 +370,7 @@ function Newsletter() {
                   {busy ? "Saving…" : "Subscribe"}
                 </button>
               </div>
-              {error && <p id="newsletter-error" role="alert" className="mt-2 text-xs text-[#F3A78C]">{error}</p>}
+              {error && <p id="newsletter-error" role="alert" className="mt-2 text-xs text-error-soft">{error}</p>}
             </form>
           )}
         </div>
@@ -310,17 +384,37 @@ function Newsletter() {
 function Contact() {
   return (
     <section id="contact" className="border-b border-line bg-cream">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="shell band-tight">
+        <div
+          className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
+          data-reveal
+        >
           <h2 className="text-base font-semibold text-navy">Questions about an order?</h2>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-            <a href={`mailto:${STORE_CONTACT.email}`} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
-              {STORE_CONTACT.email}
-            </a>
-            <a href={STORE_CONTACT.phoneHref} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
-              {STORE_CONTACT.phone}
-            </a>
-          </div>
+          {/* Only channels the shop has actually confirmed. Until then, the
+              honest answer points at the page that explains the process, not
+              at an address nobody reads. */}
+          {STORE_CONTACT.reachable ? (
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+              {STORE_CONTACT.email && (
+                <a href={`mailto:${STORE_CONTACT.email}`} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
+                  {STORE_CONTACT.email}
+                </a>
+              )}
+              {STORE_CONTACT.phone && STORE_CONTACT.phoneHref && (
+                <a href={STORE_CONTACT.phoneHref} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
+                  {STORE_CONTACT.phone}
+                </a>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted">
+              Our phone number and inbox are not published yet.{" "}
+              <Link href="/help" className="text-sienna underline-offset-2 hover:underline">
+                Delivery and returns
+              </Link>{" "}
+              explains what happens after an order.
+            </p>
+          )}
         </div>
       </div>
     </section>
@@ -330,6 +424,7 @@ function Contact() {
 /* ── page ─────────────────────────────────────────────── */
 
 export default function HomeClient({ initialBooks = [], stats: catalogueStats, mpesaEnabled = false }) {
+  useReveal();
   const books = initialBooks;
 
   // Counts come from the server query over the whole shelf, not from the
@@ -350,7 +445,10 @@ export default function HomeClient({ initialBooks = [], stats: catalogueStats, m
       return acc;
     }, {});
 
-  const genres = categories.filter((category) => category !== "All");
+  // The shelf taxonomy as the database currently defines it (see
+  // app/lib/genres-data.js). A genre added in the admin appears here on the
+  // next render, with no deploy.
+  const genres = useGenres();
 
   return (
     <>

@@ -8,13 +8,15 @@ import ProductCard from "../../components/ProductCard";
 import ReviewsSection from "../../components/ReviewsSection";
 import { StarRating } from "../../components/StarRating";
 import StoreLayout from "../../components/StoreLayout";
+import ScrollProgress from "../../components/ScrollProgress";
+import { jsonLdProps } from "../../lib/json-ld";
 import { getBookById, getRelatedBooks, bookPath, bookSlug, parseBookSlug } from "../../lib/catalogue";
 import { getServerUser, supabaseServer } from "../../lib/supabase-server";
 import { categorySlug } from "../../lib/categories";
 import { stockState } from "../../lib/stock";
 import { getBookRating, getBookReviews, getViewerReviewId } from "../../lib/reviews";
 import { REVIEWS_PER_PAGE, isReviewSort, parsePage, parseStars } from "../../lib/review-limits";
-import { SITE_NAME, SITE_URL, deliveryFeeFor, formatKsh, absoluteUrl } from "../../lib/site";
+import { DELIVERY_PERCENT, SITE_NAME, SITE_URL, deliveryFeeFor, formatKsh, absoluteUrl } from "../../lib/site";
 
 // Rendered per request rather than cached.
 //
@@ -22,7 +24,12 @@ import { SITE_NAME, SITE_URL, deliveryFeeFor, formatKsh, absoluteUrl } from "../
 // ISR-cached product page served from a previous deployment kept showing a
 // stale heading and, worse, could show a stale price. Thirteen product pages
 // are cheap to render; being wrong about the price is not.
-export const dynamic = "force-dynamic";
+//
+// This page reads the session cookie (to know whether the reader may review
+// the book), which already makes it dynamic. `force-dynamic` was belt *and*
+// braces — and it also forced Next to flush the response before the render
+// could call `notFound()`, so a missing book answered 200 with a 404 page.
+export const dynamic = "auto";
 
 export async function generateMetadata({ params }) {
   const { slug } = await params;
@@ -148,10 +155,11 @@ export default async function BookPage({ params, searchParams }) {
 
   return (
     <StoreLayout>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }} />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }} />
+      <script {...jsonLdProps(productJsonLd)} />
+      <script {...jsonLdProps(breadcrumbJsonLd)} />
 
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10 pb-28 lg:pb-10">
+      <div className="shell max-w-[76rem] py-6 pb-28 sm:py-10 lg:pb-14">
+        <ScrollProgress />
         <nav aria-label="Breadcrumb" className="mb-6 text-xs text-muted">
           <ol className="flex flex-wrap items-center gap-2">
             <li><Link href="/" className="-my-1.5 inline-block py-1.5 hover:text-navy underline-offset-2 hover:underline">Home</Link></li>
@@ -171,12 +179,12 @@ export default async function BookPage({ params, searchParams }) {
         <div className="grid gap-8 md:grid-cols-[300px_minmax(0,1fr)] lg:gap-14">
           {/* Cover — pinned on desktop so it stays beside the details. */}
           <div className="md:sticky md:top-24 md:self-start">
-            <div className="scene mx-auto md:mx-0 w-full max-w-[240px] sm:max-w-[300px]">
+            <div className="scene mx-auto w-full max-w-[15rem] sm:max-w-[19rem] md:mx-0">
               <div className="book-3d hover-3d overflow-hidden rounded-r-md book-shadow">
                 <BookCover book={book} className="w-full" sizes="(min-width: 768px) 300px, 60vw" priority />
               </div>
             </div>
-            <p className="mt-3 text-center md:text-left text-xs text-muted">
+            <p className="mt-4 text-center text-small text-muted md:text-left">
               {book.format || "Paperback"}
               {book.pages ? ` · ${book.pages} pages` : ""}
             </p>
@@ -186,7 +194,7 @@ export default async function BookPage({ params, searchParams }) {
             <div className="flex flex-wrap items-center gap-2">
               <Link
                 href={`/category/${categorySlug(book.category)}`}
-                className="text-[11px] font-bold uppercase tracking-widest text-sienna hover:underline underline-offset-2"
+                className="text-xs font-semibold text-sienna underline-offset-2 hover:underline"
               >
                 {book.category}
               </Link>
@@ -202,8 +210,8 @@ export default async function BookPage({ params, searchParams }) {
               )}
             </div>
 
-            <h1 className="mt-2 text-2xl font-bold leading-tight text-navy sm:text-3xl lg:text-4xl">{book.title}</h1>
-            <p className="mt-1.5 text-base text-muted">by {book.author}</p>
+            <h1 className="mt-3 font-playfair text-title font-bold text-navy">{book.title}</h1>
+            <p className="mt-2 text-base text-muted">by {book.author}</p>
 
             <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1">
               {rating.count > 0 ? (
@@ -223,9 +231,9 @@ export default async function BookPage({ params, searchParams }) {
             {/* One panel for everything that decides the purchase: price,
                 stock, quantity, the action. Reading and reference material
                 sits below it, so the buy controls are never split by prose. */}
-            <div className="mt-5 rounded-card border border-line bg-white p-5 sm:p-6">
+            <div className="surface mt-6 p-5 sm:p-7">
               <div className="flex flex-wrap items-baseline gap-3">
-                <span className="text-3xl font-bold text-navy">{formatKsh(book.price)}</span>
+                <span className="text-3xl font-bold tabular-nums text-navy sm:text-4xl">{formatKsh(book.price)}</span>
                 {book.original_price && book.original_price > book.price && (
                   <span className="text-base text-muted line-through">{formatKsh(book.original_price)}</span>
                 )}
@@ -241,7 +249,7 @@ export default async function BookPage({ params, searchParams }) {
               </div>
 
               <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-muted">
-                Delivery is 20% of the book total — {formatKsh(deliveryFeeFor(book.price))} on this
+                Delivery is {DELIVERY_PERCENT}% of the book total — {formatKsh(deliveryFeeFor(book.price))} on this
                 title. It is added on the checkout page, before you pay, so the amount owed is on
                 screen before you confirm.
               </p>
@@ -253,13 +261,13 @@ export default async function BookPage({ params, searchParams }) {
               <dl className="mt-8 border-t border-line">
                 {details.map((item) => (
                   <div key={item.label} className="flex items-baseline justify-between gap-6 border-b border-line py-2.5">
-                    <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted">{item.label}</dt>
+                    <dt className="text-micro font-semibold uppercase text-muted">{item.label}</dt>
                     <dd className="max-w-[65%] text-right text-sm font-semibold text-navy break-words">{item.value}</dd>
                   </div>
                 ))}
                 {book.isbn && (
                   <div className="flex items-baseline justify-between gap-6 border-b border-line py-2.5">
-                    <dt className="text-[11px] font-semibold uppercase tracking-wider text-muted">ISBN</dt>
+                    <dt className="text-micro font-semibold uppercase text-muted">ISBN</dt>
                     <dd className="max-w-[65%] text-right font-mono text-xs text-ink break-words">{book.isbn}</dd>
                   </div>
                 )}
@@ -281,8 +289,8 @@ export default async function BookPage({ params, searchParams }) {
           <section className="mt-14 border-t border-line pt-8">
             {/* The fallback tops the list up with popular titles from other
                 categories, so only claim "More in X" when every book is in X. */}
-            <div className="flex items-end justify-between gap-4 mb-5">
-              <h2 className="text-xl font-bold text-navy">
+            <div className="mb-6 flex items-end justify-between gap-4">
+              <h2 className="text-heading font-bold text-navy">
                 {related.every((item) => item.category === book.category)
                   ? `More in ${book.category}`
                   : "You might also like"}
@@ -292,7 +300,7 @@ export default async function BookPage({ params, searchParams }) {
               </Link>
             </div>
 
-            <ul role="list" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            <ul role="list" className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4 lg:gap-x-6">
               {related.map((item) => (
                 <li key={item.id} className="min-w-0">
                   <ProductCard book={item} />

@@ -54,7 +54,6 @@ for (const path of [
   "/books?sort=price-asc&price=under-1000",
   "/books?page=2",
   "/category/finance",
-  "/books/deep-work-4",
   "/login",
   "/login?tab=register",
   "/login?mode=reset",
@@ -64,6 +63,26 @@ for (const path of [
   "/sitemap.xml",
 ]) {
   await expectStatus(path, 200);
+}
+
+/* ── a real product page ────────────────────────────────────────────── */
+
+// The shelf is data, so a hard-coded slug only passes against the seed file it
+// was copied from: any fixture, any shop with a different catalogue, and the
+// check fails on a page that does not exist rather than a page that is broken.
+// Take the first book the listing actually links to and assert that URL renders
+// without a redirect — the canonical form, not a guess.
+const shelf = await request("/books");
+if (shelf && shelf.ok) {
+  const html = await shelf.text();
+  const href = html.match(/href="(\/books\/[a-z0-9][a-z0-9-]*)"/i)?.[1];
+  expect("the shelf links to at least one product", Boolean(href), "no /books/<slug> href found");
+  if (href) {
+    const res = await expectStatus(href, 200, `product page ${href} renders directly`);
+    // A 308 here would mean the listing advertised a non-canonical URL, which
+    // costs every crawler and every shared link an extra hop.
+    expect(`product page ${href} is canonical`, res ? res.status === 200 : false, `got ${res?.status}`);
+  }
 }
 
 /* ── redirects and gates ────────────────────────────────────────────── */
@@ -174,6 +193,45 @@ const newsletter = await request("/api/newsletter", {
 });
 if (newsletter) {
   expect("/api/newsletter rejects a bad address → 400", newsletter.status === 400, `got ${newsletter.status}`);
+}
+
+/* ── M-Pesa endpoints stay as narrow as they were ───────────────────── */
+
+// The checkout asks whether M-Pesa is available. That answer is public on
+// purpose, so it must not carry anything else: no shortcode, no callback URL,
+// no hint about which credential is missing.
+const mpesaStatus = await request("/api/mpesa/status");
+if (mpesaStatus) {
+  const payText = await mpesaStatus.text();
+  let payJson = null;
+  try {
+    payJson = JSON.parse(payText);
+  } catch {
+    // Reported by the assertion below.
+  }
+  const keys = payJson ? Object.keys(payJson).sort().join(",") : "(unparseable)";
+  expect("/api/mpesa/status is public → 200", mpesaStatus.status === 200, `got ${mpesaStatus.status}`);
+  expect("/api/mpesa/status returns only enabled/environment", keys === "enabled,environment", `keys: ${keys}`);
+  expect(
+    "/api/mpesa/status names no credential",
+    !/shortcode|consumer|passkey|callback|secret/i.test(payText),
+    payText.slice(0, 120)
+  );
+}
+
+await expectAdminGuard("/api/mpesa/token");
+
+const mpesaToken = await request("/api/mpesa/token");
+if (mpesaToken) {
+  const tokenText = await mpesaToken.text();
+  expect("/api/mpesa/token is admin-only → 401", mpesaToken.status === 401, `got ${mpesaToken.status}`);
+  expect("/api/mpesa/token leaks nothing to an anonymous caller", !/token|secret|password/i.test(tokenText), tokenText.slice(0, 120));
+}
+
+/* ── the address route answers on both spellings ─────────────────────── */
+
+for (const path of ["/api/addresses", "/api/adresses"]) {
+  await expectStatus(path, 401, `${path} GET (no token)`);
 }
 
 /* ── report ─────────────────────────────────────────────────────────── */
