@@ -253,6 +253,7 @@ const NAV_ICONS = {
   payments: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z",
   reports: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
   inventory: "M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6",
+  testimonials: "M7 7h4v4a4 4 0 01-4 4H6V9a2 2 0 012-2zm9 0h4v4a4 4 0 01-4 4h-1V9a2 2 0 012-2z",
   reviews: "M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z",
   coupons: "M7 7h.01M7 3h5a1.99 1.99 0 011.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.99 1.99 0 013 12V7a4 4 0 014-4z",
   users: "M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z",
@@ -282,6 +283,7 @@ const NAV = [
   { section:"Store" },
   { id:"inventory", label:"Inventory", icon:"inventory" },
   { id:"reviews", label:"Reviews", icon:"reviews" },
+  { id:"testimonials", label:"Testimonials", icon:"testimonials" },
   { id:"genres", label:"Genres", icon:"genres" },
   { id:"coupons", label:"Coupons", icon:"coupons" },
   { section:"System" },
@@ -349,7 +351,7 @@ function Sidebar({ activeTab, setTab, collapsed, setCollapsed, pendingCount }) {
 // TOPBAR
 // ─────────────────────────────────────────────────────────
 function Topbar({ activeTab, sessionUser, onLogout, onMenu }) {
-  const labels = { overview:"Dashboard", assistant:"Assistant", orders:"Orders", books:"Products", customers:"Customers", payments:"Payments", reports:"Reports", inventory:"Inventory", reviews:"Reviews", genres:"Genres", coupons:"Coupons", users:"Users & Roles", activity:"Activity Logs", settings:"Settings" };
+  const labels = { overview:"Dashboard", assistant:"Assistant", orders:"Orders", books:"Products", customers:"Customers", payments:"Payments", reports:"Reports", inventory:"Inventory", reviews:"Reviews", testimonials:"Testimonials", genres:"Genres", coupons:"Coupons", users:"Users & Roles", activity:"Activity Logs", settings:"Settings" };
   const meta = sessionUser?.user_metadata || {};
   const displayName = [meta.first_name, meta.last_name].filter(Boolean).join(" ") || sessionUser?.email?.split("@")[0] || "Admin";
 
@@ -2987,6 +2989,211 @@ function Stars({ value, className = "" }) {
 }
 
 // ─────────────────────────────────────────────────────────
+// TESTIMONIALS TAB
+// ─────────────────────────────────────────────────────────
+//
+// The homepage section shows only what is published here. A testimonial
+// arrives unpublished, so the default view is the queue of ones nobody has
+// read yet — the thing that needs doing, not the thing already done.
+//
+// Same limit as reviews: publish, hide, remove. There is no control to
+// rewrite a reader's words, because the shop may decide what appears under
+// its name, not what a customer said.
+function TestimonialsTab({ showToast }) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [status, setStatus] = useState("pending");
+  const [busy, setBusy] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Your session has expired — please sign in again.");
+      const res = await fetch(`/api/admin/testimonials?status=${status}`, {
+        headers: { authorization: `Bearer ${session.access_token}` },
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || `Request failed (${res.status})`);
+      setData(json);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [status]);
+
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => { load(); }, [load]);
+
+  const write = async (testimonial, isPublished) => {
+    setBusy(testimonial.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch("/api/admin/testimonials", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ id: testimonial.id, is_published: isPublished }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Could not update that testimonial");
+      showToast?.(isPublished ? "Testimonial published" : "Testimonial hidden from the homepage");
+      await load();
+    } catch (err) {
+      showToast?.(err.message, "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const remove = async (testimonial) => {
+    setBusy(testimonial.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`/api/admin/testimonials?id=${encodeURIComponent(testimonial.id)}`, {
+        method: "DELETE",
+        headers: { authorization: `Bearer ${session?.access_token}` },
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Could not remove that testimonial");
+      showToast?.("Testimonial removed");
+      setConfirmDelete(null);
+      await load();
+    } catch (err) {
+      showToast?.(err.message, "error");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const rows = data?.testimonials || [];
+
+  return (
+    <div>
+      <div className="mb-5">
+        <h1 className="text-lg font-bold text-navy">Testimonials</h1>
+        <p className="text-muted text-xs mt-0.5">
+          What readers say on the homepage. Nothing appears there until it is published here.
+        </p>
+      </div>
+
+      {data && data.ready === false && (
+        <div className="mb-5 bg-warning/5 border border-warning/30 rounded-control px-4 py-3 text-sm text-warning-strong">
+          The testimonials table does not exist yet. Run{" "}
+          <code className="font-mono text-xs">supabase/migrations/20261105120000_testimonials.sql</code>{" "}
+          and this queue will fill up.
+        </div>
+      )}
+
+      <div className="flex gap-2 flex-wrap mb-4" role="group" aria-label="Filter by publication status">
+        {[
+          { key: "pending", label: "Waiting to be read" },
+          { key: "published", label: "On the homepage" },
+          { key: "all", label: "All" },
+        ].map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setStatus(f.key)}
+            aria-pressed={status === f.key}
+            className={`min-h-11 px-3 rounded-control text-xs font-semibold transition ${status === f.key ? "bg-navy text-white" : "bg-white border border-line text-muted"}`}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {error && (
+        <div role="alert" className="mb-4 bg-error/5 border border-error/30 rounded-control px-4 py-3 text-sm text-error">
+          {error}
+          <button onClick={() => load()} className="ml-3 font-semibold underline">Retry</button>
+        </div>
+      )}
+
+      {loading && !data ? (
+        <div className="space-y-3" aria-busy="true" aria-label="Loading testimonials">
+          {[1, 2, 3].map((i) => <div key={i} className="h-28 rounded-control bg-white border border-line animate-pulse" />)}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="bg-white border border-line rounded-control px-4 py-10 text-center">
+          <p className="text-sm font-semibold text-navy">
+            {status === "pending" ? "Nothing waiting to be read" : "Nothing here yet"}
+          </p>
+          <p className="text-muted text-xs mt-1">
+            Readers can leave a testimonial from the homepage section of the same name.
+          </p>
+        </div>
+      ) : (
+        <ul className="space-y-3">
+          {rows.map((testimonial) => (
+            <li key={testimonial.id} className="bg-white border border-line rounded-control p-4 sm:p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-navy">{testimonial.author_name}</p>
+                  <p className="text-muted text-xs mt-0.5">
+                    {new Date(testimonial.created_at).toLocaleDateString("en-GB", {
+                      day: "numeric", month: "short", year: "numeric",
+                    })}
+                    {testimonial.book_title ? ` · recommends ${testimonial.book_title}` : ""}
+                  </p>
+                </div>
+                <span className={`text-micro font-bold uppercase tracking-wider px-2 py-1 rounded ${testimonial.is_published ? "bg-success/10 text-success" : "bg-warning/10 text-warning-strong"}`}>
+                  {testimonial.is_published ? "Live" : "Waiting"}
+                </span>
+              </div>
+
+              <p className="mt-3 text-sm leading-relaxed text-ink whitespace-pre-line">{testimonial.body}</p>
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={() => write(testimonial, !testimonial.is_published)}
+                  disabled={busy === testimonial.id}
+                  className="min-h-11 px-4 rounded-control bg-navy text-white text-xs font-semibold disabled:opacity-60"
+                >
+                  {busy === testimonial.id ? "Saving…" : testimonial.is_published ? "Hide" : "Publish"}
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(testimonial)}
+                  disabled={busy === testimonial.id}
+                  className="min-h-11 px-4 rounded-control border border-error/40 text-error text-xs font-semibold disabled:opacity-60"
+                >
+                  Remove
+                </button>
+              </div>
+
+              {confirmDelete?.id === testimonial.id && (
+                <div className="mt-3 rounded-control border border-error/30 bg-error/5 p-4" role="alertdialog" aria-label="Confirm removing this testimonial">
+                  <p className="text-sm font-semibold text-navy">Remove this testimonial for good?</p>
+                  <p className="text-muted text-xs mt-1">It disappears from this queue and from the homepage. This cannot be undone.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      onClick={() => remove(testimonial)}
+                      disabled={busy === testimonial.id}
+                      className="min-h-11 px-4 rounded-control bg-error text-white text-xs font-semibold disabled:opacity-60"
+                    >
+                      Yes, remove it
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(null)}
+                      className="min-h-11 px-4 rounded-control border border-line text-navy text-xs font-semibold"
+                    >
+                      Keep it
+                    </button>
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────
 // Genres — the shelves the shop browses by
 // ─────────────────────────────────────────────────────────
 //
@@ -4183,6 +4390,7 @@ export default function AdminClient({ initialOrders, initialUsers, initialBooksC
           {activeTab==="inventory"&&<InventoryTab books={books} loading={booksLoading} error={booksError} onRetry={loadBooks} reloadBooks={loadBooks} showToast={showToast}/>}
           {activeTab==="notifications"&&<NotificationsTab showToast={showToast}/>}
           {activeTab==="reviews"&&<ReviewsTab showToast={showToast} canMutate={canMutate}/>}
+          {activeTab==="testimonials"&&<TestimonialsTab showToast={showToast}/>}
           {activeTab==="genres"&&<GenresTab showToast={showToast}/>}
           {activeTab==="coupons"&&<PlaceholderTab icon="🏷️" title="Coupons" description="Create and manage discount codes and promotional offers."/>}
           {activeTab==="users"&&<UsersTab users={users} orders={orders} session={sessionUser} showToast={showToast}/>}

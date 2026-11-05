@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 
 import SectionHeading from "./SectionHeading";
-import { genreArtwork, genreBlurb } from "../lib/genres";
+import { genreArtwork, genreBlurb, genreCount } from "../lib/genres";
 
 // How far a finger (or mouse) must travel before a press becomes a swipe
 // rather than a tap on a genre.
@@ -171,9 +171,13 @@ export function GenreCarousel({ genres = [], counts = {} }) {
     <section id="genres" aria-labelledby="genres-title" className="border-b border-line bg-white">
       <div className="shell band">
         <SectionHeading
-          title="Explore Books in Your Favorite Genre"
-          description="Swipe the shelf, or tap a genre to see everything on it."
-          action={{ href: "/books", label: "All books" }}
+          title={
+            <>
+              Find your next{" "}
+              <span className="italic text-sienna">read</span>
+            </>
+          }
+          description="Every genre on the shelf, straight from the shop's catalogue. Swipe, or tap one to see its books."
           id="genres-title"
           className="mb-6 sm:mb-8"
         />
@@ -202,7 +206,7 @@ export function GenreCarousel({ genres = [], counts = {} }) {
             style={{ "--gc-count": length }}
           >
             {cards.map(({ name, slug, image_url: uploaded, distance }) => {
-              const count = counts[name] || 0;
+              const count = genreCount(counts, name);
               // The admin's own image wins; otherwise the artwork bundled for
               // this slug, if this shop has any; otherwise the plain panel.
               const art = uploaded ? { src: uploaded } : genreArtwork(slug);
@@ -260,6 +264,16 @@ export function GenreCarousel({ genres = [], counts = {} }) {
                       </span>
                     )}
                     <span className="genre-card-blurb">{genreBlurb(name)}</span>
+                    {/* A quiet "explore" line under the blurb: the whole card
+                        is the link, so this is an affordance rather than a
+                        second control (a button inside an anchor is neither
+                        valid nor clickable). */}
+                    <span className="genre-card-cta" aria-hidden="true">
+                      Explore
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                      </svg>
+                    </span>
                   </span>
                 </Link>
               );
@@ -299,6 +313,18 @@ export function GenreCarousel({ genres = [], counts = {} }) {
           <p className="sr-only" aria-live="polite">
             {`${genres[activeIndex]?.name || ""} selected`}
           </p>
+
+          <div className="mt-7 flex justify-center">
+            <Link
+              href="/books"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line-strong bg-surface px-5 text-sm font-semibold text-navy transition-colors hover:border-navy hover:bg-cream"
+            >
+              View all books
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </Link>
+          </div>
         </div>
       </div>
     </section>

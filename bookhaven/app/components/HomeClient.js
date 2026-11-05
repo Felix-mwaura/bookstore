@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { GenreCarousel } from "./GenreCarousel";
-import { useGenres } from "./GenreProvider";
-import { HeroFan } from "./HeroFan";
-import ProductCard from "./ProductCard";
+import { DiscoverySearch, PromoBanner } from "./HomeBands";
+import { HomeHero } from "./HomeHero";
+import { ProductRow } from "./ProductRow";
+import { TestimonialsSection } from "./TestimonialsSection";
 import SectionHeading from "./SectionHeading";
 import NumberTicker from "./NumberTicker";
+import { useGenres } from "./GenreProvider";
 import { useStore } from "./StoreShell";
 import { armRevealOnScroll } from "../lib/reveal";
 import { DELIVERY_COVERAGE, DELIVERY_PERCENT, STORE_CONTACT } from "../lib/site";
@@ -21,99 +23,58 @@ function useReveal() {
   useEffect(() => armRevealOnScroll(), []);
 }
 
-/* ── hero ─────────────────────────────────────────────── */
+/* ── trust strip: only what the shop actually does ────── */
 
-function Hero({ books }) {
+function TrustStrip({ mpesaEnabled }) {
+  // Payment is named only when the shop can take it: this page is rendered on
+  // the server, which is the one place that knows whether Daraja is
+  // configured. Everything else here is a policy the checkout keeps.
+  const items = [
+    {
+      title: `${DELIVERY_PERCENT}% delivery`,
+      body: "On every order, worked out before you pay.",
+      icon: (
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 7h11v9H3zM14 10h4l3 3v3h-7zM6.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
+      ),
+    },
+    {
+      title: "Real shelf stock",
+      body: "The stock label on a book is the quantity the shop holds.",
+      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M4 5h6v15H4zM14 5h6v15h-6zM6 8h2M16 8h2" />,
+    },
+    {
+      title: "Tracked orders",
+      body: "Every order has a reference that opens from your account.",
+      icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9 12l2 2 4-4M12 3a9 9 0 100 18 9 9 0 000-18z" />,
+    },
+    mpesaEnabled
+      ? {
+          title: "Pay with M-Pesa",
+          body: "Or in cash when the books arrive.",
+          icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M7 3h10a2 2 0 012 2v14a2 2 0 01-2 2H7a2 2 0 01-2-2V5a2 2 0 012-2zM10 7h4M10 17h4" />,
+        }
+      : {
+          title: "Pay on delivery",
+          body: "Cash when the books are in your hands.",
+          icon: <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 8h18v10H3zM3 8l3-5h12l3 5M9 18v-5h6v5" />,
+        },
+  ];
+
   return (
-    <section className="border-b border-line bg-cream">
-      <div className="shell py-14 sm:py-20 lg:py-24">
-        {/* Two columns only from 1280px. At tablet widths the fan left the headline a 350px column and broke it over four lines; stacked, the copy keeps its measure and the fan sits under it. */}
-        <div className="grid items-center gap-12 xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-20">
-          {/* min-w-0: without it the grid item's min-content width (the
-              search field's fixed pieces) wins and pushes the page wider
-              than a 320px screen. */}
-          <div className="min-w-0">
-            {/* The display face, like every other page title in the shop. The
-                homepage was the one place a reader met Inter at 52px, which is
-                the size the serif exists for. */}
-            <h1 className="font-playfair text-display font-bold text-navy">
-              Books worth keeping,
-              <br />
-              <span className="italic text-sienna">delivered</span> to your door.
-            </h1>
-            <p className="lead mt-6 max-w-xl">
-              Prices in Kenyan shillings. Paperbacks and hardcovers across fiction, finance,
-              self-help and biography. Stock shown is the real shelf quantity, and delivery is
-              {DELIVERY_PERCENT}% of the book total, worked out before you pay.
-            </p>
-
-            <form action="/books" method="get" role="search" className="mt-8 max-w-xl">
-              <label htmlFor="hero-search" className="sr-only">Search books by title or author</label>
-              <div className="flex items-center gap-2 rounded-full border border-line bg-surface p-1.5 pl-5 shadow-card transition-colors focus-within:border-sienna focus-within:ring-2 focus-within:ring-sienna">
-                <input
-                  id="hero-search"
-                  name="q"
-                  type="search"
-                  placeholder="Title or author…"
-                  className="min-w-0 flex-1 bg-transparent py-2.5 text-[15px] outline-none placeholder:text-muted"
-                />
-                <button
-                  type="submit"
-                  aria-label="Search the catalogue"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy text-white transition-colors hover:bg-sienna"
-                >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </button>
+    <section className="border-b border-line bg-surface">
+      <div className="shell band-tight">
+        <ul role="list" className="grid gap-x-8 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
+          {items.map((item) => (
+            <li key={item.title} className="flex items-start gap-3">
+              <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cream text-sienna">
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {item.icon}
+                </svg>
+              </span>
+              <div className="min-w-0">
+                <p className="text-[15px] font-semibold text-navy">{item.title}</p>
+                <p className="mt-0.5 text-[13px] leading-snug text-muted">{item.body}</p>
               </div>
-            </form>
-
-            <div className="mt-6 flex flex-wrap items-center gap-x-6 gap-y-3">
-              <Link href="/books" className="btn-primary">Shop all books</Link>
-              <Link href="#genres" className="text-small font-semibold text-navy underline-offset-4 hover:underline">
-                Browse by genre
-              </Link>
-            </div>
-          </div>
-
-          <div className="flex justify-center xl:justify-end">
-            <HeroFan books={books} />
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── new arrivals ─────────────────────────────────────── */
-
-function NewArrivals({ books }) {
-  const store = useStore();
-  const latest = [...books].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, 5);
-  if (!latest.length) return null;
-
-  return (
-    <section className="border-b border-line bg-cream">
-      <div className="shell band">
-        <SectionHeading
-          title="New arrivals"
-          description="The latest titles added to the shelf."
-          action={{ href: "/books?sort=newest", label: "See all" }}
-          className="mb-6"
-        />
-
-        <ul role="list" className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
-          {latest.map((book, index) => (
-            <li
-              key={book.id}
-              className="min-w-0"
-              data-reveal
-              // Cap the stagger at eight steps: past that the last cards in
-              // a long grid arrive so late the row looks broken.
-              style={{ "--rv-delay": `${Math.min(index, 7) * 45}ms` }}
-            >
-              <ProductCard book={book} onAddToCart={store.addToCart} />
             </li>
           ))}
         </ul>
@@ -122,55 +83,11 @@ function NewArrivals({ books }) {
   );
 }
 
-/* ── how it works ─────────────────────────────────────── */
-
-function HowItWorks() {
-  const steps = [
-    {
-      title: "Find your book",
-      body: "Search by title or author, or browse a genre. The stock label on each book is the real shelf quantity.",
-    },
-    {
-      title: "Check out",
-      body: "Review your basket, add a delivery address and a phone number we can reach you on, then confirm.",
-    },
-    {
-      title: "Follow the order",
-      body: "Every order gets a reference you can open from your account, from packing through to delivery.",
-    },
-  ];
-
-  return (
-    <section className="border-b border-line bg-white">
-      <div className="shell band">
-        <SectionHeading title="How ordering works" className="mb-6" />
-
-        <ol className="grid gap-6 sm:grid-cols-3 sm:gap-8">
-          {steps.map((step, index) => (
-            <li
-              key={step.title}
-              className="border-t border-line pt-4"
-              data-reveal
-              style={{ "--rv-delay": `${index * 60}ms` }}
-            >
-              <span className="font-playfair text-2xl font-bold text-sienna" aria-hidden="true">
-                {String(index + 1).padStart(2, "0")}
-              </span>
-              <h3 className="mt-2 text-base font-semibold text-navy">{step.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-muted">{step.body}</p>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
-  );
-}
-
-/* ── catalogue facts ──────────────────────────────────── */
+/* ── the shop, in figures ─────────────────────────────── */
 
 function ShelfFacts({ stats }) {
-  // Three figures that are counted live from the catalogue, and one that is a
-  // policy ("20%" is a constant, so counting it up would be theatre).
+  // Three figures counted live from the catalogue, and one that is a policy
+  // ("20%" is a constant, so counting it up would be theatre).
   const counted = [
     { value: stats.titles, label: "titles on the shelf" },
     { value: stats.categories, label: "genres to browse" },
@@ -180,31 +97,33 @@ function ShelfFacts({ stats }) {
   return (
     <section id="about" className="border-b border-line bg-cream">
       <div className="shell band">
-        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-14">
-          <div data-reveal>
-            <SectionHeading title="A bookshop for Kenyan readers" />
-            <p className="mt-4 text-sm leading-relaxed text-muted sm:text-base">
+        <div className="grid items-center gap-10 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] lg:gap-16">
+          <div
+            data-reveal
+          >
+            <h2 className="text-heading font-bold text-navy">A bookshop for Kenyan readers</h2>
+            <p className="mt-4 max-w-xl text-small leading-relaxed text-muted sm:text-base">
               Prices are in Kenyan shillings and delivery is {DELIVERY_PERCENT}% of the book total —
               worked out on screen before you confirm, so nothing is added at the door.
             </p>
-            <p className="mt-3 text-sm leading-relaxed text-muted sm:text-base">
+            <p className="mt-3 max-w-xl text-small leading-relaxed text-muted sm:text-base">
               {DELIVERY_COVERAGE ? `${DELIVERY_COVERAGE} ` : ""}
               Every order appears in your account with its current stage. If something is not on
               the shelf, tell us and we will say honestly whether we can get it.
             </p>
-            <div className="mt-5 flex flex-wrap gap-3">
+            <div className="mt-6 flex flex-wrap gap-3">
               {STORE_CONTACT.email ? (
                 <a href={`mailto:${STORE_CONTACT.email}`} className="btn-secondary text-sm">Email the shop</a>
               ) : (
                 <Link href="/help#delivery" className="btn-secondary text-sm">Delivery &amp; returns</Link>
               )}
-              <Link href="/books" className="btn-primary text-sm">Browse the shelf</Link>
+              <Link href="/about" className="btn-secondary text-sm">About the shop</Link>
             </div>
           </div>
 
-          <dl className="grid grid-cols-2 gap-x-6 gap-y-6">
+          <dl className="grid grid-cols-2 gap-x-6 gap-y-7">
             {counted.map(({ value, label }) => (
-              <div key={label} className="border-t border-line pt-3">
+              <div key={label} className="border-t border-line-strong pt-3">
                 <dt className="text-small text-muted">{label}</dt>
                 <NumberTicker
                   value={value}
@@ -213,47 +132,12 @@ function ShelfFacts({ stats }) {
                 />
               </div>
             ))}
-            <div className="border-t border-line pt-3">
-              <dt className="text-small text-muted">delivery on every order</dt>
+            <div className="border-t border-line-strong pt-3">
+              <dt className="text-small text-muted">delivery, every order</dt>
               <dd className="mt-1 font-playfair text-3xl font-bold tabular-nums text-navy sm:text-4xl">{DELIVERY_PERCENT}%</dd>
             </div>
           </dl>
         </div>
-      </div>
-    </section>
-  );
-}
-
-/* ── trust strip (only claims the shop actually keeps) ── */
-
-function TrustStrip({ mpesaEnabled }) {
-  // Claims about payment only appear when the shop can actually take that
-  // payment: the homepage is rendered on the server, which is the one place
-  // that knows whether the Daraja credentials are present.
-  const items = [
-    { title: `${DELIVERY_PERCENT}% delivery`, body: "On every order, shown before you pay." },
-    { title: "Order tracking", body: "Every order has a reference." },
-    mpesaEnabled
-      ? { title: "Pay with M-Pesa", body: "Or in cash on delivery." }
-      : { title: "Pay on delivery", body: "Cash when the books arrive." },
-  ];
-
-  return (
-    <section className="border-b border-line bg-cream">
-      <div className="shell band-tight">
-        <ul role="list" className="grid gap-3 sm:grid-cols-3 sm:gap-6">
-          {items.map((item) => (
-            <li key={item.title} className="flex items-start gap-2.5">
-              <svg className="mt-0.5 h-5 w-5 shrink-0 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <p className="text-sm text-ink">
-                <span className="font-semibold">{item.title}.</span>{" "}
-                <span className="text-muted">{item.body}</span>
-              </p>
-            </li>
-          ))}
-        </ul>
       </div>
     </section>
   );
@@ -333,8 +217,8 @@ function Newsletter() {
             <p className="text-sm font-semibold text-white" role="status">
               <span className="mr-1.5 inline-flex align-[-3px] text-success-soft" aria-hidden="true">
                 <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
               </span>
               You’re on the list. We’ll email you when new titles arrive.
             </p>
@@ -423,8 +307,14 @@ function Contact() {
 
 /* ── page ─────────────────────────────────────────────── */
 
-export default function HomeClient({ initialBooks = [], stats: catalogueStats, mpesaEnabled = false }) {
+export default function HomeClient({
+  initialBooks = [],
+  stats: catalogueStats,
+  mpesaEnabled = false,
+  testimonials = [],
+}) {
   useReveal();
+  const store = useStore();
   const books = initialBooks;
 
   // Counts come from the server query over the whole shelf, not from the
@@ -450,14 +340,62 @@ export default function HomeClient({ initialBooks = [], stats: catalogueStats, m
   // next render, with no deploy.
   const genres = useGenres();
 
+  // One pass over the shelf, three views of it. Nothing here is invented:
+  // "new" is the newest ids, "picked" is the admin's own featured flag, and
+  // "offers" is a title whose original price is genuinely above its price.
+  const byNewest = [...books].sort((a, b) => Number(b.id) - Number(a.id));
+  const offers = books
+    .filter((book) => book.original_price && Number(book.original_price) > Number(book.price))
+    .sort(
+      (a, b) =>
+        (1 - a.price / a.original_price) - (1 - b.price / b.original_price) === 0
+          ? 0
+          : (1 - b.price / b.original_price) - (1 - a.price / a.original_price)
+    )
+    .slice(0, 10);
+  const picks = books.filter((book) => book.is_featured).slice(0, 10);
+
   return (
     <>
-      <Hero books={[...books].sort((a, b) => Number(b.id) - Number(a.id))} />
-      <GenreCarousel genres={genres} counts={counts} />
-      <NewArrivals books={books} />
-      <HowItWorks />
-      <ShelfFacts stats={stats} />
+      <HomeHero latest={byNewest} />
       <TrustStrip mpesaEnabled={mpesaEnabled} />
+      <ProductRow
+        id="new-arrivals"
+        title="New arrivals"
+        description="The latest titles added to the shelf."
+        action={{ href: "/books?sort=newest", label: "See all" }}
+        books={byNewest.slice(0, 10)}
+        onAddToCart={store.addToCart}
+      />
+      {/* The genre deck is the reference's category section: fanned cards,
+          arrows, dots, and a way out to the whole shelf. */}
+      <GenreCarousel genres={genres} counts={counts} />
+      {/* The quote wall sits straight after the genre deck: both are the same
+          fanned shelf, and a reader who has just browsed categories is the
+          reader most likely to take a recommendation. */}
+      <TestimonialsSection testimonials={testimonials} books={books} />
+      <PromoBanner books={byNewest} />
+      <ProductRow
+        id="picks"
+        title="Picked by the shop"
+        description="Titles the shop has chosen to put forward — the featured flag from the admin, not a sales ranking."
+        action={{ href: "/books", label: "Browse all" }}
+        books={picks}
+        onAddToCart={store.addToCart}
+        tone="sand"
+      />
+      {offers.length > 0 && (
+        <ProductRow
+          id="offers"
+          title="Special offers"
+          description="Books whose price is currently below the shop's original price."
+          action={{ href: "/books?sort=price-asc", label: "See more" }}
+          books={offers}
+          onAddToCart={store.addToCart}
+        />
+      )}
+      <ShelfFacts stats={stats} />
+      <DiscoverySearch genres={genres} />
       <Newsletter />
       <Contact />
     </>

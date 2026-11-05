@@ -49,6 +49,9 @@ export const RATE_LIMIT_POLICY = {
   newsletter: { limit: 5, windowSeconds: 10 * 60 },
   // 20 assistant turns per admin per 10 minutes — each turn is a paid call.
   "admin-agent": { limit: 20, windowSeconds: 10 * 60 },
+  // 3 testimonials per reader per hour. The unique index already allows one
+  // per account; this stops a script cycling accounts from one connection.
+  testimonial: { limit: 3, windowSeconds: 60 * 60 },
 };
 
 const KEY_PREFIX = "bh:rl";

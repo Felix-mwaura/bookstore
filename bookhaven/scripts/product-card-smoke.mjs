@@ -44,9 +44,16 @@ const card = read("app/components/ProductCard.js");
 
 const RENDERERS = [
   ["the catalogue grid", "app/components/BookGrid.js"],
-  ["the homepage shelf", "app/components/HomeClient.js"],
+  ["the homepage shelf", "app/components/ProductRow.js"],
   ["the book page's related row", "app/books/[slug]/page.js"],
 ];
+
+// The homepage composes its shelves through ProductRow, so that is the file
+// that must import the card.
+check(
+  "the homepage renders its shelves through the shared row",
+  /<ProductRow/.test(read("app/components/HomeClient.js"))
+);
 
 for (const [label, path] of RENDERERS) {
   const source = read(path);

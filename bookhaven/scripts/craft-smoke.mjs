@@ -142,7 +142,17 @@ check(
 );
 check("checkout fields use the shared field", /className=\{`field /.test(read("app/checkout/page.js")));
 check("login fields use the shared field", /className=\{`field min-h-12/.test(read("app/login/AuthClient.js")));
-check("the search field's container rings", /focus-within:ring-2 focus-within:ring-sienna/.test(read("app/components/StoreHeader.js")));
+// The search pill used to ring the whole container on focus, which read as the
+// field lighting up and was the loudest thing on the page. The cue moved onto
+// the control that actually has focus: a 2px sienna outline, drawn on focus-
+// visible so a mouse click does not flash it. Losing the highlight must not
+// lose the affordance, so both halves are asserted.
+const headerSource = read("app/components/StoreHeader.js");
+check(
+  "the search field draws its own focus cue",
+  /focus-visible:outline-2[^"]*focus-visible:outline-sienna/.test(headerSource)
+);
+check("no ring is drawn around the search pill", !/focus-within:ring/.test(headerSource));
 check("no ring is faded below the 3:1 it needs", !/focus(-visible)?:ring-(sienna|navy)\/\d/.test(appSource));
 check("a failed field has its own state class", /\.field-error\s*\{[^}]*border-color: var\(--color-error\)/.test(cssCode));
 
@@ -263,9 +273,20 @@ check("form fields share one class", /\.field\s*\{/.test(cssCode) && /className=
 
 /* ── heading order, on the source of the home page ─────── */
 
-const home = read("app/components/HomeClient.js");
-check("the hero is the only h1 on the page", (home.match(/<h1/g) || []).length === 1);
-check("sections use h2, and their items h3", /<h2/.test(read("app/components/SectionHeading.js")) && /<h3/.test(home));
+// The homepage is now several components (hero, rows, bands, the card), so
+// the heading order is checked across the set that composes it. One h1 for
+// the page, h2 for each section, h3 for the items inside one.
+const homeParts = ["HomeClient", "HomeHero", "ProductRow", "GenreCarousel", "TestimonialsSection", "HomeBands"]
+  .map((name) => read(`app/components/${name}.js`))
+  .join("\n");
+const h1s = (homeParts.match(/<h1/g) || []).length;
+check("the homepage has exactly one h1", h1s === 1, `${h1s} found`);
+check(
+  "sections use h2, and their items h3",
+  /<h2/.test(read("app/components/SectionHeading.js")) &&
+    /<h2/.test(homeParts) &&
+    /<h3/.test(read("app/components/ProductCard.js"))
+);
 
 function sourceFiles(dir = ".") {
   const out = [];

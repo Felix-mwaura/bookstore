@@ -78,7 +78,18 @@ check(
   "admin agent 20 / 10 min",
   RATE_LIMIT_POLICY["admin-agent"].limit === 20 && RATE_LIMIT_POLICY["admin-agent"].windowSeconds === 600
 );
-check("only the two scopes that used a Map", Object.keys(RATE_LIMIT_POLICY).length === 2);
+// A scope with no caller is dead weight, and a caller with no scope throws at
+// runtime. The set is named exactly, so adding one has to be a deliberate edit
+// here as well as in the policy table.
+check(
+  "the policy holds exactly the scopes the routes call",
+  Object.keys(RATE_LIMIT_POLICY).sort().join(",") === "admin-agent,newsletter,testimonial",
+  Object.keys(RATE_LIMIT_POLICY).join(",")
+);
+check(
+  "testimonials 3 / hour",
+  RATE_LIMIT_POLICY.testimonial.limit === 3 && RATE_LIMIT_POLICY.testimonial.windowSeconds === 3600
+);
 
 console.log("\nKeys are pseudonyms, not identifiers");
 const keyA = rateLimitKey("newsletter", "203.0.113.9");

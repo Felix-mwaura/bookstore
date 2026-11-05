@@ -190,7 +190,6 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
   const { user, ready: sessionReady } = useSessionUser();
   const [signingOut, setSigningOut] = useState(false);
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("All");
   const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const inputRef = useRef(null);
@@ -201,8 +200,12 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
   // submit, so choosing "Fiction" and stepping away did nothing at all — a
   // select in a search bar reads as a filter, and a filter that needs a second,
   // unannounced action looks broken.
+  //
+  // It also never kept its selection. Holding the last choice meant that
+  // choosing the same genre twice changed nothing and fired no change event,
+  // so the control went dead after the first use. It now behaves as a command:
+  // every selection navigates, and the control always reads "All categories".
   const chooseCategory = (value) => {
-    setCategory(value);
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (value !== "All") params.set("category", value);
@@ -215,7 +218,6 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
     e?.preventDefault();
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
-    if (category !== "All") params.set("category", category);
     router.push(`/books${params.toString() ? `?${params}` : ""}`);
     setSearchOpen(false);
     setMenuOpen(false);
@@ -274,14 +276,17 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
     <form
       onSubmit={submitSearch}
       role="search"
-      className="flex w-full items-center gap-1 rounded-full border border-line bg-surface p-1 transition-colors focus-within:border-sienna focus-within:ring-2 focus-within:ring-sienna"
+      className="flex w-full items-center gap-1 rounded-full border border-line bg-surface p-1 transition-colors focus-within:border-navy"
     >
       <label htmlFor={`${idPrefix}-category`} className="sr-only">Search category</label>
+      {/* Always reading "All": this control issues a command rather than
+          holding a state, so every pick fires — including a repeat of the
+          last one, which used to change nothing. */}
       <select
         id={`${idPrefix}-category`}
-        value={category}
+        value="All"
         onChange={(e) => chooseCategory(e.target.value)}
-        className="hidden max-w-[10rem] rounded-full bg-transparent py-2 pl-4 pr-1 text-small text-muted focus:outline-none sm:block"
+        className="hidden max-w-[10rem] rounded-full bg-transparent py-2 pl-4 pr-1 text-small text-muted focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sienna sm:block"
       >
         {["All", ...genres.map((g) => g.name)].map((c) => (
           <option key={c} value={c}>{c === "All" ? "All categories" : c}</option>
@@ -292,10 +297,12 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
         id={`${idPrefix}-query`}
         ref={idPrefix === "desktop" ? inputRef : undefined}
         type="search"
+        autoComplete="off"
+        enterKeyHint="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Search books, authors, genres…"
-        className="min-w-0 flex-1 bg-transparent px-3 py-2 text-small text-ink placeholder:text-muted focus:outline-none"
+        className="min-w-0 flex-1 rounded-full bg-transparent px-3 py-2 text-small text-ink placeholder:text-muted focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sienna"
       />
       <button
         type="submit"
