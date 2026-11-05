@@ -269,8 +269,8 @@ check(
   /transform:\s*none\s*!important/.test(reduced.join("\n"))
 );
 check(
-  "the 3D set is switched off explicitly",
-  reduced.some((block) => /\.card-3d/.test(block) && /animation:\s*none\s*!important/.test(block))
+  "the card and its cover are switched off explicitly",
+  reduced.some((block) => /\.product-card/.test(block) && /\.cover-frame/.test(block) && /animation:\s*none\s*!important/.test(block))
 );
 check(
   "a reveal in progress lands at full opacity",
