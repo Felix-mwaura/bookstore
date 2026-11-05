@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../lib/supabase";
 import AddressBook from "../components/AddressBook";
+import { BookCover } from "../components/BookCover";
+import { attachOrderItemCovers } from "../lib/order-covers";
 import StoreLayout from "../components/StoreLayout";
 import PageHeader from "../components/PageHeader";
 import {
@@ -163,7 +165,11 @@ export default function AccountPage() {
         phone: prof?.phone || session.user.user_metadata?.phone || "",
       });
       if (orderError) setLoadError("We couldn’t load your orders just now. Refresh to try again.");
-      setOrders(orderRows || []);
+      // Covers come from `books`, by id — an order's items are a price
+      // snapshot and carry no image.
+      const withCovers = await attachOrderItemCovers(supabase, orderRows || []);
+      if (cancelled) return;
+      setOrders(withCovers);
       setLoading(false);
     }
 
@@ -389,6 +395,12 @@ export default function AccountPage() {
                     <ul className="space-y-2">
                       {(order.items || []).map((item, index) => (
                         <li key={`${order.id}-${index}`} className="flex items-start gap-3">
+                          {/* The cover the book had when this order was
+                              placed — looked up by id, so the row reads as
+                              the books the customer actually bought. */}
+                          <div className="w-9 shrink-0 overflow-hidden rounded-r-sm" style={{ aspectRatio: "2/3" }}>
+                            <BookCover book={item} className="h-full w-full" sizes="36px" />
+                          </div>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-navy">{item.title}</p>
                             <p className="truncate text-xs text-muted">

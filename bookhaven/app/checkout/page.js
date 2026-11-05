@@ -104,12 +104,17 @@ function OrderSummary({ cart, total, onChangeQty, onRemove }) {
 }
 
 // Defined OUTSIDE StepDetails so it doesn't remount on every keystroke
-function Field({ label, name, type = "text", placeholder, span2, value, onChange, error, autoComplete, inputMode }) {
+function Field({ label, name, type = "text", placeholder, span2, value, onChange, error, autoComplete, inputMode, readOnly = false, hint }) {
   const id = `checkout-${name}`;
   const errorId = `${id}-error`;
+  const hintId = `${id}-hint`;
+  const describedBy = [error ? errorId : null, hint ? hintId : null].filter(Boolean).join(" ") || undefined;
   return (
     <div className={span2 ? "sm:col-span-2" : ""}>
       <label htmlFor={id} className="mb-1.5 block text-micro font-semibold uppercase text-muted">{label}</label>
+      {/* readOnly, not disabled: a disabled field is skipped by the keyboard
+          and by screen readers, and this one still needs to be readable and
+          announceable. */}
       <input
         id={id}
         name={name}
@@ -118,12 +123,14 @@ function Field({ label, name, type = "text", placeholder, span2, value, onChange
         placeholder={placeholder}
         autoComplete={autoComplete}
         inputMode={inputMode}
+        readOnly={readOnly}
         aria-invalid={error ? "true" : undefined}
-        aria-describedby={error ? errorId : undefined}
+        aria-describedby={describedBy}
         onChange={(e) => onChange(name, e.target.value)}
-        className={`field ${error ? "field-error" : ""}`}
+        className={`field ${error ? "field-error" : ""} ${readOnly ? "bg-subtle/60 text-muted" : ""}`}
       />
       {error && <p id={errorId} className="mt-1.5 text-small text-error">{error}</p>}
+      {hint && !error && <p id={hintId} className="mt-1.5 text-small text-muted">{hint}</p>}
     </div>
   );
 }
@@ -139,7 +146,7 @@ function validateDetails(data) {
   return found;
 }
 
-function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember, onRemember }) {
+function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember, onRemember, accountEmail = "" }) {
   const [errors, setErrors] = useState({});
 
   const validate = () => validateDetails(data);
@@ -200,7 +207,19 @@ function StepDetails({ data, onChange, onNext, saved = [], onPickSaved, remember
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <Field label="First name" name="firstName" placeholder="Grace" autoComplete="given-name" value={data.firstName} onChange={handleChange} error={errors.firstName} />
         <Field label="Last name" name="lastName" placeholder="Wambui" autoComplete="family-name" value={data.lastName} onChange={handleChange} error={errors.lastName} />
-        <Field label="Email address" name="email" type="email" placeholder="grace@example.com" autoComplete="email" span2 value={data.email} onChange={handleChange} error={errors.email} />
+        <Field
+          label="Email address"
+          name="email"
+          type="email"
+          placeholder="grace@example.com"
+          autoComplete="email"
+          span2
+          value={data.email}
+          onChange={handleChange}
+          error={errors.email}
+          readOnly={Boolean(accountEmail)}
+          hint={accountEmail ? "This is the email on your account; the order and its updates go to it." : undefined}
+        />
         <Field label="Phone number" name="phone" type="tel" inputMode="tel" placeholder="0712 345 678" autoComplete="tel" span2 value={data.phone} onChange={handleChange} error={errors.phone} />
         <Field label="Street address" name="address" placeholder="Estate, street, building…" autoComplete="street-address" span2 value={data.address} onChange={handleChange} error={errors.address} />
         <div>
@@ -923,6 +942,11 @@ export default function CheckoutPage() {
   const [saveError, setSaveError] = useState(null);
   const [stockError, setStockError] = useState(null);
   const [signedIn, setSignedIn] = useState(null); // null = still checking
+  // The address the account is registered with. While it is set, the delivery
+  // email is that address and cannot be edited: an order belongs to an
+  // account, and an order that quietly emails a different address is one the
+  // customer cannot find again.
+  const [accountEmail, setAccountEmail] = useState("");
   // Payment options come from the server, never from a build-time flag: only
   // the server can see whether the Daraja credentials are present.
   const [mpesaEnabled, setMpesaEnabled] = useState(false);
@@ -1046,9 +1070,31 @@ export default function CheckoutPage() {
     let cancelled = false;
     supabase.auth
       .getSession()
-      .then(({ data: { session } }) => { if (!cancelled) setSignedIn(!!session); })
+      .then(({ data: { session } }) => {
+        if (cancelled) return;
+        setSignedIn(!!session);
+        const email = session?.user?.email || "";
+        if (!email) return;
+        setAccountEmail(email);
+        // Only prefill: a guest checkout still has an editable field, and a
+        // customer who signed in after starting the form keeps what they
+        // typed only if it already is their address.
+        setDetails((prev) => ({ ...prev, email: prev.email || email }));
+      })
       .catch(() => { if (!cancelled) setSignedIn(false); });
-    return () => { cancelled = true; };
+
+    // Signing in or out in another tab must not leave a locked field holding
+    // an address that is no longer the account's.
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      const email = session?.user?.email || "";
+      setAccountEmail(email);
+      if (email) setDetails((prev) => ({ ...prev, email }));
+    });
+
+    return () => {
+      cancelled = true;
+      listener?.subscription?.unsubscribe();
+    };
   }, []);
 
   // Load the customer's saved addresses once we know they are signed in.
@@ -1322,6 +1368,7 @@ export default function CheckoutPage() {
                 <StepDetails
                   data={details}
                   onChange={updateDetail}
+                  accountEmail={accountEmail}
                   saved={savedAddresses}
                   onPickSaved={useSavedAddress}
                   remember={rememberAddress}

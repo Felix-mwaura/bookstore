@@ -1089,6 +1089,19 @@ html {
   scrollbar-color: #C9BFA8 var(--color-subtle);
 }
 
+/* A strip that scrolls sideways without drawing a scrollbar: the header's
+   genre row at 1024px, where nine genres do not fit on one line. The rules
+   below theme the scrollbars people scroll deliberately; this is for a nav
+   that should read as one calm line. */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
 }

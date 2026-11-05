@@ -54,7 +54,6 @@ for (const path of [
   "/books?sort=price-asc&price=under-1000",
   "/books?page=2",
   "/category/finance",
-  "/books/deep-work-4",
   "/login",
   "/login?tab=register",
   "/login?mode=reset",
@@ -64,6 +63,26 @@ for (const path of [
   "/sitemap.xml",
 ]) {
   await expectStatus(path, 200);
+}
+
+/* ── a real product page ────────────────────────────────────────────── */
+
+// The shelf is data, so a hard-coded slug only passes against the seed file it
+// was copied from: any fixture, any shop with a different catalogue, and the
+// check fails on a page that does not exist rather than a page that is broken.
+// Take the first book the listing actually links to and assert that URL renders
+// without a redirect — the canonical form, not a guess.
+const shelf = await request("/books");
+if (shelf && shelf.ok) {
+  const html = await shelf.text();
+  const href = html.match(/href="(\/books\/[a-z0-9][a-z0-9-]*)"/i)?.[1];
+  expect("the shelf links to at least one product", Boolean(href), "no /books/<slug> href found");
+  if (href) {
+    const res = await expectStatus(href, 200, `product page ${href} renders directly`);
+    // A 308 here would mean the listing advertised a non-canonical URL, which
+    // costs every crawler and every shared link an extra hop.
+    expect(`product page ${href} is canonical`, res ? res.status === 200 : false, `got ${res?.status}`);
+  }
 }
 
 /* ── redirects and gates ────────────────────────────────────────────── */

@@ -157,13 +157,14 @@ function useSessionUser() {
   return { user, ready };
 }
 
-// The five places a shopper actually goes, in the order they go there.
+// The two ways into the catalogue that are not a genre. Every genre follows
+// these, read from the genre list the rest of the shop uses — this used to be
+// three hard-coded names (Fiction, Finance, Self-help), so a genre added in the
+// admin had no way into the shop from the header, and one renamed or removed
+// left a dead link behind.
 const NAV_LINKS = [
   { label: "All books", href: "/books", match: "/books" },
   { label: "New arrivals", href: "/books?sort=newest" },
-  { label: "Fiction", href: "/category/fiction" },
-  { label: "Finance", href: "/category/finance" },
-  { label: "Self-help", href: "/category/self-help" },
 ];
 
 export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartClick, onWishlistClick }) {
@@ -195,6 +196,20 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
   const inputRef = useRef(null);
   const drawerRef = useRef(null);
   const drawerCloseRef = useRef(null);
+
+  // Picking a genre navigates straight away. The value used to be read only on
+  // submit, so choosing "Fiction" and stepping away did nothing at all — a
+  // select in a search bar reads as a filter, and a filter that needs a second,
+  // unannounced action looks broken.
+  const chooseCategory = (value) => {
+    setCategory(value);
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("q", query.trim());
+    if (value !== "All") params.set("category", value);
+    router.push(`/books${params.toString() ? `?${params}` : ""}`);
+    setSearchOpen(false);
+    setMenuOpen(false);
+  };
 
   const submitSearch = (e) => {
     e?.preventDefault();
@@ -265,7 +280,7 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
       <select
         id={`${idPrefix}-category`}
         value={category}
-        onChange={(e) => setCategory(e.target.value)}
+        onChange={(e) => chooseCategory(e.target.value)}
         className="hidden max-w-[10rem] rounded-full bg-transparent py-2 pl-4 pr-1 text-small text-muted focus:outline-none sm:block"
       >
         {["All", ...genres.map((g) => g.name)].map((c) => (
@@ -398,32 +413,58 @@ export default function StoreHeader({ cartCount = 0, wishlistCount = 0, onCartCl
               to move through the shop except the footer or the home page.
               One slim row of the things people actually browse. */}
           <nav aria-label="Browse" className="hidden border-t border-line/70 lg:block">
-            <ul className="flex h-11 items-center gap-7 text-small">
-              {NAV_LINKS.map((item) => {
-                const active = pathname === item.href || (item.match && pathname.startsWith(item.match));
-                return (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`inline-flex h-11 items-center underline-offset-[6px] transition-colors hover:text-navy hover:underline ${
-                        active ? "text-navy underline decoration-sienna decoration-2" : "text-muted"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                );
-              })}
-              <li className="ml-auto">
-                <Link
-                  href="/help"
-                  className="inline-flex h-11 items-center text-muted underline-offset-[6px] transition-colors hover:text-navy hover:underline"
-                >
-                  Delivery &amp; help
-                </Link>
-              </li>
-            </ul>
+            <div className="flex h-11 items-center gap-6">
+              {/* The genre row scrolls sideways when it does not fit — nine
+                  genres plus two destinations do not fit at 1024px. Every
+                  genre comes from the same list the rest of the shop reads, so
+                  a genre added in the admin appears here without a deploy. */}
+              <ul className="scrollbar-none flex h-11 min-w-0 flex-1 items-center gap-5 overflow-x-auto text-small xl:gap-6">
+                {NAV_LINKS.map((item) => {
+                  const active = pathname === item.href || (item.match && pathname.startsWith(item.match));
+                  return (
+                    <li key={item.href} className="shrink-0">
+                      <Link
+                        href={item.href}
+                        aria-current={active ? "page" : undefined}
+                        className={`inline-flex h-11 items-center whitespace-nowrap underline-offset-[6px] transition-colors hover:text-navy hover:underline ${
+                          active ? "text-navy underline decoration-sienna decoration-2" : "text-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+                {genres.map((genre) => {
+                  const href = `/category/${genre.slug}`;
+                  const active = pathname === href;
+                  return (
+                    <li key={genre.slug} className="shrink-0">
+                      <Link
+                        href={href}
+                        aria-current={active ? "page" : undefined}
+                        className={`inline-flex h-11 items-center whitespace-nowrap underline-offset-[6px] transition-colors hover:text-navy hover:underline ${
+                          active ? "text-navy underline decoration-sienna decoration-2" : "text-muted"
+                        }`}
+                      >
+                        {genre.name}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {/* Outside the scrolling list on purpose: a pinned destination
+                  that slides away when the genre strip overflows is worse
+                  than no pinned destination. */}
+              <Link
+                href="/help"
+                aria-current={pathname === "/help" ? "page" : undefined}
+                className="inline-flex h-11 shrink-0 items-center text-muted underline-offset-[6px] transition-colors hover:text-navy hover:underline"
+              >
+                Delivery &amp; help
+              </Link>
+            </div>
           </nav>
 
           <AnimatePresence initial={false}>

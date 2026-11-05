@@ -118,13 +118,22 @@ export default function ProductCard({ book, onAddToCart, note }) {
           {state.label}
         </p>
 
-        <div className="mt-auto flex items-end justify-between gap-2 border-t border-line pt-3.5">
+        {/* Price and action on one line, and this row is where a card can lose
+            information. The price block was `min-w-0` with a `whitespace-nowrap`
+            child, so when the two did not fit — a four-digit price, or the
+            wider "Added" state — the digits slid out of their box and the
+            button (`relative z-20`) painted over them. Two changes make that
+            impossible: the row wraps, so the button drops below rather than
+            covering anything, and the price wraps internally, so "KSh" can sit
+            above the number. The longest unbreakable piece is the number
+            itself, which fits the narrowest card the grid makes. */}
+        <div className="mt-auto flex flex-wrap items-end justify-between gap-x-2 gap-y-2 border-t border-line pt-3.5">
           {/* The currency label is small so the number has room on a 320px
               two-column grid; the accessible name keeps the full price. */}
           <div className="min-w-0">
             <p
               aria-label={`Price ${formatKsh(book.price)}`}
-              className="flex items-baseline gap-1 whitespace-nowrap tabular-nums"
+              className="flex flex-wrap items-baseline gap-x-1 tabular-nums"
             >
               <span aria-hidden="true" className="text-[9px] font-semibold uppercase tracking-wide text-muted sm:text-[10px]">
                 KSh
@@ -136,7 +145,7 @@ export default function ProductCard({ book, onAddToCart, note }) {
             {book.original_price && book.original_price > book.price && (
               <p
                 aria-label={`Was ${formatKshCompact(book.original_price)}`}
-                className="mt-1 flex items-baseline gap-1 whitespace-nowrap text-muted tabular-nums"
+                className="mt-1 flex flex-wrap items-baseline gap-x-1 text-muted tabular-nums"
               >
                 <span aria-hidden="true" className="text-[9px] uppercase tracking-wide">KSh</span>
                 <span aria-hidden="true" className="text-[11px] line-through">{compactKshNumber(book.original_price)}</span>
@@ -154,7 +163,7 @@ export default function ProductCard({ book, onAddToCart, note }) {
             whileTap={state.canBuy ? { scale: 0.96 } : undefined}
             transition={{ type: "spring", stiffness: 600, damping: 26 }}
             aria-label={state.canBuy ? `Add ${book.title} to basket` : `${book.title} is out of stock`}
-            className={`relative z-20 inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-control px-2.5 text-white transition-colors disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted sm:h-11 sm:min-w-0 sm:px-3.5 ${
+            className={`relative z-20 ml-auto inline-flex h-10 min-w-10 shrink-0 items-center justify-center rounded-control px-2.5 text-white transition-colors disabled:cursor-not-allowed disabled:bg-subtle disabled:text-muted sm:h-11 sm:min-w-0 sm:px-3.5 ${
               justAdded ? "bg-success" : "bg-navy hover:bg-sienna"
             }`}
           >
@@ -162,7 +171,7 @@ export default function ProductCard({ book, onAddToCart, note }) {
               // Disabled controls are exempt from WCAG contrast, but a label
               // nobody can read is still a label nobody can read: muted text
               // on the subtle fill is 5.2:1.
-              <span className="px-2 text-[11px] font-semibold">Sold out</span>
+              <span className="whitespace-nowrap px-2 text-[11px] font-semibold">Sold out</span>
             ) : justAdded ? (
               <span className="flex items-center gap-1.5 px-2 sm:px-0">
                 <motion.svg

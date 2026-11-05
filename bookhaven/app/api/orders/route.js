@@ -115,6 +115,14 @@ export async function POST(request) {
     );
   }
 
+  // The confirmation address is the account's address, whatever the body
+  // says. Every order here belongs to a verified account (the caller is
+  // identified by the JWT above), so an order that carries a different email
+  // is one the customer cannot find again: no receipt, no way to match it to
+  // the account, and a delivery notice going somewhere they did not choose.
+  // A guest address is not rejected — it is replaced, which cannot fail.
+  if (user.email) cleanDetails.email = user.email;
+
   if (typeof paymentMethod !== "string" || !paymentMethod.trim()) {
     return NextResponse.json({ error: "A payment method is required." }, { status: 400 });
   }
