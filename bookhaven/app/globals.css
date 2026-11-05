@@ -136,10 +136,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-playfair);
-  color: var(--color-navy);
-  text-wrap: balance;
+/* Heading colour lives in the base layer, not loose in the file.
+   Unlayered CSS wins over every Tailwind utility regardless of specificity,
+   so this rule was quietly forcing navy onto headings that asked to be
+   something else: the homepage hero's white headline (navy on a photograph),
+   the promo band's white heading (navy on navy) and the footer's cream column
+   titles (navy on navy). In the base layer the same rule is a default that a
+   `text-*` utility can override, which is what every caller assumed. */
+@layer base {
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-playfair);
+    color: var(--color-navy);
+    text-wrap: balance;
+  }
 }
 
 p {

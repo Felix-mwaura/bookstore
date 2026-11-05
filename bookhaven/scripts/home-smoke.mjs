@@ -13,7 +13,7 @@
 // What a clean run does NOT mean: that the page looks right. Nothing here can
 // see the layout.
 
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -98,13 +98,32 @@ check("contact details are still conditional", /STORE_CONTACT\.reachable/.test(h
 /* ── the hero is honest about its photograph ────────────────────────── */
 
 check("the hero headline is the brief's", /Every great story/.test(hero) && /starts with a/.test(hero));
+// The h1 sits on a photograph under a navy wash. An inherited navy headline
+// there is invisible, which is exactly what shipped once: it must ask for the
+// palette's ivory by name.
+check(
+  "the hero headline asks for ivory rather than inheriting navy",
+  /<h1[^>]*className="[^"]*text-cream/.test(hero)
+);
 check("the hero supporting line is the brief's", /Discover stories, ideas and inspiration/.test(hero));
 check("both hero actions exist", /Explore books/.test(hero) && /Browse categories/.test(hero));
 check(
-  "the hero image is the shop's own photograph",
-  /src="\/genres\/fiction-1200\.webp"/.test(hero)
+  "the hero photograph is a file this repo ships",
+  /src="\/hero\/bookshelf-stack\.jpg"/.test(hero) &&
+    existsSync(join(root, "public/hero/bookshelf-stack.jpg"))
 );
 check("the hero image is above the fold and prioritised", /priority/.test(hero));
+// Next 16 serves only the qualities listed in next.config. A hard-coded one
+// outside that list answers 400 and the hero loses its photograph entirely.
+check("the hero image asks for no quality the optimiser would refuse", !/quality=\{/.test(hero));
+// White type over a photograph needs a wash between them; without one the
+// contrast depends on which part of the picture happens to sit behind the
+// words, which is not something a page can promise.
+check("the hero type sits on a scrim, not straight on the photograph", /absolute inset-0 bg-navy/.test(hero));
+check(
+  "the background photograph is decorative, so it carries no description",
+  /src="\/hero\/bookshelf-stack\.jpg"\s+alt=""/.test(hero)
+);
 check(
   "the featured book uses the shared cover component, not a stand-in photo",
   /<BookCover book=\{cover\}/.test(hero)
