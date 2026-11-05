@@ -31,9 +31,13 @@ export function HomeHero({ latest }) {
       <div className="shell grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.85fr)] lg:gap-16 lg:py-20">
         {/* ── the words ───────────────────────────────────────────── */}
         <div className="min-w-0">
+          {/* The break between the two halves is deliberate on a wide
+              screen; on a phone the same break lands mid-phrase and pushes
+              the headline to four ragged lines, so there it wraps on its own
+              measure instead. */}
           <h1 className="font-playfair text-display font-bold tracking-[-0.02em] text-navy">
-            Every great story
-            <br />
+            Every great story{" "}
+            <br className="hidden sm:block" />
             starts with a <span className="italic text-sienna">book.</span>
           </h1>
 

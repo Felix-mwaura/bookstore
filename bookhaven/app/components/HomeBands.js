@@ -44,7 +44,7 @@ export function PromoBanner({ books = [] }) {
                     key={book.id}
                     // The middle cover sits forward, the outer two lean back —
                     // the same fan the shop uses elsewhere, at a smaller scale.
-                    className={`w-20 shrink-0 sm:w-24 ${index === 1 ? "-mb-2 z-10 w-24 sm:w-28" : "opacity-95"}`}
+                    className={`w-16 shrink-0 sm:w-24 ${index === 1 ? "-mb-2 z-10 w-[4.5rem] sm:w-28" : "opacity-95"}`}
                   >
                     <Link
                       href={bookPath(book)}
