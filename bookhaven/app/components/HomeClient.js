@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { CategoryStrip } from "./CategoryStrip";
+import { GenreCarousel } from "./GenreCarousel";
 import { DiscoverySearch, PromoBanner } from "./HomeBands";
 import { HomeHero } from "./HomeHero";
 import { ProductRow } from "./ProductRow";
+import { TestimonialsSection } from "./TestimonialsSection";
 import SectionHeading from "./SectionHeading";
 import NumberTicker from "./NumberTicker";
 import { useGenres } from "./GenreProvider";
@@ -306,7 +307,12 @@ function Contact() {
 
 /* ── page ─────────────────────────────────────────────── */
 
-export default function HomeClient({ initialBooks = [], stats: catalogueStats, mpesaEnabled = false }) {
+export default function HomeClient({
+  initialBooks = [],
+  stats: catalogueStats,
+  mpesaEnabled = false,
+  testimonials = [],
+}) {
   useReveal();
   const store = useStore();
   const books = initialBooks;
@@ -361,7 +367,13 @@ export default function HomeClient({ initialBooks = [], stats: catalogueStats, m
         books={byNewest.slice(0, 10)}
         onAddToCart={store.addToCart}
       />
-      <CategoryStrip genres={genres} counts={counts} />
+      {/* The genre deck is the reference's category section: fanned cards,
+          arrows, dots, and a way out to the whole shelf. */}
+      <GenreCarousel genres={genres} counts={counts} />
+      {/* The quote wall sits straight after the genre deck: both are the same
+          fanned shelf, and a reader who has just browsed categories is the
+          reader most likely to take a recommendation. */}
+      <TestimonialsSection testimonials={testimonials} books={books} />
       <PromoBanner books={byNewest} />
       <ProductRow
         id="picks"

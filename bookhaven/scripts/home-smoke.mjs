@@ -33,7 +33,7 @@ function check(label, condition, detail = "") {
 const home = read("app/components/HomeClient.js");
 const hero = read("app/components/HomeHero.js");
 const bands = read("app/components/HomeBands.js");
-const strip = read("app/components/CategoryStrip.js");
+const deck = read("app/components/GenreCarousel.js");
 const row = read("app/components/ProductRow.js");
 
 /* ── the page is composed, not hand-rolled ──────────────────────────── */
@@ -43,7 +43,7 @@ const row = read("app/components/ProductRow.js");
 for (const [label, tag] of [
   ["the hero", "HomeHero"],
   ["the shelves", "ProductRow"],
-  ["the genre strip", "CategoryStrip"],
+  ["the genre deck", "GenreCarousel"],
   ["the promo band", "PromoBanner"],
   ["the discovery band", "DiscoverySearch"],
 ]) {
@@ -68,17 +68,17 @@ check(
 check("the featured flag comes from the row, not a guess", /is_featured: Boolean\(row\.is_featured\)/.test(read("app/lib/book-shape.js")));
 
 // The word the shop has no data for.
-check("nothing claims to be a bestseller", !/bestsell/i.test(home + hero + bands + strip + row));
+check("nothing claims to be a bestseller", !/bestsell/i.test(home + hero + bands + deck + row));
 
 /* ── genres come from the database list ─────────────────────────────── */
 
-check("the strip is fed the live genre list", /<CategoryStrip genres=\{genres\}/.test(home));
+check("the deck is fed the live genre list", /<GenreCarousel genres=\{genres\} counts=\{counts\}/.test(home));
 check("that list is the provider's", /const genres = useGenres\(\)/.test(home));
-check("each card links to its own category page", /href=\{`\/category\/\$\{genre\.slug\}`\}/.test(strip));
-check("the count shown is the counted one", /counts\[genre\.name\] \|\| 0/.test(strip));
+check("each card links to its own category page", /href=\{`\/category\/\$\{slug\}`\}/.test(deck));
+check("the count shown is the counted one", /const count = genreCount\(counts, name\);/.test(deck));
 check(
   "a genre with no artwork gets a plain panel, not another genre's photo",
-  /art && !broken \?/.test(strip) && /\{genre\.name\}\s*\n?\s*<\/span>/.test(strip)
+  /const showArt = art && !brokenArt\[slug\];/.test(deck) && /genre-card-plain/.test(deck)
 );
 
 /* ── the claims on the page are the shop's actual policy ────────────── */
@@ -128,8 +128,14 @@ check("an empty shelf renders nothing at all", /if \(!books\?\.length\) return n
 
 /* ── motion is gated ────────────────────────────────────────────────── */
 
-check("hover motion is disabled for reduced-motion readers", /motion-reduce:/.test(strip));
-check("reveal markers are static attributes", !/data-reveal=\{/.test(home + row + strip));
+// The strip that carried `motion-reduce:` utilities is gone; the same promise
+// is kept by the band's utilities and by the stylesheet's reduce block, so the
+// check follows the rule rather than the file that used to hold it.
+check(
+  "hover motion is disabled for reduced-motion readers",
+  /motion-reduce:/.test(bands) && /@media \(prefers-reduced-motion: reduce\)/.test(read("app/globals.css"))
+);
+check("reveal markers are static attributes", !/data-reveal=\{/.test(home + row + deck));
 
 /* ── report ─────────────────────────────────────────────────────────── */
 

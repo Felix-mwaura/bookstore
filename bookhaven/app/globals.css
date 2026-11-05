@@ -931,6 +931,29 @@ html {
   color: rgba(255, 255, 255, 0.84);
 }
 
+/* The affordance under the blurb. It is part of the card's own link, so it is
+   a label rather than a control: a button inside an anchor is invalid markup
+   and the inner control is the one that ends up unclickable. */
+.genre-card-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-top: 10px;
+  padding: 6px 12px 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--color-navy);
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: background-color var(--dur-fast) var(--ease-standard);
+}
+
+.genre-card:hover .genre-card-cta,
+.genre-card:focus-visible .genre-card-cta {
+  background: #fff;
+}
+
 @media (min-width: 640px) {
   .genre-card-body {
     padding: 20px 22px 22px;
@@ -1052,6 +1075,111 @@ html {
 @media (min-width: 640px) {
   .genre-dot {
     width: 30px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   Testimonial deck
+
+   The same fanned geometry as the genre deck, reused rather than copied:
+   the section carries .genre-region / .genre-stage / .genre-card, so the
+   cards move, stack and fade on the same rules. Only what is on a card
+   differs — a quote instead of a genre — so only that is styled here.
+   ───────────────────────────────────────────────────────────── */
+.testimonial-card {
+  /* A quote is read, not dragged: the stage must not advertise a grab
+     cursor it will not honour. */
+  cursor: default;
+}
+
+.testimonial-card-mark {
+  position: absolute;
+  top: 6px;
+  left: 18px;
+  z-index: 1;
+  font-family: var(--font-playfair);
+  font-size: 5rem;
+  line-height: 1;
+  color: rgba(243, 201, 180, 0.28);
+  pointer-events: none;
+}
+
+/* The body keeps the genre card's fade (opacity 0 until the card is at the
+   front). A neighbour therefore shows the spine colour and the quotation
+   mark, which reads as a card rather than as an empty panel. */
+.testimonial-card-body {
+  gap: 8px;
+  padding-top: 40px;
+}
+
+.testimonial-card-quote {
+  margin: 0;
+  font-family: var(--font-playfair);
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  color: #fff;
+  /* Long quotes are capped by the form, but a card is a fixed height: this
+     is the belt to the form's braces, and it never cuts a permitted length. */
+  display: -webkit-box;
+  -webkit-line-clamp: 7;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.testimonial-card-author {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.testimonial-card-name {
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.testimonial-card-book {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  text-decoration: none;
+}
+
+.testimonial-card-book-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #F3C9B4;
+}
+
+.testimonial-card-book-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.35);
+  text-underline-offset: 3px;
+}
+
+a.testimonial-card-book:hover .testimonial-card-book-title,
+a.testimonial-card-book:focus-visible .testimonial-card-book-title {
+  text-decoration-color: #fff;
+}
+
+@media (min-width: 640px) {
+  .testimonial-card-mark {
+    font-size: 6rem;
+    left: 22px;
+  }
+
+  .testimonial-card-quote {
+    font-size: 1.125rem;
+  }
+
+  .testimonial-card-name {
+    font-size: 1.125rem;
   }
 }
 

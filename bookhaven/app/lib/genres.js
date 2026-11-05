@@ -34,6 +34,37 @@ const BLURBS = {
 };
 
 /**
+ * How many books a genre holds.
+ *
+ * The two sides of this lookup come from different places: the deck's cards
+ * are rows in public.genres, the counts are the `category` strings on books.
+ * They are supposed to be the same words, but a stored "Self Help" against a
+ * genre named "Self-Help" matched nothing, and every card on the homepage
+ * said "0 titles" while the shelf was full. Comparing the words with case,
+ * spacing and punctuation ignored makes the count survive that drift; a
+ * genuinely empty genre still counts zero.
+ *
+ * @param {Record<string, number>} counts  category string → count
+ * @param {string} name
+ * @returns {number}
+ */
+export function genreCount(counts, name) {
+  if (!counts || !name) return 0;
+
+  const exact = Number(counts[name]);
+  if (Number.isFinite(exact)) return exact;
+
+  const key = (value) => String(value).toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const wanted = key(name);
+  if (!wanted) return 0;
+
+  for (const [category, count] of Object.entries(counts)) {
+    if (key(category) === wanted) return Number(count) || 0;
+  }
+  return 0;
+}
+
+/**
  * Artwork for a genre slug, or null when this shop has none for it.
  *
  * `alt` is empty on purpose: the image is decoration behind a card that
