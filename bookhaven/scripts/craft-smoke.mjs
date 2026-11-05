@@ -263,9 +263,20 @@ check("form fields share one class", /\.field\s*\{/.test(cssCode) && /className=
 
 /* ── heading order, on the source of the home page ─────── */
 
-const home = read("app/components/HomeClient.js");
-check("the hero is the only h1 on the page", (home.match(/<h1/g) || []).length === 1);
-check("sections use h2, and their items h3", /<h2/.test(read("app/components/SectionHeading.js")) && /<h3/.test(home));
+// The homepage is now several components (hero, rows, bands, the card), so
+// the heading order is checked across the set that composes it. One h1 for
+// the page, h2 for each section, h3 for the items inside one.
+const homeParts = ["HomeClient", "HomeHero", "ProductRow", "CategoryStrip", "HomeBands"]
+  .map((name) => read(`app/components/${name}.js`))
+  .join("\n");
+const h1s = (homeParts.match(/<h1/g) || []).length;
+check("the homepage has exactly one h1", h1s === 1, `${h1s} found`);
+check(
+  "sections use h2, and their items h3",
+  /<h2/.test(read("app/components/SectionHeading.js")) &&
+    /<h2/.test(homeParts) &&
+    /<h3/.test(read("app/components/ProductCard.js"))
+);
 
 function sourceFiles(dir = ".") {
   const out = [];

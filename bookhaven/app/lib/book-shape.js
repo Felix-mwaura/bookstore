@@ -27,6 +27,10 @@ export function toPublicBook(row) {
     format: row.format,
     isbn: row.isbn ?? null,
     badge: row.badge ?? null,
+    // The shop's own curation flag. It is what the admin ticks to put a title
+    // in the "picked by the shop" row — not a sales ranking, which the shop
+    // does not publish and this app cannot measure.
+    is_featured: Boolean(row.is_featured),
     stock: row.stock ?? null,
     stock_quantity: row.stock_quantity ?? 0,
     cover: row.cover ?? null,
