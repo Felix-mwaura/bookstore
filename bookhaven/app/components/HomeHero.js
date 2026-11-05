@@ -8,40 +8,62 @@ import { bookPath } from "../lib/book-url";
 import { DELIVERY_PERCENT } from "../lib/site";
 
 /**
- * The homepage hero: words on the left, a room on the right.
+ * The homepage hero: words over a room.
  *
- * The composition is deliberately uneven — a wide text column against a
- * narrower arched photograph — because a symmetrical two-column hero reads as
- * a template. The arch is the one shape on the page that is not a rounded
- * rectangle, and it is what makes the photograph look placed rather than
- * dropped in.
+ * The photograph is the background now, edge to edge, with a navy scrim over
+ * it. The scrim is not decoration — it is what makes the type legible. The
+ * photo runs from near-black bookcases to a stack of pale covers, so white
+ * text placed straight on it would pass over one corner and fail over another.
  *
- * Everything in it is a fact the shop can stand behind: the delivery figure is
- * the same constant the checkout charges, and the badge names that policy
- * rather than inventing a countdown or a stock claim.
+ * A flat wash at 75% fixes the worst case rather than the average: under the
+ * palest cover in the picture, the composite is about #4E586E, which gives
+ * white 7.1:1, 85% white 5.7:1 — both clear of AA for body text — while a
+ * quarter of the photograph still shows through as depth behind the words.
+ *
+ * Everything in the hero is still a fact the shop can stand behind: the
+ * delivery figure is the same constant the checkout charges, the badge names
+ * that policy rather than a countdown, and the small card at the bottom right
+ * is a real title from the shelf rather than stock art.
  */
 export function HomeHero({ latest }) {
-  // The arch shows a real book from the shelf, so the photograph and the
-  // catalogue agree. With nothing in the catalogue it falls back to the room
-  // photograph, which is the shop's own artwork either way.
+  // The card shows a real book from the shelf, so the picture and the
+  // catalogue agree. With nothing in the catalogue the card is simply absent.
   const cover = latest[0] || null;
 
   return (
-    <section className="relative overflow-hidden border-b border-line bg-cream">
-      <div className="shell grid items-center gap-10 py-12 sm:py-16 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.85fr)] lg:gap-16 lg:py-20">
-        {/* ── the words ───────────────────────────────────────────── */}
-        <div className="min-w-0">
+    <section className="relative isolate overflow-hidden border-b border-line bg-navy text-white">
+      {/* Decorative: the words carry the meaning, and a screen reader should
+          hear the headline, not a description of a stock photograph. */}
+      <Image
+        src="/hero/bookshelf-stack.jpg"
+        alt=""
+        fill
+        priority
+        // The picture sits under a heavy scrim, so its own quality matters far
+        // less than the bytes do. It is left at the configured default: Next 16
+        // only serves qualities listed in next.config, and a value outside that
+        // list fails the request outright (a 400 where the hero should be).
+        sizes="100vw"
+        className="object-cover object-[52%_42%]"
+      />
+
+      {/* One flat wash, not a gradient: the same value over every pixel is what
+          lets the contrast of the type be reasoned about at all. */}
+      <div aria-hidden="true" className="absolute inset-0 bg-navy/75" />
+
+      <div className="shell relative flex min-h-[30rem] flex-col justify-center py-14 sm:min-h-[34rem] sm:py-16 lg:min-h-[38rem] lg:py-20">
+        <div className="max-w-2xl">
           {/* The break between the two halves is deliberate on a wide
               screen; on a phone the same break lands mid-phrase and pushes
               the headline to four ragged lines, so there it wraps on its own
               measure instead. */}
-          <h1 className="font-playfair text-display font-bold tracking-[-0.02em] text-navy">
+          <h1 className="font-playfair text-display font-bold tracking-[-0.02em] text-white">
             Every great story{" "}
             <br className="hidden sm:block" />
-            starts with a <span className="italic text-sienna">book.</span>
+            starts with a <span className="italic text-sienna-soft">book.</span>
           </h1>
 
-          <p className="lead mt-6 max-w-xl">
+          <p className="mt-6 max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">
             Discover stories, ideas and inspiration. Find your next favourite read at Book Haven —
             prices in Kenyan shillings, delivery at {DELIVERY_PERCENT}% of the book total, shown
             before you pay.
@@ -61,8 +83,8 @@ export function HomeHero({ latest }) {
 
           {/* The one promise the shop keeps on every order, stated plainly
               rather than in a badge cloud. */}
-          <p className="mt-7 flex items-center gap-2.5 text-small text-muted">
-            <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
+          <p className="mt-7 flex items-center gap-2.5 text-small text-white/85">
+            <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-sienna-soft">
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
@@ -71,55 +93,23 @@ export function HomeHero({ latest }) {
           </p>
         </div>
 
-        {/* ── the room ────────────────────────────────────────────── */}
-        <div className="relative mx-auto w-full max-w-md lg:mx-0 lg:max-w-none">
-          {/* A hand-drawn arrow, kept as a light touch on wide screens only:
-              at phone widths it would land on top of the words. */}
-          <svg
-            className="pointer-events-none absolute -left-10 top-16 hidden h-24 w-24 text-navy/30 lg:block"
-            viewBox="0 0 100 100"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M12 14c22 4 38 18 44 40"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeDasharray="3 7"
-            />
-            <path d="M47 44l11 12-15 4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-
-          <div className="relative aspect-[4/5] overflow-hidden rounded-b-[2rem] rounded-t-[9rem] bg-subtle sm:rounded-t-[12rem]">
-            <Image
-              src="/genres/fiction-1200.webp"
-              alt="A stack of hardbacks beside a reading lamp and a worn leather armchair"
-              fill
-              // Above the fold on every screen, so it is the one image that
-              // should not wait behind the rest.
-              priority
-              sizes="(min-width: 1024px) 38vw, (min-width: 640px) 70vw, 92vw"
-              className="object-cover"
-            />
-          </div>
-
-          {/* The badge sits on the intersection of the arch and the page,
-              which is the one place on the composition with nothing behind
-              it. It carries the delivery policy, not a fabricated offer. */}
-          <div className="absolute -bottom-5 left-2 flex h-28 w-28 flex-col items-center justify-center rounded-full bg-sienna text-center text-white shadow-card sm:-left-6 sm:h-32 sm:w-32">
-            <span className="font-playfair text-2xl font-bold leading-none sm:text-3xl">{DELIVERY_PERCENT}%</span>
-            <span className="mt-1 max-w-[5.5rem] text-[10px] font-semibold leading-tight sm:text-[11px]">
+        {/* The delivery badge and the book card sit in the empty right half of
+            a wide screen, where the photograph has nothing over it. They are
+            kept out of the text column entirely below `lg` rather than allowed
+            to float across it: the delivery figure is already in the sentence
+            above, so nothing is lost on a phone. */}
+        <div className="pointer-events-none absolute bottom-8 right-6 hidden items-end gap-6 lg:flex">
+          <div className="pointer-events-auto flex h-28 w-28 flex-col items-center justify-center rounded-full bg-sienna text-center text-white shadow-card">
+            <span className="font-playfair text-2xl font-bold leading-none">{DELIVERY_PERCENT}%</span>
+            <span className="mt-1 max-w-[5.5rem] text-[10px] font-semibold leading-tight">
               delivery, on every order
             </span>
           </div>
 
-          {/* One real book, named, linking to its page — so the picture and
-              the catalogue agree instead of the hero being stock art. */}
           {cover && (
             <Link
               href={bookPath(cover)}
-              className="absolute -right-3 bottom-6 hidden max-w-[13rem] items-center gap-3 rounded-full border border-line bg-surface p-1.5 pr-4 shadow-card transition-colors hover:border-navy sm:flex"
+              className="pointer-events-auto flex max-w-[13rem] items-center gap-3 rounded-full border border-white/15 bg-surface p-1.5 pr-4 text-navy shadow-card transition-colors hover:border-white/40"
             >
               {/* The book's own jacket — or, when it has none, the same
                   generated cover the shelves show. Never a photograph of a
