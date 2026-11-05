@@ -31,7 +31,7 @@ export function HomeHero({ latest }) {
   const cover = latest[0] || null;
 
   return (
-    <section className="relative isolate overflow-hidden border-b border-line bg-navy text-white">
+    <section className="relative isolate overflow-hidden border-b border-line bg-navy text-cream">
       {/* Decorative: the words carry the meaning, and a screen reader should
           hear the headline, not a description of a stock photograph. */}
       <Image
@@ -57,13 +57,13 @@ export function HomeHero({ latest }) {
               screen; on a phone the same break lands mid-phrase and pushes
               the headline to four ragged lines, so there it wraps on its own
               measure instead. */}
-          <h1 className="font-playfair text-display font-bold tracking-[-0.02em] text-white">
+          <h1 className="font-playfair text-display font-bold tracking-[-0.02em] text-cream">
             Every great story{" "}
             <br className="hidden sm:block" />
             starts with a <span className="italic text-sienna-soft">book.</span>
           </h1>
 
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">
+          <p className="mt-6 max-w-xl text-base leading-relaxed text-cream/85 sm:text-lg">
             Discover stories, ideas and inspiration. Find your next favourite read at Book Haven —
             prices in Kenyan shillings, delivery at {DELIVERY_PERCENT}% of the book total, shown
             before you pay.
@@ -76,15 +76,15 @@ export function HomeHero({ latest }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </Link>
-            <Link href="#genres" className="btn-secondary">
+            <Link href="#genres" className="btn-secondary bg-cream">
               Browse categories
             </Link>
           </div>
 
           {/* The one promise the shop keeps on every order, stated plainly
               rather than in a badge cloud. */}
-          <p className="mt-7 flex items-center gap-2.5 text-small text-white/85">
-            <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-sienna-soft">
+          <p className="mt-7 flex items-center gap-2.5 text-small text-cream/85">
+            <span aria-hidden="true" className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-cream/10 text-sienna-soft">
               <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
               </svg>
@@ -99,7 +99,7 @@ export function HomeHero({ latest }) {
             to float across it: the delivery figure is already in the sentence
             above, so nothing is lost on a phone. */}
         <div className="pointer-events-none absolute bottom-8 right-6 hidden items-end gap-6 lg:flex">
-          <div className="pointer-events-auto flex h-28 w-28 flex-col items-center justify-center rounded-full bg-sienna text-center text-white shadow-card">
+          <div className="pointer-events-auto flex h-28 w-28 flex-col items-center justify-center rounded-full bg-sienna text-center text-cream shadow-card">
             <span className="font-playfair text-2xl font-bold leading-none">{DELIVERY_PERCENT}%</span>
             <span className="mt-1 max-w-[5.5rem] text-[10px] font-semibold leading-tight">
               delivery, on every order
@@ -109,7 +109,7 @@ export function HomeHero({ latest }) {
           {cover && (
             <Link
               href={bookPath(cover)}
-              className="pointer-events-auto flex max-w-[13rem] items-center gap-3 rounded-full border border-white/15 bg-surface p-1.5 pr-4 text-navy shadow-card transition-colors hover:border-white/40"
+              className="pointer-events-auto flex max-w-[13rem] items-center gap-3 rounded-full border border-cream/20 bg-cream p-1.5 pr-4 text-navy shadow-card transition-colors hover:border-cream/50"
             >
               {/* The book's own jacket — or, when it has none, the same
                   generated cover the shelves show. Never a photograph of a

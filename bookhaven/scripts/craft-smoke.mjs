@@ -141,6 +141,15 @@ check(
   /\.field:focus,[\s\S]{0,120}border-color: var\(--color-sienna\);\s*box-shadow: 0 0 0 1px var\(--color-sienna\)/.test(cssCode)
 );
 check("checkout fields use the shared field", /className=\{`field /.test(read("app/checkout/page.js")));
+
+// The base heading colour must live in the base layer. Unlayered, it beats
+// every Tailwind utility whatever the specificity, and headings that asked to
+// be white or cream came out navy — invisible on the navy sections. This is
+// the rule, not the symptom, so it is checked where it is declared.
+check(
+  "the base heading colour is a default a utility can override",
+  /@layer base\s*\{[^}]*h1,\s*h2,\s*h3,\s*h4,\s*h5,\s*h6\s*\{[^}]*color:\s*var\(--color-navy\)/.test(cssCode)
+);
 check("login fields use the shared field", /className=\{`field min-h-12/.test(read("app/login/AuthClient.js")));
 // The search pill used to ring the whole container on focus, which read as the
 // field lighting up and was the loudest thing on the page. The cue moved onto

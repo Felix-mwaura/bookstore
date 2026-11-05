@@ -40,6 +40,40 @@ Three quarters of the picture is washed out; the quarter that remains is what
 gives the hero its depth. A gradient would look smoother and make the maths
 impossible, so it is one flat value.
 
+## The palette, and the bug it exposed
+
+The first deploy of this hero showed the headline in **midnight navy on a dark
+photograph** — almost unreadable. That was not a colour choice; it was a
+cascade bug that had been in the site all along, and the dark hero is simply
+the first place it was visible.
+
+`app/globals.css` set heading colour with a bare `h1, h2 … { color: navy }`.
+Unlayered CSS beats *every* Tailwind utility regardless of specificity, so any
+heading that asked to be white or cream was quietly repainted navy:
+
+| Where | Asked for | Rendered | Result |
+| --- | --- | --- | --- |
+| hero h1 | `text-white` | navy | invisible on the photo |
+| promo band h2 | `text-white` | navy | navy on navy |
+| footer column h2s | `text-cream/60` | navy | navy on navy |
+
+The rule now lives in `@layer base`, where it is a default a `text-*` utility
+can override — which is what every caller already assumed. The fix repairs the
+footer and the promo band as well as the hero; `craft-smoke.mjs` fails if the
+rule ever leaves that layer again.
+
+With the cascade fixed, the hero uses the three colours and nothing else:
+
+| Element | Colour |
+| --- | --- |
+| ground (scrim over the photo) | `--color-navy` #1B2A4A at 75% |
+| headline, body, trust line | `--color-cream` #FAF6EE (85% for the small copy) |
+| "book.", badge, primary action | `--color-sienna` #B5532F, or its lightened tint #E9B79F for text on navy |
+
+Cream on the scrim is **6.6:1**, cream/85 is **5.3:1**, and cream on the
+terracotta badge is **4.6:1** — the last one is tight, and it is why the badge
+label stays bold and short.
+
 ## Two things worth knowing
 
 **The supplied file is 735×490.** Next serves it at up to that width, so on a
@@ -58,11 +92,13 @@ if a hard-coded quality comes back.
 | Check | Result |
 | --- | --- |
 | `next build --webpack` | exit 0 |
-| `npm test` | 886 ok · 0 fail |
+| `npm test` | 888 ok · 0 fail |
 | `ui-audit` | 784 passed · 0 failed · 60 pages |
 | `eslint app scripts` | 0 errors, 5 pre-existing warnings |
 | `/_next/image?url=%2Fhero%2Fbookshelf-stack.jpg` | 200 at 640/1080/1920 |
 | Rendered hero | scrim present · `alt=""` · badge and book card present · no arch classes left |
+| Heading cascade | base rule inside `@layer base`; `.text-cream` wins on the h1 |
+| Rendered classes | h1 `text-cream`; footer h2s `text-cream/60`; `.text-cream\/85`, `.bg-cream\/10`, `.bg-cream` all generated |
 
 ## Not verified
 

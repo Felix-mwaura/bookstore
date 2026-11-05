@@ -98,6 +98,13 @@ check("contact details are still conditional", /STORE_CONTACT\.reachable/.test(h
 /* ── the hero is honest about its photograph ────────────────────────── */
 
 check("the hero headline is the brief's", /Every great story/.test(hero) && /starts with a/.test(hero));
+// The h1 sits on a photograph under a navy wash. An inherited navy headline
+// there is invisible, which is exactly what shipped once: it must ask for the
+// palette's ivory by name.
+check(
+  "the hero headline asks for ivory rather than inheriting navy",
+  /<h1[^>]*className="[^"]*text-cream/.test(hero)
+);
 check("the hero supporting line is the brief's", /Discover stories, ideas and inspiration/.test(hero));
 check("both hero actions exist", /Explore books/.test(hero) && /Browse categories/.test(hero));
 check(
