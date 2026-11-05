@@ -39,26 +39,31 @@ function check(label, condition, detail = "") {
 
 const card = read("app/components/ProductCard.js");
 
-// The row that holds both has to be able to wrap…
+// The card was redesigned after this complaint: the add control now owns a
+// full-width row of its own, so it cannot be painted over the digits at any
+// price length. The checks below assert that separation, not the wrapping
+// that used to paper over the overlap.
 check(
-  "the price/action row wraps instead of squeezing",
-  /flex flex-wrap[^"]*justify-between[^"]*border-t border-line/.test(card)
+  "the add control is full-width in its own block",
+  /<div className="mt-auto pt-3\.5">[\s\S]{0,600}?h-11 w-full items-center justify-center/.test(card)
 );
-// …and the price itself must not be a nowrap island wider than its column,
-// which is what let the button's `z-20` layer sit on top of the digits.
+// No row may hold the price and the button side by side again.
+check(
+  "no row puts the price and the button on one line",
+  !/justify-between[^"]*border-t border-line/.test(card)
+);
+// The price itself must not be a nowrap island wider than its column.
 check(
   "the price line wraps internally (no single-line island)",
   /aria-label=\{`Price \$\{formatKsh\(book\.price\)\}`\}\s*\n?\s*className="flex flex-wrap/.test(card)
 );
 check(
-  "the original-price line also wraps",
-  !/mt-1 flex items-baseline gap-1 whitespace-nowrap/.test(card)
+  "the original price sits beside it without forcing a single line",
+  /className="[^"]*flex flex-wrap items-baseline gap-x-2 gap-y-0\.5"/.test(card) &&
+    /aria-label=\{`Was [^`]+`\}\s*\n?\s*className="flex flex-wrap/.test(card)
 );
-// Long action labels must stay whole while the row wraps around them.
-check(
-  "the sold-out label does not break mid-word",
-  /whitespace-nowrap[^"]*">Sold out</.test(card) || /whitespace-nowrap[^"]*>Sold out</.test(card)
-);
+// Long action labels must stay whole.
+check("the sold-out label does not break mid-word", /whitespace-nowrap">Sold out</.test(card));
 
 /* ── 2. the category dropdown navigates on selection ────────────────── */
 

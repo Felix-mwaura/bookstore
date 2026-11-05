@@ -9,6 +9,12 @@ import Image from "next/image";
  *
  * The wrapper always owns the 2:3 aspect ratio, so a grid never reflows when
  * an image finishes loading or fails: the space is reserved up front.
+ *
+ * Uploaded jackets are drawn with `object-contain`. A cover is artwork with
+ * its own type and framing; cropping it to fill a 2:3 box cuts the title off.
+ * The reserved box means the letterboxing that leaves is invisible against
+ * the stage's own tint, and covers of different source shapes all sit in the
+ * same frame.
  */
 export function BookCover({ book, className = "", style = {}, sizes = "(min-width: 1024px) 220px, (min-width: 640px) 30vw, 45vw", priority = false }) {
   const [imgFailed, setImgFailed] = useState(false);
@@ -24,7 +30,7 @@ export function BookCover({ book, className = "", style = {}, sizes = "(min-widt
           sizes={sizes}
           priority={priority}
           onError={() => setImgFailed(true)}
-          className="object-cover"
+          className="object-contain"
         />
         <div
           className="absolute left-0 top-0 bottom-0 w-3 z-10 pointer-events-none"
