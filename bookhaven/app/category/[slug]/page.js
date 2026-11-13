@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import StoreLayout from "../../components/StoreLayout";
 import PageHeader from "../../components/PageHeader";
 import BookGrid, { CatalogueEmpty } from "../../components/BookGrid";
 import Pagination from "../../components/Pagination";
@@ -98,7 +97,7 @@ export default async function CategoryPage({ params, searchParams }) {
   const hasFilters = Boolean(q || price || availability);
 
   return (
-    <StoreLayout>
+    <>
       <div className="shell py-8 sm:py-12">
         <PageHeader
           className="mb-8 sm:mb-10"
@@ -162,6 +161,6 @@ export default async function CategoryPage({ params, searchParams }) {
           </ul>
         </nav>
       </div>
-    </StoreLayout>
+    </>
   );
 }

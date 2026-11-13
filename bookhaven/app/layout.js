@@ -4,6 +4,8 @@ import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "./lib/site";
 import { StoreProvider } from "./components/StoreShell";
 import { GenreProvider } from "./components/GenreProvider";
 import MotionRoot from "./components/MotionRoot";
+import NavProgress from "./components/NavProgress";
+import { Suspense } from "react";
 import { getGenres } from "./lib/genres-data";
 import { jsonLdProps } from "./lib/json-ld";
 
@@ -91,6 +93,13 @@ export default async function RootLayout({ children }) {
         <StoreProvider>
           <GenreProvider genres={genres}>
             <MotionRoot>
+              {/* Suspense is required: NavProgress reads useSearchParams, and
+                  without a boundary above it that read would opt every page
+                  out of static rendering. It renders nothing until a
+                  navigation starts. */}
+              <Suspense fallback={null}>
+                <NavProgress />
+              </Suspense>
               <div id="main-content">{children}</div>
             </MotionRoot>
           </GenreProvider>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { notFound, permanentRedirect } from "next/navigation";
 
 import { BookCover } from "../../components/BookCover";
@@ -7,7 +8,6 @@ import BuyBar from "../../components/BuyBar";
 import ProductCard from "../../components/ProductCard";
 import ReviewsSection from "../../components/ReviewsSection";
 import { StarRating } from "../../components/StarRating";
-import StoreLayout from "../../components/StoreLayout";
 import ScrollProgress from "../../components/ScrollProgress";
 import { jsonLdProps } from "../../lib/json-ld";
 import { getBookById, getRelatedBooks, bookPath, bookSlug, parseBookSlug } from "../../lib/catalogue";
@@ -63,8 +63,15 @@ export async function generateMetadata({ params }) {
 export default async function BookPage({ params, searchParams }) {
   const { slug } = await params;
   const query = (await searchParams) ?? {};
+  // The book and the viewer's session do not depend on each other, so they
+  // are fetched in the same wave. They used to be sequential, which put a
+  // second round trip on the critical path of every book page for a value
+  // that only decides whether one row is labelled "Your review".
   const id = parseBookSlug(slug);
-  const book = id ? await getBookById(id) : null;
+  const [book, auth] = await Promise.all([
+    id ? getBookById(id) : null,
+    getServerUser(),
+  ]);
 
   if (!book) notFound();
 
@@ -82,11 +89,13 @@ export default async function BookPage({ params, searchParams }) {
   // Who is reading? Only used to label their own review in the list. The
   // customer-scoped client is needed because my_book_review() reads auth.uid(),
   // and the public client has no session.
-  const { user } = await getServerUser();
-  const viewerClient = user ? await supabaseServer() : null;
+  const viewerClient = auth.user ? await supabaseServer() : null;
 
-  const [related, rating, reviewResult, viewerReviewId] = await Promise.all([
-    getRelatedBooks(book),
+  // The related shelf is deliberately absent from this wave. It is the last
+  // thing on the page and nobody came for it, so it streams in below (see
+  // RelatedShelf) instead of holding the title, the price and the buy button
+  // behind two more round trips.
+  const [rating, reviewResult, viewerReviewId] = await Promise.all([
     getBookRating(book.id),
     getBookReviews({ bookId: book.id, sort: reviewSort, stars: reviewStars, page: reviewPage, pageSize: REVIEWS_PER_PAGE }),
     getViewerReviewId(book.id, viewerClient),
@@ -154,7 +163,7 @@ export default async function BookPage({ params, searchParams }) {
   ].filter((item) => item.value);
 
   return (
-    <StoreLayout>
+    <>
       <script {...jsonLdProps(productJsonLd)} />
       <script {...jsonLdProps(breadcrumbJsonLd)} />
 
@@ -285,31 +294,65 @@ export default async function BookPage({ params, searchParams }) {
           viewerReviewId={viewerReviewId}
         />
 
-        {related.length > 0 && (
-          <section className="mt-14 border-t border-line pt-8">
-            {/* The fallback tops the list up with popular titles from other
-                categories, so only claim "More in X" when every book is in X. */}
-            <div className="mb-6 flex items-end justify-between gap-4">
-              <h2 className="text-heading font-bold text-navy">
-                {related.every((item) => item.category === book.category)
-                  ? `More in ${book.category}`
-                  : "You might also like"}
-              </h2>
-              <Link href="/books" className="text-sm font-semibold text-sienna underline-offset-2 hover:underline whitespace-nowrap">
-                All books →
-              </Link>
-            </div>
-
-            <ul role="list" className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4 lg:gap-x-6">
-              {related.map((item) => (
-                <li key={item.id} className="min-w-0">
-                  <ProductCard book={item} />
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
+        <Suspense fallback={<RelatedSkeleton />}>
+          <RelatedShelf book={book} />
+        </Suspense>
       </div>
-    </StoreLayout>
+    </>
+  );
+}
+
+/**
+ * "More in X" — fetched after the page has already been sent.
+ *
+ * Suspense here is not decoration: the reader gets the book, the price and the
+ * buy button while this is still one or two round trips away, and the shelf
+ * fills in underneath. If the lookup fails, the section renders nothing and
+ * the rest of the page is untouched.
+ */
+async function RelatedShelf({ book }) {
+  const related = await getRelatedBooks(book);
+  if (related.length === 0) return null;
+
+  return (
+    <section className="mt-14 border-t border-line pt-8">
+      {/* The fallback tops the list up with popular titles from other
+          categories, so only claim "More in X" when every book is in X. */}
+      <div className="mb-6 flex items-end justify-between gap-4">
+        <h2 className="text-heading font-bold text-navy">
+          {related.every((item) => item.category === book.category)
+            ? `More in ${book.category}`
+            : "You might also like"}
+        </h2>
+        <Link href="/books" className="text-sm font-semibold text-sienna underline-offset-2 hover:underline whitespace-nowrap">
+          All books →
+        </Link>
+      </div>
+
+      <ul role="list" className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4 lg:gap-x-6">
+        {related.map((item) => (
+          <li key={item.id} className="min-w-0">
+            <ProductCard book={item} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** The same four-card footprint, so the shelf does not shove the page down. */
+function RelatedSkeleton() {
+  return (
+    <section className="mt-14 border-t border-line pt-8" aria-busy="true">
+      <p className="sr-only">Loading more books…</p>
+      <div className="mb-6 h-7 w-48 rounded bg-subtle animate-pulse" aria-hidden="true" />
+      <div className="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 sm:gap-x-5 lg:grid-cols-4 lg:gap-x-6" aria-hidden="true">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="rounded-card border border-line bg-white p-4">
+            <div className="mx-auto aspect-[2/3] w-full max-w-[9.5rem] rounded-r-md bg-subtle animate-pulse" />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

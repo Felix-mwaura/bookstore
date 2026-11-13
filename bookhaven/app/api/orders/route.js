@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { clientForToken, bearerToken, serviceClient } from "../../lib/server";
 import { queueEmailDispatch } from "../../lib/email-dispatch";
 import { DELIVERY_PERCENT } from "../../lib/site";
@@ -287,8 +288,18 @@ export async function POST(request) {
     );
   }
 
+  // place_order() decremented stock inside the database, which the public
+  // catalogue only sees through a cache (app/lib/catalogue.js). Clear it now,
+  // so the next visitor is not told a title is in stock for up to a minute
+  // after the last copy sold. A failure here costs freshness, never the order.
+  try {
+    revalidateTag("catalogue");
+  } catch (cacheError) {
+    console.error("catalogue cache revalidation failed after order:", cacheError?.message || cacheError);
+  }
+
   // The confirmation email is already queued in the same transaction that
-  // created the order. This only starts delivery; it cannot fail the order.
+  // created the order. This only starts delivery; this cannot fail the order.
   queueEmailDispatch();
 
   return NextResponse.json({ order: data });

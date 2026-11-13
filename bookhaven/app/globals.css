@@ -1088,6 +1088,65 @@ html {
 }
 
 /* ─────────────────────────────────────────────────────────────
+   Navigation progress
+
+   A 3px burnt-sienna line along the top edge, only while a navigation is
+   actually waiting on the server. It is driven by NavProgress.js, which owns
+   the states: idle → loading → done → fading → idle.
+
+   The widths are the honest part. A navigation has no progress to report, so
+   the bar does not pretend: it eases toward 90% over eight seconds (a real
+   wait is one or two) and only reaches 100% when the new route has actually
+   arrived. That reads as "still working" rather than as a stalled percentage.
+   ───────────────────────────────────────────────────────────── */
+.nav-progress {
+  position: fixed;
+  inset-inline: 0;
+  top: 0;
+  z-index: 200;
+  height: 3px;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.nav-progress-bar {
+  height: 100%;
+  background-color: var(--color-sienna);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  /* The width itself is stepped from JavaScript; this only smooths the steps.
+     A single 8-second crawl would be a fixed-rate promise about time left,
+     which is the one thing a progress bar cannot know. */
+  transition: transform var(--dur-slow) var(--ease-standard);
+}
+
+.nav-progress[data-state="loading"] {
+  opacity: 1;
+}
+
+.nav-progress[data-state="done"] {
+  opacity: 1;
+}
+
+.nav-progress[data-state="done"] .nav-progress-bar {
+  transition: transform var(--dur-fast) var(--ease-standard);
+}
+
+.nav-progress[data-state="fading"] {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-standard);
+}
+
+/* No crawl for a reduced-motion reader: the line appears, and that is all. */
+@media (prefers-reduced-motion: reduce) {
+  .nav-progress-bar,
+  .nav-progress[data-state="done"] .nav-progress-bar,
+  .nav-progress[data-state="fading"] {
+    transition: none;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
    Testimonial deck
 
    The same fanned geometry as the genre deck, reused rather than copied:
