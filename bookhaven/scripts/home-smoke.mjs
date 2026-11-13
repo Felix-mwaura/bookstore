@@ -124,10 +124,12 @@ check(
   "the background photograph is decorative, so it carries no description",
   /src="\/hero\/bookshelf-stack\.jpg"\s+alt=""/.test(hero)
 );
-check(
-  "the featured book uses the shared cover component, not a stand-in photo",
-  /<BookCover book=\{cover\}/.test(hero)
-);
+// The hero used to carry a small book card beside the delivery badge. It was
+// removed on the owner's instruction, and the rule that made it honest goes
+// with it — so what is pinned now is the removal itself: no book card, no
+// cover component, and no `latest` prop feeding one.
+check("the hero carries no book card", !/<BookCover/.test(hero) && !/bookPath/.test(hero));
+check("the hero asks for no catalogue prop", !/HomeHero latest=/.test(home));
 
 /* ── navigation and search keep working ─────────────────────────────── */
 

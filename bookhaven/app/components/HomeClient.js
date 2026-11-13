@@ -357,7 +357,7 @@ export default function HomeClient({
 
   return (
     <>
-      <HomeHero latest={byNewest} />
+      <HomeHero />
       <TrustStrip mpesaEnabled={mpesaEnabled} />
       <ProductRow
         id="new-arrivals"
