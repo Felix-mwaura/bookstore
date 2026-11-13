@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import StoreLayout from "../components/StoreLayout";
 import PageHeader from "../components/PageHeader";
 import BookGrid, { BookGridSkeleton, CatalogueEmpty } from "../components/BookGrid";
 import Pagination from "../components/Pagination";
@@ -89,7 +88,7 @@ export default async function BooksPage({ searchParams }) {
   const heading = q ? `Results for “${q}”` : category || "All books";
 
   return (
-    <StoreLayout>
+    <>
       <div className="shell py-8 sm:py-12">
         <PageHeader
           className="mb-8 sm:mb-10"
@@ -140,6 +139,6 @@ export default async function BooksPage({ searchParams }) {
           </div>
         </div>
       </div>
-    </StoreLayout>
+    </>
   );
 }

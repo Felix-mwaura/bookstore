@@ -1,8 +1,23 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+
 import { requireAdmin } from "../../../lib/admin-auth";
 import { readJsonObject, ORDER_BODY } from "../../../lib/request-guard";
 import { sanitize, coverPrefix } from "../../../lib/book-admin.js";
 import { dbErrorResponse } from "../../../lib/api-error";
+
+// The public catalogue is cached for a minute (see app/lib/catalogue.js). A
+// save in the dashboard has to be visible before that minute is up, so every
+// write clears the tag instead of waiting for the clock.
+function clearCatalogueCache() {
+  try {
+    revalidateTag("catalogue");
+  } catch (error) {
+    // A failure here costs freshness, never correctness: the cache still
+    // expires on its own. Never fail the admin's save because of it.
+    console.error("catalogue cache revalidation failed:", error?.message || error);
+  }
+}
 
 function logActivity(adminClient, user, action, id, details) {
   return adminClient.from("admin_activity_log").insert({
@@ -81,6 +96,7 @@ export async function POST(request) {
   }
 
   await logActivity(adminClient, user, "book_added", data.id, { title: data.title });
+  clearCatalogueCache();
   return NextResponse.json({ book: data }, { status: 201 });
 }
 
@@ -161,6 +177,7 @@ export async function PATCH(request) {
     title: data.title,
     fields: Object.keys(fields).concat(hasStockChange ? ["stock_quantity"] : []),
   });
+  clearCatalogueCache();
   return NextResponse.json({ book: data });
 }
 
@@ -201,6 +218,7 @@ export async function DELETE(request) {
       });
     }
     await logActivity(adminClient, user, "book_archived", id, { title: book.title, reason: "referenced by existing orders" });
+    clearCatalogueCache();
     return NextResponse.json({ archived: true, deleted: false });
   }
 
@@ -223,5 +241,6 @@ export async function DELETE(request) {
   }
 
   await logActivity(adminClient, user, "book_deleted", id, { title: book.title });
+  clearCatalogueCache();
   return NextResponse.json({ archived: false, deleted: true });
 }

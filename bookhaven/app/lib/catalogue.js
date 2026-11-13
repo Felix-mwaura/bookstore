@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./supabase-config";
 import { attachRatings } from "./reviews";
@@ -13,6 +14,37 @@ function catalogueClient() {
   });
 }
 
+// The columns a listing renders.
+//
+// `description` is deliberately absent: it is the one unbounded column on the
+// table, no card reads it, and the detail page selects it itself. At today's
+// 17 titles this saves about a kilobyte per shelf — nothing. It is here so
+// that at 500 titles the listing does not start shipping every blurb to the
+// browser and to the server render.
+// `rating` and `reviews` are absent on purpose too: they hold invented
+// numbers (see book-shape.js) and the real figures come from
+// book_rating_summary.
+export const LISTING_COLUMNS =
+  "id, title, author, price, original_price, category, format, isbn, badge, " +
+  "is_featured, stock, stock_quantity, cover, cover_url, pages, publisher, year, tags";
+
+// ── caching ────────────────────────────────────────────────────────────
+//
+// Everything cached here is PUBLIC catalogue data: rows any signed-out
+// visitor can read. Nothing customer-scoped — no cart, no account, no order,
+// no payment state — passes through unstable_cache, and the clients below are
+// cookie-less anon clients, so a cached result can never be someone else's.
+//
+// 60 seconds matches the homepage's own `revalidate`, so the shelf a visitor
+// sees on /books is no staler than the one on /. It is what turns a repeat
+// navigation from "two round trips to another continent" into "no round trips
+// at all" — the database disappears from the critical path.
+//
+// `revalidateTag("catalogue")` clears it immediately when the admin changes a
+// book, so the 60 seconds is a ceiling, not a delay in practice.
+export const CATALOGUE_CACHE_TAG = "catalogue";
+const CATALOGUE_REVALIDATE_SECONDS = 60;
+
 // Book URL helpers live in ./book-url so client components can import them
 // without bundling the Supabase client.
 export { slugifyTitle, bookSlug, bookPath, parseBookSlug } from "./book-url";
@@ -23,11 +55,11 @@ export { slugifyTitle, bookSlug, bookPath, parseBookSlug } from "./book-url";
 export { toPublicBook } from "./book-shape";
 
 /** Rows for the storefront: never archived, never the internal fields. */
-export async function getStorefrontBooks(limit = 60) {
+async function readStorefrontBooks(limit = 60) {
   const supabase = catalogueClient();
   const { data, error } = await supabase
     .from("books")
-    .select("*")
+    .select(LISTING_COLUMNS)
     .eq("is_archived", false)
     .order("id")
     .limit(limit);
@@ -36,7 +68,13 @@ export async function getStorefrontBooks(limit = 60) {
   return attachRatings((data || []).map(toPublicBook));
 }
 
-export async function getBookById(id) {
+export const getStorefrontBooks = unstable_cache(
+  readStorefrontBooks,
+  ["storefront-books"],
+  { revalidate: CATALOGUE_REVALIDATE_SECONDS, tags: [CATALOGUE_CACHE_TAG] }
+);
+
+async function readBookById(id) {
   const supabase = catalogueClient();
   const { data, error } = await supabase
     .from("books")
@@ -46,16 +84,27 @@ export async function getBookById(id) {
     .maybeSingle();
 
   if (error || !data) return null;
-  const [book] = await attachRatings([toPublicBook(data)]);
-  return book || null;
+  // No star ratings attached here, on purpose. The only caller is the book
+  // page, and it reads the richer summary — average, count and the 1-to-5
+  // distribution — from getBookRating(). Attaching them here meant querying
+  // book_rating_summary twice for the same book, one round trip apart, with
+  // the first result thrown away.
+  return toPublicBook(data);
 }
 
+export const getBookById = unstable_cache(
+  readBookById,
+  ["book-by-id"],
+  { revalidate: CATALOGUE_REVALIDATE_SECONDS, tags: [CATALOGUE_CACHE_TAG] }
+);
+
 /** Other titles in the same category, falling back to popular picks. */
-export async function getRelatedBooks(book, limit = 4) {
+async function readRelatedBooks(category, excludeId, limit) {
+  const book = { category, id: excludeId };
   const supabase = catalogueClient();
   const { data } = await supabase
     .from("books")
-    .select("*")
+    .select(LISTING_COLUMNS)
     .eq("is_archived", false)
     .eq("category", book.category)
     .neq("id", book.id)
@@ -70,7 +119,7 @@ export async function getRelatedBooks(book, limit = 4) {
 
   const { data: extra } = await supabase
     .from("books")
-    .select("*")
+    .select(LISTING_COLUMNS)
     .eq("is_archived", false)
     .neq("id", book.id)
     .order("is_featured", { ascending: false })
@@ -86,6 +135,16 @@ export async function getRelatedBooks(book, limit = 4) {
   }
   return attachRatings(related);
 }
+
+export function getRelatedBooks(book, limit = 4) {
+  return cachedRelatedBooks(book?.category || "", book?.id ?? 0, limit);
+}
+
+const cachedRelatedBooks = unstable_cache(
+  readRelatedBooks,
+  ["related-books"],
+  { revalidate: CATALOGUE_REVALIDATE_SECONDS, tags: [CATALOGUE_CACHE_TAG] }
+);
 
 /** Real catalogue statistics — never invented marketing numbers. */
 export async function getCatalogueStats() {
@@ -153,22 +212,14 @@ export function priceBand(value) {
  * @param {string} [options.availability] "in-stock" to hide sold-out titles
  * @param {number} [options.page]      1-based page number
  */
-export async function queryCatalogue({
-  q = "",
-  category = "",
-  sort = "newest",
-  price = "",
-  availability = "",
-  page = 1,
-  pageSize = CATALOGUE_PAGE_SIZE,
-} = {}) {
+async function readCataloguePage(q, category, sort, price, availability, page, pageSize) {
   const supabase = catalogueClient();
   const currentPage = Math.max(1, Number(page) || 1);
   const from = (currentPage - 1) * pageSize;
 
   let query = supabase
     .from("books")
-    .select("*", { count: "exact" })
+    .select(LISTING_COLUMNS, { count: "exact" })
     .eq("is_archived", false);
 
   const term = String(q || "").trim().replace(/[,%()]/g, " ").trim();
@@ -206,16 +257,48 @@ export async function queryCatalogue({
 }
 
 /** Live category counts for the filter panel. */
-export async function getCategoryCounts() {
+async function readCategoryCounts() {
   const supabase = catalogueClient();
   const { data } = await supabase
     .from("books")
     .select("category")
     .eq("is_archived", false);
 
-  const counts = new Map();
+  // A plain object, not a Map: this value goes through the cache, which
+  // serialises its result. A Map would come back as an empty object and every
+  // filter count would silently read zero. CatalogueControls already accepts
+  // either shape, so the object is the one that survives the round trip.
+  const counts = {};
   for (const row of data || []) {
-    counts.set(row.category, (counts.get(row.category) || 0) + 1);
+    if (!row.category) continue;
+    counts[row.category] = (counts[row.category] || 0) + 1;
   }
   return counts;
 }
+
+// The public catalogue, cached for a minute. Both functions take primitives so
+// the cache key is exact: the same filters, sort and page always hit the same
+// entry, and two different searches can never collide.
+export function queryCatalogue({
+  q = "",
+  category = "",
+  sort = "newest",
+  price = "",
+  availability = "",
+  page = 1,
+  pageSize = CATALOGUE_PAGE_SIZE,
+} = {}) {
+  return cachedCataloguePage(q, category, sort, price, availability, page, pageSize);
+}
+
+const cachedCataloguePage = unstable_cache(
+  readCataloguePage,
+  ["catalogue-page"],
+  { revalidate: CATALOGUE_REVALIDATE_SECONDS, tags: [CATALOGUE_CACHE_TAG] }
+);
+
+export const getCategoryCounts = unstable_cache(
+  readCategoryCounts,
+  ["category-counts"],
+  { revalidate: CATALOGUE_REVALIDATE_SECONDS, tags: [CATALOGUE_CACHE_TAG] }
+);
