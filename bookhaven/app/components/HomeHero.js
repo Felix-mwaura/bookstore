@@ -3,8 +3,6 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { BookCover } from "./BookCover";
-import { bookPath } from "../lib/book-url";
 import { DELIVERY_PERCENT } from "../lib/site";
 
 /**
@@ -21,15 +19,10 @@ import { DELIVERY_PERCENT } from "../lib/site";
  * quarter of the photograph still shows through as depth behind the words.
  *
  * Everything in the hero is still a fact the shop can stand behind: the
- * delivery figure is the same constant the checkout charges, the badge names
- * that policy rather than a countdown, and the small card at the bottom right
- * is a real title from the shelf rather than stock art.
+ * delivery figure is the same constant the checkout charges, and the badge
+ * names that policy rather than a countdown.
  */
-export function HomeHero({ latest }) {
-  // The card shows a real book from the shelf, so the picture and the
-  // catalogue agree. With nothing in the catalogue the card is simply absent.
-  const cover = latest[0] || null;
-
+export function HomeHero() {
   return (
     <section className="relative isolate overflow-hidden border-b border-line bg-navy text-cream">
       {/* Decorative: the words carry the meaning, and a screen reader should
@@ -93,11 +86,11 @@ export function HomeHero({ latest }) {
           </p>
         </div>
 
-        {/* The delivery badge and the book card sit in the empty right half of
-            a wide screen, where the photograph has nothing over it. They are
-            kept out of the text column entirely below `lg` rather than allowed
-            to float across it: the delivery figure is already in the sentence
-            above, so nothing is lost on a phone. */}
+        {/* The delivery badge sits in the empty right half of a wide screen,
+            where the photograph has nothing over it. It is kept out of the
+            text column entirely below `lg` rather than allowed to float across
+            it: the delivery figure is already in the sentence above, so
+            nothing is lost on a phone. */}
         <div className="pointer-events-none absolute bottom-8 right-6 hidden items-end gap-6 lg:flex">
           <div className="pointer-events-auto flex h-28 w-28 flex-col items-center justify-center rounded-full bg-sienna text-center text-cream shadow-card">
             <span className="font-playfair text-2xl font-bold leading-none">{DELIVERY_PERCENT}%</span>
@@ -105,24 +98,6 @@ export function HomeHero({ latest }) {
               delivery, on every order
             </span>
           </div>
-
-          {cover && (
-            <Link
-              href={bookPath(cover)}
-              className="pointer-events-auto flex max-w-[13rem] items-center gap-3 rounded-full border border-cream/20 bg-cream p-1.5 pr-4 text-navy shadow-card transition-colors hover:border-cream/50"
-            >
-              {/* The book's own jacket — or, when it has none, the same
-                  generated cover the shelves show. Never a photograph of a
-                  different book standing in for it. */}
-              <span className="block h-12 w-8 shrink-0 overflow-hidden rounded-r-sm bg-subtle">
-                <BookCover book={cover} className="h-full w-full" sizes="32px" />
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-semibold text-navy">{cover.title}</span>
-                <span className="block truncate text-[11px] text-muted">{cover.author}</span>
-              </span>
-            </Link>
-          )}
         </div>
       </div>
     </section>
