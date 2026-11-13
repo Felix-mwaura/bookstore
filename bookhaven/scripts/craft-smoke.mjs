@@ -162,6 +162,27 @@ check(
   /focus-visible:outline-2[^"]*focus-visible:outline-sienna/.test(headerSource)
 );
 check("no ring is drawn around the search pill", !/focus-within:ring/.test(headerSource));
+// The discovery band had the fault twice over: the pill turned sienna on
+// focus *and* the field drew its own ring, so two terracotta capsules sat one
+// inside the other with the caret in the gap between them. One cue, flush on
+// the field, and the field pads its own text away from it.
+const discoverySource = read("app/components/HomeBands.js");
+check(
+  "the discovery pill does not light itself up",
+  !/focus-within:(ring|border-)/.test(discoverySource)
+);
+check(
+  "the discovery field opts into the flush cue",
+  /className="search-field [^"]*"/.test(discoverySource)
+);
+check(
+  "the search ring sits flush on the field",
+  /\.search-field:focus,[\s\S]{0,120}outline-offset:\s*0/.test(cssCode)
+);
+check(
+  "the discovery field pads its own text",
+  /className="search-field [^"]*\bpx-4\b/.test(discoverySource)
+);
 check("no ring is faded below the 3:1 it needs", !/focus(-visible)?:ring-(sienna|navy)\/\d/.test(appSource));
 check("a failed field has its own state class", /\.field-error\s*\{[^}]*border-color: var\(--color-error\)/.test(cssCode));
 

@@ -89,14 +89,16 @@ export function DiscoverySearch({ genres = [] }) {
               Search books by title or author
             </label>
             {/* Same rule as the header search: the pill holds the field, it
-                does not light up. The cue is on the input itself. */}
-            <div className="flex items-center gap-2 rounded-full border border-line bg-cream p-1.5 pl-5 transition-colors focus-within:border-sienna">
+                does not light up. The cue is on the input itself, and the
+                field carries its own padding so the ring does not crowd the
+                first character or the caret. */}
+            <div className="flex items-center gap-2 rounded-full border border-line bg-cream p-1.5">
               <input
                 id="discovery-search"
                 name="q"
                 type="search"
                 placeholder="Search books, authors…"
-                className="min-w-0 flex-1 rounded-full bg-transparent py-2.5 text-[15px] text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sienna placeholder:text-muted"
+                className="search-field min-w-0 flex-1 rounded-full bg-transparent px-4 py-2.5 text-[15px] text-ink focus-visible:outline-2 focus-visible:outline-sienna placeholder:text-muted"
               />
               <button
                 type="submit"
