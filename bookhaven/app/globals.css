@@ -173,6 +173,22 @@ p {
      moment they took keyboard focus. */
 }
 
+/* Search fields: one cue, drawn flush on the control that has focus.
+   The pill around the field must not light up as well — that double
+   highlight was the loudest thing on the page — but the browser's default
+   ring sits 2px outside the field, which left the caret stranded in the
+   gap between two sienna shapes with the first character crowded against
+   it. At offset 0 the ring traces the field's own capsule, and the field's
+   own padding keeps the text, and the caret, clear of it. The cream halo is
+   dropped here: a search field always sits on cream or white, where sienna
+   alone is 4.4:1. */
+.search-field:focus,
+.search-field:focus-visible {
+  outline: 2px solid var(--color-sienna);
+  outline-offset: 0;
+  box-shadow: none;
+}
+
 /* Anchors land under the sticky header otherwise. One value, used by the
    browse links in the header and every in-page link in the footer. */
 html {
