@@ -115,22 +115,74 @@ export function deliveryFeeFor(subtotal) {
 //     NEXT_PUBLIC_STORE_EMAIL       e.g. orders@<your-domain>
 //     NEXT_PUBLIC_STORE_PHONE       display text, e.g. +254 7XX XXX XXX
 //     NEXT_PUBLIC_STORE_PHONE_E164  dialable, e.g. +2547XXXXXXXX
+//     NEXT_PUBLIC_STORE_PHONE_ALT       optional second number, display text
+//     NEXT_PUBLIC_STORE_PHONE_ALT_E164  optional second number, dialable
 //     NEXT_PUBLIC_STORE_LOCATION    a real collection point, or blank
 //     NEXT_PUBLIC_STORE_HOURS       real opening hours, or blank
+//
+// A shop can run on a mobile number alone, and this one does: both numbers
+// below are ordinary Safaricom lines, so they are offered as a call and as a
+// WhatsApp message. WhatsApp is not a second system — it is the same phone
+// number, opened in the app the customer already has. The link only exists
+// where a number is configured, so nothing pretends to be reachable.
 const contactValue = (value) => (typeof value === "string" ? value.trim() : "");
 
 const CONTACT_EMAIL = contactValue(process.env.NEXT_PUBLIC_STORE_EMAIL);
 const CONTACT_PHONE = contactValue(process.env.NEXT_PUBLIC_STORE_PHONE);
 const CONTACT_PHONE_E164 = contactValue(process.env.NEXT_PUBLIC_STORE_PHONE_E164);
+const CONTACT_PHONE_ALT = contactValue(process.env.NEXT_PUBLIC_STORE_PHONE_ALT);
+const CONTACT_PHONE_ALT_E164 = contactValue(process.env.NEXT_PUBLIC_STORE_PHONE_ALT_E164);
 const CONTACT_LOCATION = contactValue(process.env.NEXT_PUBLIC_STORE_LOCATION);
 const CONTACT_HOURS = contactValue(process.env.NEXT_PUBLIC_STORE_HOURS);
 
+// Dialable digits only. `wa.me` wants the international number with no
+// punctuation, which is exactly what the E164 variable holds.
 const dialable = (CONTACT_PHONE_E164 || CONTACT_PHONE).replace(/[^\d+]/g, "");
+const dialableAlt = (CONTACT_PHONE_ALT_E164 || CONTACT_PHONE_ALT).replace(/[^\d+]/g, "");
+const waNumber = (value) => value.replace(/\D/g, "");
+
+/**
+ * Every way to reach the shop, in the order they should be offered.
+ *
+ * One list, built once, so the footer, the homepage, the policy pages and the
+ * structured data cannot disagree about which numbers exist. Each entry is
+ * either a real configured value or absent — never a placeholder.
+ */
+function contactChannels() {
+  const channels = [];
+  if (CONTACT_PHONE) {
+    channels.push({
+      kind: "phone",
+      label: CONTACT_PHONE,
+      href: dialable ? `tel:${dialable}` : null,
+      whatsapp: dialable ? `https://wa.me/${waNumber(dialable)}` : null,
+    });
+  }
+  if (CONTACT_PHONE_ALT) {
+    channels.push({
+      kind: "phone",
+      label: CONTACT_PHONE_ALT,
+      href: dialableAlt ? `tel:${dialableAlt}` : null,
+      whatsapp: dialableAlt ? `https://wa.me/${waNumber(dialableAlt)}` : null,
+    });
+  }
+  if (CONTACT_EMAIL) {
+    channels.push({ kind: "email", label: CONTACT_EMAIL, href: `mailto:${CONTACT_EMAIL}`, whatsapp: null });
+  }
+  return channels;
+}
 
 export const STORE_CONTACT = {
   email: CONTACT_EMAIL || null,
   phone: CONTACT_PHONE || null,
   phoneHref: dialable ? `tel:${dialable}` : null,
+  /** The second number, when the shop runs on two lines. */
+  phoneAlt: CONTACT_PHONE_ALT || null,
+  phoneAltHref: dialableAlt ? `tel:${dialableAlt}` : null,
+  /** WhatsApp for the first number, when one is configured. */
+  whatsappHref: dialable ? `https://wa.me/${waNumber(dialable)}` : null,
+  /** Every reachable channel, in display order. */
+  channels: contactChannels(),
   location: CONTACT_LOCATION || null,
   hours: CONTACT_HOURS || null,
   /** True when at least one way to reach a person has been configured. */
