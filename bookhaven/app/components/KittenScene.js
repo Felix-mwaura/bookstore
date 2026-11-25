@@ -1,23 +1,3 @@
-// Decorative bookstore scene for the sign-up / sign-in page.
-//
-// Four kittens — Mochi, Biscuit, Shadow and Ash — wander, nap and swish
-// their tails around a shelf, a plant and a rug. Everything here is inert:
-// the whole layer is `aria-hidden` and `pointer-events: none`, it is drawn
-// behind the form, and every movement is a CSS transform in
-// ./kitten-scene.module.css so nothing triggers layout. With
-// `prefers-reduced-motion: reduce` the animation stops and the kittens sit
-// still in pleasant positions.
-//
-// No images, no animation library, no canvas: just SVG and CSS, so there is
-// nothing to download and no hydration mismatch to worry about — no
-// randomness and no markup that depends on state, so the server and the
-// browser render byte-identical output.
-//
-// The one effect here does not touch the markup: it pauses the CSS loops when
-// the scene is off screen or the tab is in the background. Four walkers on
-// five infinite loops is a lot of compositor work to keep doing while nobody
-// is looking at it, and on a phone that is battery for no reason.
-
 "use client";
 
 import { useEffect, useRef } from "react";
@@ -25,10 +5,9 @@ import { useEffect, useRef } from "react";
 import s from "./kitten-scene.module.css";
 
 const FUR = {
-  cream: { body: "#F5E7CE", shade: "#E6D0AC", ear: "#E3A29B", eye: "#3A3226", nose: "#C98A7F", whisker: "#C9B695" },
-  orange: { body: "#EDA968", shade: "#D8863F", ear: "#F0C6A6", eye: "#3A3226", nose: "#B4643F", whisker: "#C98F55" },
-  tuxedo: { body: "#2E3038", shade: "#1E2026", ear: "#C98F8C", eye: "#F7F2E8", nose: "#C98F8C", whisker: "#7C7F88", bib: "#F7F2E8" },
-  grey: { body: "#B7BBC4", shade: "#9CA1AC", ear: "#E3A29B", eye: "#3A3226", nose: "#8C7A78", whisker: "#8F939C" },
+  cream: { body: "#F5E7CE", shade: "#CDBB9D", ear: "#C77D60", eye: "#1B2A4A", nose: "#B5532F", whisker: "#927E68" },
+  orange: { body: "#C77D54", shade: "#9B4E32", ear: "#E9B795", eye: "#1B2A4A", nose: "#743B2A", whisker: "#F5E7CE" },
+  tuxedo: { body: "#34445F", shade: "#1B2A4A", ear: "#C77D60", eye: "#F7F2E8", nose: "#E9B795", whisker: "#F5E7CE", bib: "#F7F2E8" },
 };
 
 /**
@@ -102,10 +81,14 @@ function WalkingKitten({ variant = "cream", ribbon = false }) {
       />
       <rect x="36" y="62" width="13" height="16" rx="6.5" fill={c.shade} />
       <rect x="58" y="64" width="13" height="16" rx="6.5" fill={c.shade} />
-      <ellipse cx="55" cy="58" rx="31" ry="19" fill={c.body} />
+      <ellipse cx="55" cy="58" rx="31" ry="19" fill={c.shade} />
+      <ellipse cx="55" cy="54" rx="30" ry="17" fill={c.body} />
+      <path d="M33 51 C38 42 53 39 65 42" fill="none" stroke="#F7F2E8" strokeWidth="4" strokeLinecap="round" opacity="0.25" />
       {c.bib ? <ellipse cx="60" cy="65" rx="19" ry="11" fill={c.bib} /> : null}
       <rect x="72" y="62" width="13" height="18" rx="6.5" fill={c.body} />
-      <circle cx="88" cy="38" r="17" fill={c.body} />
+      <circle cx="88" cy="39" r="17" fill={c.shade} />
+      <ellipse cx="88" cy="36" rx="17" ry="16" fill={c.body} />
+      <ellipse cx="88" cy="43" rx="8" ry="5" fill="#F7F2E8" opacity="0.55" />
       <path d="M74 24 L72 8 L86 20 Z" fill={c.body} />
       <path d="M102 24 L104 8 L90 20 Z" fill={c.body} />
       <path d="M77 22 L76 13 L83 20 Z" fill={c.ear} />
@@ -129,9 +112,13 @@ function SleepingKitten({ variant = "tuxedo" }) {
   return (
     <svg viewBox="0 0 130 80" width="126" height="78" role="presentation" focusable="false">
       <ellipse cx="62" cy="70" rx="40" ry="6" fill="#D9C9A9" opacity="0.45" />
-      <ellipse cx="60" cy="58" rx="37" ry="16" fill={c.body} />
+      <ellipse cx="60" cy="59" rx="37" ry="16" fill={c.shade} />
+      <ellipse cx="60" cy="55" rx="36" ry="15" fill={c.body} />
+      <path d="M34 53 C39 43 56 41 69 44" fill="none" stroke="#F7F2E8" strokeWidth="4" strokeLinecap="round" opacity="0.24" />
       {c.bib ? <ellipse cx="62" cy="63" rx="22" ry="9" fill={c.bib} /> : null}
-      <circle cx="95" cy="54" r="15" fill={c.body} />
+      <circle cx="95" cy="55" r="15" fill={c.shade} />
+      <ellipse cx="95" cy="52" rx="15" ry="14" fill={c.body} />
+      <ellipse cx="97" cy="60" rx="7" ry="4" fill="#F7F2E8" opacity="0.38" />
       <path d="M83 43 L81 31 L93 41 Z" fill={c.body} />
       <path d="M106 43 L108 31 L96 41 Z" fill={c.body} />
       <path d="M86 41 L85 34 L91 40 Z" fill={c.ear} />
@@ -144,14 +131,18 @@ function SleepingKitten({ variant = "tuxedo" }) {
   );
 }
 
-function SittingKitten({ variant = "grey" }) {
+function SittingKitten({ variant = "orange" }) {
   const c = FUR[variant];
   return (
     <svg viewBox="0 0 100 100" width="96" height="96" role="presentation" focusable="false">
       <ellipse cx="50" cy="94" rx="33" ry="5" fill="#D9C9A9" opacity="0.45" />
-      <path d="M20 94 C18 62 34 46 50 46 C66 46 82 62 80 94 Z" fill={c.body} />
+      <path d="M20 94 C18 62 34 46 50 46 C66 46 82 62 80 94 Z" fill={c.shade} />
+      <path d="M25 91 C24 63 36 48 50 48 C64 48 76 63 75 91 Z" fill={c.body} />
+      <path d="M34 68 C36 56 41 52 45 51" stroke="#F7F2E8" strokeWidth="4" strokeLinecap="round" opacity="0.28" fill="none" />
       {c.bib ? <path d="M38 94 C38 72 44 62 50 62 C56 62 62 72 62 94 Z" fill={c.bib} /> : null}
-      <circle cx="50" cy="36" r="17" fill={c.body} />
+      <circle cx="50" cy="38" r="17" fill={c.shade} />
+      <ellipse cx="50" cy="35" rx="17" ry="16" fill={c.body} />
+      <ellipse cx="50" cy="42" rx="8" ry="5" fill="#F7F2E8" opacity="0.5" />
       <path d="M36 22 L34 6 L48 18 Z" fill={c.body} />
       <path d="M64 22 L66 6 L52 18 Z" fill={c.body} />
       <path d="M39 20 L38 11 L45 18 Z" fill={c.ear} />
@@ -177,115 +168,34 @@ function SittingKitten({ variant = "grey" }) {
   );
 }
 
-function Butterfly() {
-  return (
-    <svg viewBox="0 0 24 20" width="22" height="18" role="presentation" focusable="false">
-      <g className={s.butterfly}>
-        <path d="M12 10 C6 2 0 5 3 10 C0 15 6 18 12 10 Z" fill="#E0A458" opacity="0.9" />
-        <path d="M12 10 C18 2 24 5 21 10 C24 15 18 18 12 10 Z" fill="#E8B66F" opacity="0.9" />
-        <path d="M12 7 v7" stroke="#8C5A22" strokeWidth="1.2" strokeLinecap="round" />
-      </g>
-    </svg>
-  );
-}
-
-/** The room: floor, rug, shelf, plant, books and a mug. */
-function Room() {
-  return (
-    <svg
-      className="absolute inset-0 h-full w-full"
-      viewBox="0 0 800 260"
-      preserveAspectRatio="xMidYMax meet"
-      role="presentation"
-      focusable="false"
-      aria-hidden="true"
-    >
-      <rect x="0" y="206" width="800" height="54" fill="#F0E4CD" />
-      <ellipse cx="400" cy="234" rx="240" ry="24" fill="#E6D5B4" />
-
-      {/* shelf, right edge */}
-      <g opacity="0.9">
-        <rect x="690" y="86" width="8" height="128" rx="3" fill="#C9B48C" />
-        <rect x="700" y="86" width="100" height="7" rx="3" fill="#C9B48C" />
-        <rect x="700" y="150" width="100" height="7" rx="3" fill="#C9B48C" />
-        <rect x="706" y="118" width="13" height="32" rx="2" fill="#1B2A4A" />
-        <rect x="721" y="124" width="11" height="26" rx="2" fill="#B5532F" />
-        <rect x="734" y="112" width="14" height="38" rx="2" fill="#7C8A6B" />
-        <rect x="750" y="126" width="10" height="24" rx="2" fill="#C9A227" />
-        <rect x="707" y="182" width="15" height="36" rx="2" fill="#B5532F" />
-        <rect x="724" y="188" width="11" height="30" rx="2" fill="#1B2A4A" />
-        <rect x="737" y="176" width="13" height="42" rx="2" fill="#8A6B4F" />
-      </g>
-
-      {/* plant, left edge */}
-      <g opacity="0.95">
-        <path d="M40 206 h44 l-6 34 h-32 z" fill="#B5532F" opacity="0.85" />
-        <path d="M62 206 C46 186 44 166 60 150 C70 168 70 188 62 206 Z" fill="#7C8A6B" />
-        <path d="M62 206 C78 190 84 172 74 156 C62 172 58 190 62 206 Z" fill="#6B7A5B" />
-        <path d="M62 206 C48 196 36 190 26 192 C38 202 50 208 62 206 Z" fill="#8C9A7B" />
-      </g>
-
-      {/* stack of books, centre-left */}
-      <g>
-        <rect x="150" y="188" width="74" height="12" rx="3" fill="#1B2A4A" />
-        <rect x="157" y="177" width="66" height="11" rx="3" fill="#B5532F" />
-        <rect x="163" y="167" width="54" height="10" rx="3" fill="#C9A227" />
-      </g>
-
-      {/* mug */}
-      <g>
-        <rect x="268" y="190" width="26" height="22" rx="5" fill="#F7F2E8" stroke="#D9C9A9" strokeWidth="2" />
-        <path d="M294 196 q8 0 8 6 q0 6 -8 6" fill="none" stroke="#D9C9A9" strokeWidth="2.5" />
-      </g>
-    </svg>
-  );
-}
-
-export default function KittenScene() {
+// This scene occupies its own space at the bottom of the form card, never
+// over the controls. Each kitten stays in a bounded lane on narrow screens.
+export default function KittenScene({ placement = "bottom" }) {
   const sceneRef = useRef(null);
   useRestWhenHidden(sceneRef);
 
+  if (placement === "top") {
+    return (
+      <div ref={sceneRef} className={`${s.scene} ${s.topScene}`} aria-hidden="true">
+        <div className={s.sleeping}>
+          <div className={s.breathe}><SleepingKitten variant="cream" /></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div ref={sceneRef} className={s.scene} aria-hidden="true">
-      <Room />
-
-      {/* Mochi — cream kitten with the navy ribbon, wandering left to right */}
-      <div
-        className={s.walker}
-        style={{ "--dur": "54s", "--delay": "-8s", "--bottom": "20px" }}
-      >
-        <div className={s.bob}>
-          <WalkingKitten variant="cream" ribbon />
-        </div>
+      <div className={s.sleeping}>
+        <div className={s.breathe}><SleepingKitten variant="tuxedo" /></div>
       </div>
-
-      {/* Biscuit — orange, heading the other way, following a butterfly */}
-      <div
-        className={`${s.walker} ${s.walkerLeft}`}
-        style={{ "--dur": "68s", "--delay": "-30s", "--bottom": "8px" }}
-      >
-        <div className={s.bob}>
-          <WalkingKitten variant="orange" />
-        </div>
+      <div className={s.sitting}>
+        <div className={s.playful}><SittingKitten variant="orange" /></div>
       </div>
-
-      {/* Shadow — asleep on the books. Hidden on phones. */}
-      <div className="absolute bottom-[10px] left-[16%] hidden sm:block">
-        <div className={s.breathe} style={{ "--tail-delay": "-2s" }}>
-          <SleepingKitten variant="tuxedo" />
+      <div className={s.track}>
+        <div className={s.walker}>
+          <div className={s.bob}><WalkingKitten variant="cream" ribbon /></div>
         </div>
-      </div>
-
-      {/* Ash — sitting by the stack, tail swishing */}
-      <div className="absolute bottom-[6px] right-[26%] hidden lg:block">
-        <div className={s.playful} style={{ "--tail-delay": "-4s" }}>
-          <SittingKitten variant="grey" />
-        </div>
-      </div>
-
-      {/* Biscuit's butterfly, drifting above the rug */}
-      <div className="absolute bottom-[92px] right-[38%] hidden sm:block">
-        <Butterfly />
       </div>
     </div>
   );
