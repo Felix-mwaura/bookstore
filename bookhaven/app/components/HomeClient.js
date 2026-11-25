@@ -289,6 +289,21 @@ function Contact() {
                   {STORE_CONTACT.phone}
                 </a>
               )}
+              {STORE_CONTACT.phoneAlt && STORE_CONTACT.phoneAltHref && (
+                <a href={STORE_CONTACT.phoneAltHref} className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline">
+                  {STORE_CONTACT.phoneAlt}
+                </a>
+              )}
+              {STORE_CONTACT.whatsappHref && (
+                <a
+                  href={STORE_CONTACT.whatsappHref}
+                  className="-my-1.5 inline-block py-1.5 text-ink underline-offset-2 hover:text-sienna hover:underline"
+                  rel="noopener noreferrer"
+                  target="_blank"
+                >
+                  WhatsApp us
+                </a>
+              )}
             </div>
           ) : (
             <p className="text-sm text-muted">

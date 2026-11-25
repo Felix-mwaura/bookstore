@@ -120,6 +120,8 @@ const probe = `
   const c = m.STORE_CONTACT;
   console.log(JSON.stringify({
     email: c.email, phone: c.phone, phoneHref: c.phoneHref,
+    phoneAlt: c.phoneAlt, phoneAltHref: c.phoneAltHref,
+    whatsappHref: c.whatsappHref, channels: c.channels,
     location: c.location, hours: c.hours,
     reachable: c.reachable, usingPlaceholders: c.usingPlaceholders,
   }));
@@ -149,6 +151,9 @@ if (unconfigured) {
   check("unconfigured hours is null", unconfigured.hours === null);
   check("unconfigured shop is not reachable", unconfigured.reachable === false);
   check("usingPlaceholders stays true while nothing is set", unconfigured.usingPlaceholders === true);
+  check("unconfigured shop offers no channels at all", unconfigured.channels.length === 0);
+  check("unconfigured shop has no WhatsApp link", unconfigured.whatsappHref === null);
+  check("unconfigured shop has no second number", unconfigured.phoneAlt === null);
 }
 
 // And the opposite: configured values come through, so the feature is not
@@ -166,10 +171,41 @@ try {
   const configured = JSON.parse(out.trim().split("\n").pop());
   check("a configured email is published", configured.email === "orders@example.test");
   check("a configured phone becomes a tel: link", configured.phoneHref === "tel:+254700000000");
+  check(
+    "a configured phone also opens WhatsApp on the same number",
+    configured.whatsappHref === "https://wa.me/254700000000"
+  );
+  check("a second number is published when configured", configured.phoneAlt === null || typeof configured.phoneAlt === "string");
   check("configured contact counts as reachable", configured.reachable === true);
   check("usingPlaceholders clears once contact is set", configured.usingPlaceholders === false);
 } catch (error) {
   check("site.js can be imported with contact configured", false, String(error?.message || error));
+}
+
+// The shop runs on two mobile lines. Both must be reachable, each must get
+// its own tel: link, and neither may be invented when unset.
+try {
+  const out = execFileSync(process.execPath, ["--input-type=module", "--no-warnings", "-e", probe], {
+    env: {
+      ...probeEnv,
+      NEXT_PUBLIC_STORE_EMAIL: "shop@example.test",
+      NEXT_PUBLIC_STORE_PHONE: "0768 726 228",
+      NEXT_PUBLIC_STORE_PHONE_E164: "+254768726228",
+      NEXT_PUBLIC_STORE_PHONE_ALT: "0720 241 844",
+      NEXT_PUBLIC_STORE_PHONE_ALT_E164: "+254720241844",
+    },
+    encoding: "utf8",
+  });
+  const two = JSON.parse(out.trim().split("\n").pop());
+  check("the first number keeps its display text", two.phone === "0768 726 228");
+  check("the first number dials internationally", two.phoneHref === "tel:+254768726228");
+  check("the second number keeps its display text", two.phoneAlt === "0720 241 844");
+  check("the second number dials internationally", two.phoneAltHref === "tel:+254720241844");
+  check("WhatsApp uses the first number, digits only", two.whatsappHref === "https://wa.me/254768726228");
+  check("both numbers and the email are offered", two.channels.length === 3, String(two.channels.length));
+  check("the email comes after the numbers", two.channels[2]?.kind === "email");
+} catch (error) {
+  check("site.js can be imported with two numbers configured", false, String(error?.message || error));
 }
 
 /* ── 3. the rendered pages agree with each other ────────── */
@@ -191,11 +227,34 @@ if (!base) {
     check(`${path} publishes no unverified contact value`, leaked.length === 0, leaked.join(", "));
   }
 
+  // Whichever way the deployment is configured, the homepage must tell the
+  // truth about it: real details when they are set, an honest "not published
+  // yet" when they are not. Asserting only the unset case is how a shop goes
+  // live with a phone number nobody answers.
   const home = await body("/");
-  check(
-    "the homepage says the contact details are not published",
-    home.text.includes("Contact details are not published yet")
-  );
+  if (process.env.NEXT_PUBLIC_STORE_EMAIL || process.env.NEXT_PUBLIC_STORE_PHONE) {
+    check(
+      "a configured shop publishes a way to reach it",
+      [process.env.NEXT_PUBLIC_STORE_EMAIL, process.env.NEXT_PUBLIC_STORE_PHONE].some(
+        (value) => value && home.text.includes(value)
+      )
+    );
+    check(
+      "a configured shop stops saying the details are unpublished",
+      !home.text.includes("Contact details are not published yet")
+    );
+    if (process.env.NEXT_PUBLIC_STORE_PHONE) {
+      check(
+        "the WhatsApp link points at the published number",
+        home.text.includes(`wa.me/${process.env.NEXT_PUBLIC_STORE_PHONE_E164.replace(/\D/g, "")}`)
+      );
+    }
+  } else {
+    check(
+      "the homepage says the contact details are not published",
+      home.text.includes("Contact details are not published yet")
+    );
+  }
   check(
     "the homepage does not promise nationwide delivery in the repo's own words",
     !/delivered nationwide|deliver countrywide|anywhere in Kenya/i.test(home.text)

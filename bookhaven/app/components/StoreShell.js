@@ -273,6 +273,26 @@ export function StoreFooter() {
                   <a href={STORE_CONTACT.phoneHref} className={`-my-1 inline-block py-1 ${link}`}>
                     {STORE_CONTACT.phone}
                   </a>
+                  {STORE_CONTACT.whatsappHref && (
+                    <>
+                      {" "}
+                      <a
+                        href={STORE_CONTACT.whatsappHref}
+                        className={`inline-block py-1 text-cream/70 underline-offset-4 hover:text-cream hover:underline ${link}`}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                      >
+                        WhatsApp
+                      </a>
+                    </>
+                  )}
+                </li>
+              )}
+              {STORE_CONTACT.phoneAlt && STORE_CONTACT.phoneAltHref && (
+                <li>
+                  <a href={STORE_CONTACT.phoneAltHref} className={`-my-1 inline-block py-1 ${link}`}>
+                    {STORE_CONTACT.phoneAlt}
+                  </a>
                 </li>
               )}
               {STORE_CONTACT.location && <li className="text-cream/70">{STORE_CONTACT.location}</li>}

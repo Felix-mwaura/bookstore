@@ -95,6 +95,29 @@ export function ContactBlock({ contact }) {
             </a>
           </>
         )}
+        {contact.phoneAlt && contact.phoneAltHref && (
+          <>
+            {" "}
+            or{" "}
+            <a className="font-medium text-sienna underline-offset-2 hover:underline" href={contact.phoneAltHref}>
+              {contact.phoneAlt}
+            </a>
+          </>
+        )}
+        {contact.whatsappHref && (
+          <>
+            {" "}
+            — or message us on{" "}
+            <a
+              className="font-medium text-sienna underline-offset-2 hover:underline"
+              href={contact.whatsappHref}
+              rel="noopener noreferrer"
+              target="_blank"
+            >
+              WhatsApp
+            </a>
+          </>
+        )}
         .
       </p>
       {contact.location && <p className="mt-1 text-sm text-muted">{contact.location}</p>}

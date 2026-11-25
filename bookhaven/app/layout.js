@@ -1,6 +1,6 @@
 import "./globals.css";
 import { Playfair_Display, Inter } from "next/font/google";
-import { SITE_URL, SITE_NAME, SITE_DESCRIPTION } from "./lib/site";
+import { SITE_URL, SITE_NAME, SITE_DESCRIPTION, STORE_CONTACT } from "./lib/site";
 import { StoreProvider } from "./components/StoreShell";
 import { GenreProvider } from "./components/GenreProvider";
 import MotionRoot from "./components/MotionRoot";
@@ -49,6 +49,9 @@ export const metadata = {
 };
 
 // Organisation + WebSite structured data, emitted once for the whole app.
+// Contact points are added only when the shop has actually published them —
+// search engines treat a `telephone` here as a verified fact, and inventing
+// one is exactly the mistake lib/site.js exists to prevent.
 const organisationJsonLd = {
   "@context": "https://schema.org",
   "@type": "OnlineStore",
@@ -58,6 +61,35 @@ const organisationJsonLd = {
   areaServed: "KE",
   currenciesAccepted: "KES",
   paymentAccepted: "M-Pesa, Cash on Delivery",
+  ...(() => {
+    const points = [];
+    for (const number of [STORE_CONTACT.phone, STORE_CONTACT.phoneAlt]) {
+      if (!number) continue;
+      const digits = number.replace(/[^\d+]/g, "");
+      if (!digits) continue;
+      points.push({
+        "@type": "ContactPoint",
+        contactType: "customer service",
+        areaServed: "KE",
+        availableLanguage: "en",
+        // Schema.org wants the international form; a shop that publishes
+        // "0768…" still has the number, so the leading zero is rewritten
+        // rather than dropped.
+        telephone: digits.startsWith("0") ? `+254${digits.slice(1)}` : digits,
+      });
+    }
+    if (STORE_CONTACT.email) {
+      const emailPoint = points[0] || {
+        "@type": "ContactPoint",
+        contactType: "customer service",
+        areaServed: "KE",
+        availableLanguage: "en",
+      };
+      points[0] = { ...emailPoint, email: STORE_CONTACT.email };
+    }
+    if (points.length === 0) return {};
+    return { contactPoint: points.length === 1 ? points[0] : points };
+  })(),
 };
 
 const websiteJsonLd = {
