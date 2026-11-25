@@ -434,15 +434,7 @@ function ResetForm() {
 
 /* ── page ─────────────────────────────────────────────── */
 
-const FEATURES = [
-  { icon: ICONS.book, text: "Discover amazing books" },
-  { icon: ICONS.heart, text: "Track your favourites" },
-  { icon: ICONS.truck, text: "Enjoy fast, reliable delivery" },
-];
-
-// The page shell is a server component so the room, the headline and the
-// form labels are in the first byte of HTML. Only the interactive parts —
-// the inputs, the password checklist and the Supabase calls — hydrate.
+// Authentication logic stays separate from the decorative card scene.
 export default function AuthPage({ mode, tab, nextPath }) {
   const router = useRouter();
   const { user, loading } = useAuth();
@@ -498,16 +490,6 @@ export default function AuthPage({ mode, tab, nextPath }) {
     : isRegister ? "It only takes a minute. Let's get started!"
     : "Sign in for your orders, saved books and delivery details.";
 
-  const heroTitle =
-    mode === "reset" ? "A fresh start."
-    : isRegister ? "Join Book Haven!"
-    : "Good to see you again.";
-
-  const heroCopy =
-    mode === "reset" ? "Choose a new password and get back to your reading list."
-    : isRegister ? "Create your account and start your reading journey with us."
-    : "Your next favourite read is waiting where you left it.";
-
   return (
     <div className="min-h-[100dvh] bg-cream">
       <header className="mx-auto flex w-full max-w-[1360px] items-center justify-between gap-4 px-5 py-5 sm:px-8">
@@ -541,41 +523,16 @@ export default function AuthPage({ mode, tab, nextPath }) {
         </p>
       </header>
 
-      <main className="mx-auto grid w-full max-w-[1360px] items-stretch gap-6 px-4 pb-10 sm:px-8 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,0.98fr)] lg:gap-8 lg:pb-14">
-        {/* ── the room ── */}
-        <section className="relative order-2 overflow-hidden rounded-[26px] bg-sand px-6 pt-8 pb-[176px] sm:px-10 sm:pt-10 lg:order-1 lg:flex lg:min-h-[600px] lg:flex-col lg:justify-center lg:px-12 lg:pt-12 lg:pb-[248px]">
-          <div className="relative z-10 max-w-[460px]">
-            <h1 className="font-playfair text-[34px] font-bold leading-[1.12] text-navy sm:text-[42px] lg:text-[46px]">
-              {heroTitle}
-            </h1>
-            <p className="mt-3.5 max-w-[400px] text-[15px] leading-relaxed text-muted sm:text-base">
-              {heroCopy}
-            </p>
-
-            {isRegister && (
-              <ul className="mt-7 space-y-3.5">
-                {FEATURES.map((feature) => (
-                  <li key={feature.text} className="flex items-center gap-3 text-[15px] text-navy">
-                    <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-white/70 text-navy">
-                      <Icon path={feature.icon} className="h-[18px] w-[18px]" />
-                    </span>
-                    {feature.text}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <KittenScene />
-        </section>
-
-        {/* ── the form ── */}
-        <section className="order-1 flex items-start justify-center lg:order-2 lg:items-center">
-          <div className="w-full max-w-[520px]">
-            <div className="rounded-[26px] border border-line/70 bg-white p-6 shadow-[0_18px_48px_rgba(27,42,74,0.07)] sm:p-8">
-              <h2 className="font-inter text-[25px] font-semibold leading-tight text-navy sm:text-[27px]">
-                {cardTitle}
-              </h2>
+      <main className="mx-auto w-full max-w-[600px] px-4 pb-10 sm:px-8 sm:pb-14">
+        <section aria-label="Account access">
+          <div className="w-full">
+            <div className="rounded-[26px] border border-line/70 bg-white px-6 pt-6 shadow-[0_18px_48px_rgba(27,42,74,0.07)] sm:px-8 sm:pt-8">
+              <div className="flex items-center justify-between gap-3">
+                <h1 className="min-w-0 font-playfair text-[25px] font-semibold leading-tight text-navy sm:text-[27px]">
+                  {cardTitle}
+                </h1>
+                <KittenScene placement="top" />
+              </div>
               <p className="mt-1.5 mb-6 text-sm text-muted">{cardSubtitle}</p>
 
               {pendingEmail ? (
@@ -615,6 +572,7 @@ export default function AuthPage({ mode, tab, nextPath }) {
               ) : (
                 <SignInForm nextPath={nextPath} onSignedIn={finishSignIn} />
               )}
+              <KittenScene />
             </div>
 
             <p className="mt-4 px-2 text-center text-xs leading-relaxed text-muted">
