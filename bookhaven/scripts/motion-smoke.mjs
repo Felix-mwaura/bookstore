@@ -39,8 +39,8 @@ const cssCode = css.replace(/\/\*[\s\S]*?\*\//g, "");
 const home = readFileSync(join(app, "components", "HomeClient.js"), "utf8");
 const revealSource = readFileSync(join(app, "lib", "reveal.js"), "utf8");
 const carousel = readFileSync(join(app, "components", "GenreCarousel.js"), "utf8");
-const kitten = readFileSync(join(app, "components", "KittenScene.js"), "utf8");
-const kittenCss = readFileSync(join(app, "components", "kitten-scene.module.css"), "utf8");
+const scene = readFileSync(join(app, "components", "FloatingPages.js"), "utf8");
+const sceneCss = readFileSync(join(app, "components", "floating-pages.module.css"), "utf8");
 const header = readFileSync(join(app, "components", "StoreHeader.js"), "utf8");
 const layout = readFileSync(join(app, "layout.js"), "utf8");
 
@@ -122,13 +122,13 @@ const infiniteInGlobals = (cssCode.match(/animation:[^;]*infinite/g) || []).leng
 check("globals.css has no infinite animation", infiniteInGlobals === 0, `${infiniteInGlobals} found`);
 check(
   "the login scene is the only looping animation",
-  (kittenCss.match(/infinite/g) || []).length > 0,
-  "the kittens are expected to loop — but only while visible"
+  (sceneCss.match(/infinite/g) || []).length > 0,
+  "the pages are expected to loop — but only while visible"
 );
-check("and it pauses when hidden", /\[data-motion="paused"\]\s*\*\s*\{[^}]*animation-play-state:\s*paused/.test(kittenCss));
-check("the scene listens for visibility changes", /visibilitychange/.test(kitten));
-check("the scene watches whether it is on screen", /IntersectionObserver/.test(kitten));
-check("the pause is undone on unmount", /removeEventListener\("visibilitychange"/.test(kitten));
+check("and it pauses when hidden", /\[data-motion="paused"\]\s*\*\s*\{[^}]*animation-play-state:\s*paused/.test(sceneCss));
+check("the scene listens for visibility changes", /visibilitychange/.test(scene));
+check("the scene watches whether it is on screen", /IntersectionObserver/.test(scene));
+check("the pause is undone on unmount", /removeEventListener\("visibilitychange"/.test(scene));
 
 console.log("Reveal never hides content that has not been armed");
 check("the armed state is the only state that hides", /\[data-reveal="armed"\]\s*\{[^}]*opacity:\s*0/.test(css));
@@ -276,7 +276,7 @@ check(
   "a reveal in progress lands at full opacity",
   reduced.some((block) => /\[data-reveal\]/.test(block) && /opacity:\s*1\s*!important/.test(block))
 );
-check("the scene respects it too", /prefers-reduced-motion: reduce/.test(kittenCss));
+check("the scene respects it too", /prefers-reduced-motion: reduce/.test(sceneCss));
 
 console.log("\nFeedback is small and quick");
 // The three buttons share one `:active` rule these days, so count the

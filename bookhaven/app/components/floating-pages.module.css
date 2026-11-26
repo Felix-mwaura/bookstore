@@ -1,0 +1,45 @@
+/* The artwork is behind the card and clipped within the scene's own width. */
+.scene {
+  position: relative;
+  padding: 48px 0;
+}
+
+.decoration {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+}
+
+.cardSlot {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 500px);
+  margin-inline: auto;
+}
+
+.item {
+  position: absolute;
+  width: clamp(62px, 21vw, 108px);
+  height: auto;
+  animation: drift 7s ease-in-out infinite alternate;
+}
+
+.topLeft { top: 0; left: 1%; rotate: -20deg; }
+.topRight { top: 0; right: 1%; rotate: 18deg; animation-delay: -3s; }
+.bottomLeft { bottom: 0; left: 1%; rotate: 18deg; animation-delay: -2s; }
+.bottomRight { bottom: 0; right: 1%; rotate: -20deg; animation-delay: -5s; }
+
+@keyframes drift {
+  from { transform: translateY(-3px); }
+  to { transform: translateY(3px); }
+}
+
+.decoration[data-motion="paused"] * {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item { animation: none !important; }
+}
