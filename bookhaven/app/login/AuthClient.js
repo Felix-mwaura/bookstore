@@ -466,7 +466,7 @@ export default function AuthPage({ mode, tab, nextPath }) {
           { transform: `perspective(1200px) rotateY(${isRegister ? -7 : 7}deg)`, opacity: 0.88 },
           { transform: "perspective(1200px) rotateY(0deg)", opacity: 1 },
         ],
-        { duration: 350, easing: "ease-out" }
+        { duration: 1000, easing: "ease-out" }
       );
     } catch {
       return; // Unsupported animation: the form is already visible and usable.

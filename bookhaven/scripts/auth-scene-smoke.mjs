@@ -25,6 +25,7 @@ check("scene reserves normal-flow space above and below the card", /\.scene\s*\{
 check("decorations stay within the scene width", /\.decoration\s*\{[^}]*overflow:\s*hidden/.test(css));
 check("reduced motion stops each decorative animation", /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.item\s*\{[^}]*animation:\s*none/.test(css));
 check("the page turn only runs between sign-in and registration", /previous\.isRegister === isRegister/.test(login) && /previous\.mode === "reset"/.test(login) && /mode === "reset"/.test(login));
+check("the page turn lasts about one second", /duration:\s*1000\b/.test(login));
 check("page turn has a reduced motion and unsupported-browser fallback", /prefers-reduced-motion: reduce/.test(login) && /typeof page\.animate !== "function"/.test(login) && /catch \{\s*return;/.test(login));
 check("turning a page never delays or replaces navigation", /<Link href=\{nextPath \? `\/login\?tab=register/.test(login) && !/await page\.animate/.test(login));
 check("turn animation and motion listener are cleaned up", /removeEventListener\?\.\("change", stopForReducedMotion\)/.test(login) && /animation\.cancel\(\)/.test(login));
