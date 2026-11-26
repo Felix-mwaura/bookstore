@@ -46,7 +46,7 @@ const appSource = readAll("app");
 // Non-admin source files, and the two files whose hexes are artwork rather
 // than theming. Both lists are used by several checks below.
 const storefront = sourceFiles("app").filter((file) => !file.startsWith("app/admin"));
-const ART = ["app/components/BookCover.js", "app/components/KittenScene.js"];
+const ART = ["app/components/BookCover.js", "app/components/FloatingPages.js"];
 const cssCode = css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 const theme = cssCode.slice(cssCode.indexOf("@theme"), cssCode.indexOf("}", cssCode.indexOf("@theme")));

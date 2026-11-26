@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 
 import { supabase } from "../lib/supabase";
 import { useAuth, signIn, signUp } from "../lib/auth";
-import KittenScene from "../components/KittenScene";
+import FloatingPages from "../components/FloatingPages";
+import background from "./auth-background.module.css";
 
 /* ── icons ────────────────────────────────────────────────────────────────
    Decorative line icons for the inputs and the feature list. They are all
@@ -445,6 +446,39 @@ export default function AuthPage({ mode, tab, nextPath }) {
   const [resent, setResent] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
   const freshSignIn = useRef(false);
+  const pageRef = useRef(null);
+  const previousTab = useRef({ isRegister, mode });
+
+  // Only a sign-in/sign-up switch turns a page. Navigation and form access
+  // never wait for an animation; unsupported or reduced-motion browsers
+  // simply show the new form immediately.
+  useEffect(() => {
+    const previous = previousTab.current;
+    previousTab.current = { isRegister, mode };
+    const page = pageRef.current;
+    const motion = window.matchMedia?.("(prefers-reduced-motion: reduce)");
+    if (previous.isRegister === isRegister || previous.mode === "reset" || mode === "reset" ||
+        !page || typeof page.animate !== "function" || motion?.matches) return;
+
+    let animation;
+    try {
+      animation = page.animate(
+        [
+          { transform: `perspective(1200px) rotateY(${isRegister ? -7 : 7}deg)`, opacity: 0.88 },
+          { transform: "perspective(1200px) rotateY(0deg)", opacity: 1 },
+        ],
+        { duration: 1000, easing: "ease-out" }
+      );
+    } catch {
+      return; // Unsupported animation: the form is already visible and usable.
+    }
+    const stopForReducedMotion = () => { if (motion?.matches) animation.cancel(); };
+    motion?.addEventListener?.("change", stopForReducedMotion);
+    return () => {
+      motion?.removeEventListener?.("change", stopForReducedMotion);
+      animation.cancel();
+    };
+  }, [isRegister, mode]);
 
   const destinationFor = async (account) => {
     if (nextPath) return nextPath;
@@ -491,96 +525,96 @@ export default function AuthPage({ mode, tab, nextPath }) {
     : "Sign in for your orders, saved books and delivery details.";
 
   return (
-    <div className="min-h-[100dvh] bg-cream">
-      <header className="mx-auto flex w-full max-w-[1360px] items-center justify-between gap-4 px-5 py-5 sm:px-8">
-        <Link href="/" className="flex items-center gap-2.5" aria-label="Book Haven home">
-          <svg className="h-9 w-9 flex-shrink-0 text-navy" viewBox="0 0 32 32" fill="none" aria-hidden="true">
-            <path d="M16 8.5C16 6.6 14.2 5.2 11.4 5.2H5.6v17.6h5.8c2.8 0 4.6 1.4 4.6 3.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M16 8.5c0-1.9 1.8-3.3 4.6-3.3h5.8v17.6h-5.8c-2.8 0-4.6 1.4-4.6 3.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span className="leading-tight">
-            <span className="block font-playfair text-[22px] font-bold text-navy">Book Haven</span>
-            <span className="block text-[11px] font-medium tracking-wide text-muted">More Books. Happier You.</span>
-          </span>
-        </Link>
+    <div className={`${background.page} min-h-[100dvh]`}>
+      <header className="bg-cream">
+        <div className="mx-auto flex w-full max-w-[1360px] items-center justify-between gap-4 px-5 py-5 sm:px-8">
+          <Link href="/" className="flex items-center gap-2.5" aria-label="Book Haven home">
+            <svg className="h-9 w-9 flex-shrink-0 text-navy" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <path d="M16 8.5C16 6.6 14.2 5.2 11.4 5.2H5.6v17.6h5.8c2.8 0 4.6 1.4 4.6 3.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M16 8.5c0-1.9 1.8-3.3 4.6-3.3h5.8v17.6h-5.8c-2.8 0-4.6 1.4-4.6 3.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="leading-tight">
+              <span className="block font-playfair text-[22px] font-bold text-navy">Book Haven</span>
+              <span className="block text-[11px] font-medium tracking-wide text-muted">More Books. Happier You.</span>
+            </span>
+          </Link>
 
-        <p className="hidden text-sm text-muted sm:block">
-          {mode === "reset" ? null : isRegister ? (
-            <>
-              Already have an account?{" "}
-              <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} className="font-semibold text-navy underline-offset-4 hover:text-sienna hover:underline">
-                Log in
-              </Link>
-            </>
-          ) : (
-            <>
-              New to Book Haven?{" "}
-              <Link href={nextPath ? `/login?tab=register&next=${encodeURIComponent(nextPath)}` : "/login?tab=register"} className="font-semibold text-navy underline-offset-4 hover:text-sienna hover:underline">
-                Create an account
-              </Link>
-            </>
-          )}
-        </p>
+          <p className="hidden text-sm text-muted sm:block">
+            {mode === "reset" ? null : isRegister ? (
+              <>
+                Already have an account?{" "}
+                <Link href={nextPath ? `/login?next=${encodeURIComponent(nextPath)}` : "/login"} className="font-semibold text-navy underline-offset-4 hover:text-sienna hover:underline">
+                  Log in
+                </Link>
+              </>
+            ) : (
+              <>
+                New to Book Haven?{" "}
+                <Link href={nextPath ? `/login?tab=register&next=${encodeURIComponent(nextPath)}` : "/login?tab=register"} className="font-semibold text-navy underline-offset-4 hover:text-sienna hover:underline">
+                  Create an account
+                </Link>
+              </>
+            )}
+          </p>
+        </div>
       </header>
 
       <main className="mx-auto w-full max-w-[600px] px-4 pb-10 sm:px-8 sm:pb-14">
         <section aria-label="Account access">
-          <div className="w-full">
-            <div className="rounded-[26px] border border-line/70 bg-white px-6 pt-6 shadow-[0_18px_48px_rgba(27,42,74,0.07)] sm:px-8 sm:pt-8">
-              <div className="flex items-center justify-between gap-3">
-                <h1 className="min-w-0 font-playfair text-[25px] font-semibold leading-tight text-navy sm:text-[27px]">
+          <FloatingPages>
+            <div className="rounded-[26px] border border-line/70 bg-white p-5 shadow-[0_18px_48px_rgba(27,42,74,0.07)] sm:p-7">
+              <div ref={pageRef}>
+                <h1 className="font-playfair text-[25px] font-semibold leading-tight text-navy sm:text-[27px]">
                   {cardTitle}
                 </h1>
-                <KittenScene placement="top" />
-              </div>
-              <p className="mt-1.5 mb-6 text-sm text-muted">{cardSubtitle}</p>
+                <p className="mt-1.5 mb-6 text-sm text-muted">{cardSubtitle}</p>
 
-              {pendingEmail ? (
-                <div className="text-center">
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-success/10" aria-hidden="true">
-                    <svg className="h-6 w-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 8l7.9 5.3a2 2 0 002.2 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                    </svg>
+                {pendingEmail ? (
+                  <div className="text-center">
+                    <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-success/10" aria-hidden="true">
+                      <svg className="h-6 w-6 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M3 8l7.9 5.3a2 2 0 002.2 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="font-inter text-lg font-semibold text-navy">Check your email</h3>
+                    <p className="mt-2 text-sm text-muted">
+                      We sent a confirmation link to <span className="font-semibold text-ink">{pendingEmail}</span>.
+                      Open it to finish creating your account.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={resend}
+                      disabled={resendBusy || resent}
+                      className="mt-5 min-h-11 w-full rounded-xl border border-line bg-white text-sm font-semibold text-navy transition hover:border-navy disabled:text-muted"
+                    >
+                      {resent ? "Email sent again" : resendBusy ? "Sending…" : "Resend the email"}
+                    </button>
+                    <Link href="/login" className="mt-3 inline-block text-sm font-semibold text-sienna underline underline-offset-2">
+                      Back to sign in
+                    </Link>
                   </div>
-                  <h3 className="font-inter text-lg font-semibold text-navy">Check your email</h3>
-                  <p className="mt-2 text-sm text-muted">
-                    We sent a confirmation link to <span className="font-semibold text-ink">{pendingEmail}</span>.
-                    Open it to finish creating your account.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={resend}
-                    disabled={resendBusy || resent}
-                    className="mt-5 min-h-11 w-full rounded-xl border border-line bg-white text-sm font-semibold text-navy transition hover:border-navy disabled:text-muted"
-                  >
-                    {resent ? "Email sent again" : resendBusy ? "Sending…" : "Resend the email"}
-                  </button>
-                  <Link href="/login" className="mt-3 inline-block text-sm font-semibold text-sienna underline underline-offset-2">
-                    Back to sign in
-                  </Link>
-                </div>
-              ) : mode === "reset" ? (
-                <ResetForm />
-              ) : isRegister ? (
-                <RegisterForm
-                  nextPath={nextPath}
-                  onSignedUp={(account, email) => {
-                    if (account) finishSignIn(account);
-                    else setPendingEmail(email);
-                  }}
-                />
-              ) : (
-                <SignInForm nextPath={nextPath} onSignedIn={finishSignIn} />
-              )}
-              <KittenScene />
+                ) : mode === "reset" ? (
+                  <ResetForm />
+                ) : isRegister ? (
+                  <RegisterForm
+                    nextPath={nextPath}
+                    onSignedUp={(account, email) => {
+                      if (account) finishSignIn(account);
+                      else setPendingEmail(email);
+                    }}
+                  />
+                ) : (
+                  <SignInForm nextPath={nextPath} onSignedIn={finishSignIn} />
+                )}
+              </div>
             </div>
+          </FloatingPages>
 
-            <p className="mt-4 px-2 text-center text-xs leading-relaxed text-muted">
-              {isRegister
-                ? "By creating an account you agree to us using your details to fulfil your orders and to contact you about them."
-                : "Book Haven uses your details only to fulfil your orders and keep your account secure."}
-            </p>
-          </div>
+          <p className="rounded-xl bg-cream px-3 py-3 text-center text-xs leading-relaxed text-muted">
+            {isRegister
+              ? "By creating an account you agree to us using your details to fulfil your orders and to contact you about them."
+              : "Book Haven uses your details only to fulfil your orders and keep your account secure."}
+          </p>
         </section>
       </main>
     </div>
