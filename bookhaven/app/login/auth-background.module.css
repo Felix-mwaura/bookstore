@@ -1,0 +1,8 @@
+/* The solid colour is the fallback if the decorative image cannot load. */
+.page {
+  background-color: var(--color-cream);
+  background-image: url("/images/login-bookshelves.jpg");
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
